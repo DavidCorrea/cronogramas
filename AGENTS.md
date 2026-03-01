@@ -31,6 +31,14 @@
 
 # Database
 - All migrations should require in the filename a general idea of what the migration is doing.
+- **Migrations must be created with drizzle-kit, not by hand.** Do not create or edit migration `.sql` files or `src/db/migrations/meta/_journal.json` manually (except when following a documented one-off recovery step). Follow this workflow:
+  1. **Change the schema** in `src/db/schema.ts` (add/remove/alter tables or columns).
+  2. **Generate the migration**: run `npm run db:generate` (or `npx drizzle-kit generate`). Use a descriptive name when prompted (e.g. `add_schedule_date_start_end_time_utc`). This will:
+     - Create a new `.sql` file under `src/db/migrations/` with the correct statements.
+     - Update `src/db/migrations/meta/_journal.json` with the new entry.
+     - Add a new snapshot under `src/db/migrations/meta/` for the next diff.
+  3. **Apply the migration**: run `npm run db:migrate` (or rely on build, which runs migrate). This applies pending migrations and records them in `drizzle.__drizzle_migrations`.
+- If a schema change cannot be expressed by editing `schema.ts` alone (e.g. data backfill, or a one-off fix), document the reason and the manual steps in `PROJECT.md` or a script in `scripts/`, and still run `db:generate` after any schema change so snapshots stay in sync.
 
 # Git
 - All commits must only include related changes (e.g. related to the same feature or task being tackled)

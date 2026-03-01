@@ -9,6 +9,8 @@ import {
   formatDayMonth,
   formatDateRange,
   getDayOfWeek,
+  utcTimeToLocalDisplay,
+  localTimeToUtc,
 } from "@/lib/timezone-utils";
 
 interface ScheduleEntry {
@@ -27,6 +29,8 @@ interface ScheduleDateInfo {
   type: "assignable" | "for_everyone";
   label: string | null;
   note: string | null;
+  startTimeUtc: string;
+  endTimeUtc: string;
   recurringEventId?: number | null;
   recurringEventLabel?: string | null;
   entries: ScheduleEntry[];
@@ -164,8 +168,6 @@ export default function SchedulePreviewPage() {
   const [scheduleDays, setScheduleDays] = useState<ScheduleDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [editingNote, setEditingNote] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState("");
 
   const [showPastDates, setShowPastDates] = useState(false);
 
@@ -193,6 +195,13 @@ export default function SchedulePreviewPage() {
   const [rebuildPreview, setRebuildPreview] = useState<{ date: string; roleId: number; roleName: string; memberId: number; memberName: string }[] | null>(null);
   const [rebuildRemovedCount, setRebuildRemovedCount] = useState(0);
   const [rebuildLoading, setRebuildLoading] = useState(false);
+
+  // Edit schedule date modal (time, note, delete)
+  const [editDateModal, setEditDateModal] = useState<ScheduleDateInfo | null>(null);
+  const [editDateStartUtc, setEditDateStartUtc] = useState("00:00");
+  const [editDateEndUtc, setEditDateEndUtc] = useState("23:59");
+  const [editDateNote, setEditDateNote] = useState("");
+  const [editDateSaving, setEditDateSaving] = useState(false);
 
   // Audit log
   const [logOpen, setLogOpen] = useState(false);
@@ -414,6 +423,54 @@ export default function SchedulePreviewPage() {
     if (res.ok) fetchData();
   };
 
+  const openEditDateModal = (sd: ScheduleDateInfo) => {
+    setEditDateModal(sd);
+    setEditDateStartUtc(utcTimeToLocalDisplay(sd.startTimeUtc ?? "00:00"));
+    setEditDateEndUtc(utcTimeToLocalDisplay(sd.endTimeUtc ?? "23:59"));
+    setEditDateNote(sd.note ?? "");
+  };
+
+  const closeEditDateModal = () => {
+    setEditDateModal(null);
+  };
+
+  const handleSaveEditDate = async () => {
+    if (!editDateModal) return;
+    setEditDateSaving(true);
+    const res = await fetch(`/api/schedules/${params.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update_date",
+        date: editDateModal.date,
+        startTimeUtc: localTimeToUtc(editDateStartUtc),
+        endTimeUtc: localTimeToUtc(editDateEndUtc),
+        note: editDateNote.trim() || null,
+      }),
+    });
+    setEditDateSaving(false);
+    if (res.ok) {
+      closeEditDateModal();
+      fetchData();
+    } else {
+      const data = await res.json();
+      alert(data.error || "Error al guardar");
+    }
+  };
+
+  const handleDeleteFromEditModal = async () => {
+    if (!editDateModal || !confirm("¿Eliminar esta fecha y todas sus asignaciones?")) return;
+    const res = await fetch(`/api/schedules/${params.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "remove_date", date: editDateModal.date }),
+    });
+    if (res.ok) {
+      closeEditDateModal();
+      fetchData();
+    }
+  };
+
   const handleRebuildPreview = async (mode: "overwrite" | "fill_empty") => {
     setRebuildMode(mode);
     setRebuildLoading(true);
@@ -492,29 +549,6 @@ export default function SchedulePreviewPage() {
       : allWeekNumbers;
     setCollapsedWeeks(new Set(toCollapse));
   }, [schedule?.id, visibleDatesByWeek, todayISO]);
-
-  const startEditNote = (date: string) => {
-    const existing = schedule?.scheduleDates.find((sd) => sd.date === date);
-    setNoteText(existing?.note ?? "");
-    setEditingNote(date);
-  };
-
-  const saveNote = async (date: string) => {
-    if (noteText.trim()) {
-      await fetch(`/api/schedules/${params.id}/notes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, description: noteText.trim() }),
-      });
-    } else {
-      await fetch(`/api/schedules/${params.id}/notes?date=${date}`, {
-        method: "DELETE",
-      });
-    }
-    setEditingNote(null);
-    setNoteText("");
-    fetchData();
-  };
 
   if (groupLoading || loading || !schedule) {
     return <p className="text-sm text-muted-foreground">Cargando...</p>;
@@ -830,53 +864,16 @@ export default function SchedulePreviewPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    {editingNote === date ? (
-                      <div className="flex gap-2 items-center">
-                        <input
-                          type="text"
-                          value={noteText}
-                          onChange={(e) => setNoteText(e.target.value)}
-                          className="w-32 rounded-md border border-border bg-transparent px-3 py-1.5 text-xs"
-                          placeholder="Agregar nota..."
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") saveNote(date);
-                            if (e.key === "Escape") setEditingNote(null);
-                          }}
-                        />
-                        <button
-                          onClick={() => saveNote(date)}
-                          className="text-xs text-accent px-2 py-1.5 hover:opacity-80 transition-opacity"
-                        >
-                          Guardar
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        {note ? (
-                          <span
-                            className="text-xs text-accent cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => startEditNote(date)}
-                          >
-                            {note}
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => startEditNote(date)}
-                            className="text-xs text-muted-foreground hover:text-accent transition-colors"
-                          >
-                            + nota
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleRemoveDate(date)}
-                          className="text-xs text-destructive hover:opacity-80"
-                          title="Eliminar fecha"
-                        >
-                          Eliminar
-                        </button>
-                      </>
-                    )}
+                    {note ? (
+                      <span className="text-xs text-muted-foreground">{note}</span>
+                    ) : null}
+                    <button
+                      onClick={() => scheduleDateMap.get(date) && openEditDateModal(scheduleDateMap.get(date)!)}
+                      className="text-xs text-accent hover:opacity-80"
+                      title="Editar fecha"
+                    >
+                      Editar
+                    </button>
                   </div>
                 </div>
               </div>
@@ -988,46 +985,9 @@ export default function SchedulePreviewPage() {
                         </div>
                       )}
                     </div>
-                    {editingNote === date ? (
-                      <div className="mt-1.5 flex gap-1">
-                        <input
-                          type="text"
-                          value={noteText}
-                          onChange={(e) => setNoteText(e.target.value)}
-                          className="flex-1 rounded-md border border-border bg-transparent px-2 py-1 text-xs"
-                          placeholder="Agregar nota..."
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") saveNote(date);
-                            if (e.key === "Escape") setEditingNote(null);
-                          }}
-                        />
-                        <button
-                          onClick={() => saveNote(date)}
-                          className="text-xs text-accent hover:opacity-80 transition-opacity"
-                        >
-                          Guardar
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="mt-0.5">
-                        {note ? (
-                          <span
-                            className="text-xs text-accent cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => startEditNote(date)}
-                          >
-                            {note}
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => startEditNote(date)}
-                            className="text-xs text-muted-foreground hover:text-accent transition-colors"
-                          >
-                            + nota
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    {note ? (
+                      <div className="mt-0.5 text-xs text-muted-foreground">{note}</div>
+                    ) : null}
                   </td>
                   {isRehearsal ? (
                     <td
@@ -1056,11 +1016,11 @@ export default function SchedulePreviewPage() {
                   )}
                   <td className="px-4 py-3 text-sm">
                     <button
-                      onClick={() => handleRemoveDate(date)}
-                      className="text-xs text-destructive hover:opacity-80"
-                      title="Eliminar fecha"
+                      onClick={() => scheduleDateMap.get(date) && openEditDateModal(scheduleDateMap.get(date)!)}
+                      className="text-xs text-accent hover:opacity-80"
+                      title="Editar fecha"
                     >
-                      Eliminar
+                      Editar
                     </button>
                   </td>
                 </tr>
@@ -1257,6 +1217,79 @@ export default function SchedulePreviewPage() {
                   {rebuildLoading ? "Aplicando..." : "Aplicar"}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit schedule date modal */}
+      {editDateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-background border border-border rounded-lg shadow-lg max-w-md w-full">
+            <div className="px-6 py-4 border-b border-border">
+              <h2 className="font-[family-name:var(--font-display)] text-lg uppercase">
+                Editar fecha
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {formatDateWeekdayDay(editDateModal.date)}
+              </p>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Hora inicio</label>
+                  <input
+                    type="time"
+                    value={editDateStartUtc}
+                    onChange={(e) => setEditDateStartUtc(e.target.value)}
+                    className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
+                  />
+                  <p className="text-xs text-muted-foreground mt-0.5">Tu zona horaria</p>
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Hora fin</label>
+                  <input
+                    type="time"
+                    value={editDateEndUtc}
+                    onChange={(e) => setEditDateEndUtc(e.target.value)}
+                    className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
+                  />
+                  <p className="text-xs text-muted-foreground mt-0.5">Tu zona horaria</p>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Nota</label>
+                <input
+                  type="text"
+                  value={editDateNote}
+                  onChange={(e) => setEditDateNote(e.target.value)}
+                  placeholder="Opcional"
+                  className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-border flex flex-wrap items-center justify-between gap-3">
+              <button
+                onClick={handleDeleteFromEditModal}
+                className="text-sm text-destructive hover:opacity-80"
+              >
+                Eliminar fecha
+              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={closeEditDateModal}
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:border-foreground transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveEditDate}
+                  disabled={editDateSaving}
+                  className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {editDateSaving ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

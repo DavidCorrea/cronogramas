@@ -83,6 +83,8 @@ export async function GET(
       type: scheduleDate.type,
       label: scheduleDate.label,
       note: scheduleDate.note,
+      startTimeUtc: scheduleDate.startTimeUtc,
+      endTimeUtc: scheduleDate.endTimeUtc,
       recurringEventId: scheduleDate.recurringEventId,
       recurringEventLabel: recurringEvents.label,
     })
@@ -150,6 +152,8 @@ export async function GET(
       type: String(sd.type).toLowerCase() === "for_everyone" ? "for_everyone" : "assignable",
       label: sd.label,
       note: sd.note,
+      startTimeUtc: sd.startTimeUtc ?? "00:00",
+      endTimeUtc: sd.endTimeUtc ?? "23:59",
       recurringEventId: sd.recurringEventId ?? null,
       recurringEventLabel: sd.recurringEventLabel ?? null,
       entries: enrichedEntries.filter((e) => e.scheduleDateId === sd.id),
@@ -675,11 +679,62 @@ export async function PUT(
       type,
       label,
       note: null,
+      startTimeUtc: "00:00",
+      endTimeUtc: "23:59",
       recurringEventId: null,
     });
 
     const typeLabel = type === "assignable" ? "Asignación" : (label ?? "Actividad");
     await logScheduleAction(scheduleId, authResult.user.id, "add_date", `Fecha agregada: ${dateStr} (${typeLabel})`);
+
+    return NextResponse.json({ success: true });
+  }
+
+  // Update a schedule date (time and/or note)
+  if (body.action === "update_date" && body.date) {
+    const dateStr = body.date as string;
+    const startTimeUtc = body.startTimeUtc as string | undefined;
+    const endTimeUtc = body.endTimeUtc as string | undefined;
+    const note = body.note as string | undefined;
+
+    const sd = (await db
+      .select()
+      .from(scheduleDate)
+      .where(
+        and(
+          eq(scheduleDate.scheduleId, scheduleId),
+          eq(scheduleDate.date, dateStr)
+        )
+      ))[0];
+
+    if (!sd) {
+      return NextResponse.json(
+        { error: "Fecha no encontrada en el cronograma" },
+        { status: 404 }
+      );
+    }
+
+    const updates: Partial<{ startTimeUtc: string; endTimeUtc: string; note: string | null }> = {};
+    if (startTimeUtc !== undefined) {
+      if (!/^\d{2}:\d{2}$/.test(startTimeUtc)) {
+        return NextResponse.json({ error: "startTimeUtc debe ser HH:MM" }, { status: 400 });
+      }
+      updates.startTimeUtc = startTimeUtc;
+    }
+    if (endTimeUtc !== undefined) {
+      if (!/^\d{2}:\d{2}$/.test(endTimeUtc)) {
+        return NextResponse.json({ error: "endTimeUtc debe ser HH:MM" }, { status: 400 });
+      }
+      updates.endTimeUtc = endTimeUtc;
+    }
+    if (note !== undefined) {
+      updates.note = note === "" || note == null ? null : String(note).trim();
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await db.update(scheduleDate).set(updates).where(eq(scheduleDate.id, sd.id));
+      await logScheduleAction(scheduleId, authResult.user.id, "date_updated", `Fecha actualizada: ${dateStr}`);
+    }
 
     return NextResponse.json({ success: true });
   }

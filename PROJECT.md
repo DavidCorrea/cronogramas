@@ -25,11 +25,39 @@
 - `npm run db:migrate` — Apply pending migrations
 - `npm run db:studio` — Open Drizzle Studio to inspect the database
 
+### Migrations (Drizzle)
+Migrations are managed with **drizzle-kit**. Do not create or edit migration `.sql` files or `meta/_journal.json` by hand; use the generate step so that `drizzle-kit migrate` works reliably.
+
+**Creating a migration**
+1. Edit the schema in `src/db/schema.ts` (add/change/remove tables or columns).
+2. Run **`npm run db:generate`** (or `npx drizzle-kit generate`). When prompted for a name, use a short descriptive slug (e.g. `add_schedule_date_start_end_time_utc`). This will:
+   - Create a new `.sql` file under `src/db/migrations/` with the correct DDL.
+   - Update `src/db/migrations/meta/_journal.json` with the new migration entry.
+   - Add a new snapshot in `src/db/migrations/meta/` so the next generate can diff against it.
+3. Run **`npm run db:migrate`** to apply pending migrations (or let the build run it). Migrations are recorded in `drizzle.__drizzle_migrations` by hash.
+
+**Applying migrations**
+- Locally: `npm run db:migrate` (requires `DATABASE_URL` in `.env` or `.env.local`).
+- On deploy: `npm run build` runs `drizzle-kit migrate` then `next build`, so migrations run automatically if `DATABASE_URL` is set in the environment.
+
+**If migrate doesn’t apply some migrations** (e.g. build failed mid-migrate, or DB was restored from backup): apply the missing schema manually using the idempotent scripts in `scripts/` (e.g. `apply-migration-0015.sql`), then run `node scripts/record-migrations-0012-0014.mjs` once so future migrate runs skip those by hash. See “If not all migrations ran” under Deployments (Vercel) below.
+
+**One-time fix: missing snapshots for 0012–0015**  
+Migrations 0012–0015 were added by hand, so `meta/` has no snapshot for them (only 0000–0006). That makes `db:generate` diff against 0006 and produce a huge migration. To fix it once:
+
+1. **Get the DB and migrate table in sync**  
+   - Apply the missing schema: run `scripts/apply-missing-migrations-0012-0014.sql` and `scripts/apply-migration-0015.sql` in your SQL editor (Neon, etc.) if the DB doesn’t have 0012–0015 yet.  
+   - Run `node scripts/record-migrations-0012-0014.mjs` so `drizzle.__drizzle_migrations` has 16 rows (0000–0015). Now `npm run db:migrate` will do nothing, as expected.
+
+2. **Create the 0015 snapshot so generate works**  
+   - Run `npm run db:generate -- --name=baseline_0015`. When drizzle-kit asks “create or rename” for any table, choose **create table** (first option) for each.  
+   - Run `node scripts/baseline-migration-snapshot.mjs`. It copies the new snapshot to `0015_snapshot.json`, removes the generated migration file and its journal entry, so the journal stays at 0000–0015 with a matching 0015 snapshot.
+
+After this, `db:generate` will diff against 0015 and future migrations will be small and correct.
+
 ### Deployments (Vercel)
 - **Migrations** run during build: `npm run build` runs `drizzle-kit migrate` then `next build`. The app uses `DATABASE_URL` from the environment (no `.env.local` on Vercel), so set **DATABASE_URL** in Vercel → Project → Settings → Environment Variables for Production (and Preview if you want migrations on preview deploys).
-- **If not all migrations ran** (e.g. build failed during migrate, or production DB was restored from an older backup), you have two options:
-  1. **Apply schema manually (recommended):** In Neon SQL editor, run the script `scripts/apply-missing-migrations-0012-0014.sql`. It applies 0012, 0013, 0014 and is idempotent (safe to run more than once). After that, the schema is correct; you do not need to run `db:migrate` for those three.
-  2. **Record 0012–0014 so migrate skips them:** If `npm run db:migrate` never completes or never marks 0012–0014 as applied, run once (after applying the schema with option 1): `DATABASE_URL='<production URL>' node scripts/record-migrations-0012-0014.mjs`. That inserts the three migration hashes into `drizzle.__drizzle_migrations` so future `db:migrate` runs (and Vercel builds) will skip them and apply only 0015+. `DATABASE_URL='<production connection string>' npm run db:migrate`. If the command prints NOTICEs but no success message and the schema still doesn’t change, the DB’s `drizzle.__drizzle_migrations` table likely already lists those migrations (so Drizzle skips them). Use option 1 in that case.
+- **If not all migrations ran** (e.g. build failed during migrate, or production DB was restored from backup): (1) Apply the missing schema in Neon SQL editor using the idempotent scripts in `scripts/` (e.g. `apply-missing-migrations-0012-0014.sql`, `apply-migration-0015.sql`). (2) If `drizzle-kit migrate` never marks those as applied, run once: `node scripts/record-migrations-0012-0014.mjs` so future migrate runs skip them by hash.
 
 ## User Authentication
 - **Google OAuth** via Auth.js v5 with JWT session strategy
@@ -108,7 +136,8 @@
 - **Generation**: For each date in the month on active weekdays, one `schedule_date` row is created with type and label from the recurring event; only assignable dates run the scheduler and get `schedule_date_assignments`. Member availability is by weekday (`member_availability.weekday_id`).
 - **Add date**: Add a single date to a schedule with type "assignable" or "for_everyone" and optional label (for for_everyone). No separate "extra" or "rehearsal" tables
 - **Remove date**: Delete a `schedule_date` row (assignments cascade). Single action for any date
-- **Notes**: Edit note on the schedule date (inline or modal); saved to `schedule_date.note` via `/api/schedules/[id]/notes`
+- **Notes**: Edit note on the schedule date in the Editar modal; saved to `schedule_date.note` via update_date or notes API.
+- **Schedule date times**: Start/end time are persisted in UTC in `schedule_date.start_time_utc` and `end_time_utc`. The schedule edit view (Editar modal) and any other UIs show and edit times in the user's local timezone; conversion to/from UTC happens on load and save. Users do not see or need to know about UTC.
 - Preview in grid, manual swap/edit, dependent role selection, date notes
 - **Rebuild from today**: Regenerate assignments from today onwards in two modes — "Overwrite" (replaces all future entries) or "Fill empty" (keeps existing assignments, only fills vacant slots). Shows a full preview of proposed assignments before applying
 - **Audit log**: Tracks all schedule mutations (created, published, bulk updates, rebuilds, add/remove date, note changes) with who made the change and when. Bulk updates and rebuilds store structured JSON diffs with individual assignment changes. Displayed in a collapsible "Historial de cambios" section at the bottom of the schedule edit view.

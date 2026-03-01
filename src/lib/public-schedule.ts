@@ -81,10 +81,10 @@ export async function buildPublicScheduleResponse(schedule: {
       type: scheduleDate.type,
       label: scheduleDate.label,
       note: scheduleDate.note,
+      startTimeUtc: scheduleDate.startTimeUtc,
+      endTimeUtc: scheduleDate.endTimeUtc,
       recurringEventId: scheduleDate.recurringEventId,
       recurringEventLabel: recurringEvents.label,
-      recurringEventStartTimeUtc: recurringEvents.startTimeUtc,
-      recurringEventEndTimeUtc: recurringEvents.endTimeUtc,
     })
     .from(scheduleDate)
     .leftJoin(recurringEvents, eq(scheduleDate.recurringEventId, recurringEvents.id))
@@ -147,10 +147,10 @@ export async function buildPublicScheduleResponse(schedule: {
       type: String(sd.type).toLowerCase() === "for_everyone" ? "for_everyone" : "assignable",
       label: sd.label,
       note: sd.note,
+      startTimeUtc: sd.startTimeUtc ?? "00:00",
+      endTimeUtc: sd.endTimeUtc ?? "23:59",
       recurringEventId: sd.recurringEventId ?? null,
       recurringEventLabel: sd.recurringEventLabel ?? null,
-      recurringEventStartTimeUtc: sd.recurringEventStartTimeUtc ?? null,
-      recurringEventEndTimeUtc: sd.recurringEventEndTimeUtc ?? null,
     })),
     dependentRoleIds,
     roles: allRoles,

@@ -165,6 +165,8 @@ export const scheduleDate = pgTable(
     type: text("type").notNull(), // "assignable" | "for_everyone"
     label: text("label"),
     note: text("note"),
+    startTimeUtc: text("start_time_utc").notNull().default("00:00"),
+    endTimeUtc: text("end_time_utc").notNull().default("23:59"),
     recurringEventId: integer("recurring_event_id").references(() => recurringEvents.id, {
       onDelete: "set null",
     }),

@@ -33,8 +33,12 @@ export interface ScheduleDateInfo {
   recurringEventId?: number | null;
   /** Current label from the linked recurring event (when recurringEventId is set). */
   recurringEventLabel?: string | null;
-  /** Event time window from the linked recurring event (UTC HH:MM). */
+  /** Event time window: from schedule date (or linked recurring event). UTC HH:MM. */
+  startTimeUtc?: string | null;
+  endTimeUtc?: string | null;
+  /** @deprecated Use startTimeUtc/endTimeUtc from schedule date instead. */
   recurringEventStartTimeUtc?: string | null;
+  /** @deprecated Use startTimeUtc/endTimeUtc from schedule date instead. */
   recurringEventEndTimeUtc?: string | null;
 }
 
@@ -224,14 +228,17 @@ export default function SharedScheduleView({
   /** Format recurring event time range in local time (e.g. "14:00 – 16:00"). Returns null if no times. */
   const getDateDisplayTimeRange = (date: string): string | null => {
     const d = scheduleDateMap.get(date);
-    if (!d?.recurringEventStartTimeUtc || !d?.recurringEventEndTimeUtc) return null;
+    if (!d) return null;
+    const startUtc = d.startTimeUtc ?? d.recurringEventStartTimeUtc;
+    const endUtc = d.endTimeUtc ?? d.recurringEventEndTimeUtc;
+    if (!startUtc || !endUtc) return null;
     const parseHHMM = (s: string) => {
       const parts = s.split(":").map(Number);
       return [parts[0] ?? 0, parts[1] ?? 0];
     };
     const [y, mo, day] = date.split("-").map(Number);
-    const [sh, sm] = parseHHMM(d.recurringEventStartTimeUtc);
-    const [eh, em] = parseHHMM(d.recurringEventEndTimeUtc);
+    const [sh, sm] = parseHHMM(startUtc);
+    const [eh, em] = parseHHMM(endUtc);
     const startDate = new Date(Date.UTC(y, mo - 1, day, sh, sm, 0));
     const endDate = new Date(Date.UTC(y, mo - 1, day, eh, em, 0));
     const start = startDate.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: false });

@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     const dateIds = new Map<string, number>();
     for (const date of dates) {
       const dayName = getDayNameFromDateString(date);
-      const info = recurringTypeByDay[dayName] ?? { type: "assignable", label: "Evento", recurringEventId: undefined };
+      const info = recurringTypeByDay[dayName] ?? { type: "assignable", label: "Evento", recurringEventId: undefined, startTimeUtc: "00:00", endTimeUtc: "23:59" };
       const type = String(info.type).toLowerCase() === "for_everyone" ? "for_everyone" : "assignable";
       const label = info.label ?? null;
       const [inserted] = await db
@@ -111,6 +111,8 @@ export async function POST(request: NextRequest) {
           type,
           label,
           note: null,
+          startTimeUtc: info.startTimeUtc ?? "00:00",
+          endTimeUtc: info.endTimeUtc ?? "23:59",
           recurringEventId: info.recurringEventId ?? null,
         })
         .returning({ id: scheduleDate.id });

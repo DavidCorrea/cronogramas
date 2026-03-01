@@ -1,8 +1,8 @@
 /**
- * Records migrations 0012–0014 in drizzle.__drizzle_migrations so that
+ * Records migrations 0012–0015 in drizzle.__drizzle_migrations so that
  * drizzle-kit migrate no longer tries to run them (e.g. when migrate hangs
  * or doesn't complete). Run after applying the schema with
- * scripts/apply-missing-migrations-0012-0014.sql.
+ * scripts/apply-missing-migrations-0012-0014.sql and scripts/apply-migration-0015.sql.
  *
  * Usage: DATABASE_URL='postgresql://...' node scripts/record-migrations-0012-0014.mjs
  */
@@ -24,6 +24,7 @@ const tags = [
   "0012_recurring_events_start_end_time_utc",
   "0013_recurring_events_label_required",
   "0014_schedule_date_recurring_event_id",
+  "0015_schedule_date_start_end_time_utc",
 ];
 
 const entries = tags.map((tag) => {
@@ -49,7 +50,7 @@ async function main() {
     await sql`INSERT INTO drizzle.__drizzle_migrations (hash, created_at) VALUES (${hash}, ${created_at})`;
     inserted++;
   }
-  console.log(`Recorded ${inserted} migration(s) (0012–0014) in drizzle.__drizzle_migrations`);
+  console.log(`Recorded ${inserted} migration(s) (0012–0015) in drizzle.__drizzle_migrations`);
   await sql.end();
 }
 

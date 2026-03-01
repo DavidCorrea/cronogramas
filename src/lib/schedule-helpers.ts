@@ -19,8 +19,8 @@ import { logScheduleAction } from "./audit-log";
 
 export interface ScheduleConfig {
   activeDayNames: string[];
-  /** Weekday name -> { type, label, recurringEventId } for schedule_date creation */
-  recurringTypeByDay: Record<string, { type: string; label: string; recurringEventId?: number }>;
+  /** Weekday name -> { type, label, recurringEventId, startTimeUtc, endTimeUtc } for schedule_date creation */
+  recurringTypeByDay: Record<string, { type: string; label: string; recurringEventId?: number; startTimeUtc: string; endTimeUtc: string }>;
   roleDefinitions: RoleDefinition[];
   allRoles: typeof roles.$inferSelect[];
   memberInfos: MemberInfo[];
@@ -67,7 +67,7 @@ export async function loadScheduleConfig(groupId: number): Promise<ScheduleConfi
     }
   }
 
-  const recurringTypeByDay: Record<string, { type: string; label: string; recurringEventId: number }> = {};
+  const recurringTypeByDay: Record<string, { type: string; label: string; recurringEventId: number; startTimeUtc: string; endTimeUtc: string }> = {};
   const activeDayNames: string[] = [];
 
   for (const w of weekdayRows) {
@@ -82,6 +82,8 @@ export async function loadScheduleConfig(groupId: number): Promise<ScheduleConfi
         type,
         label: row.label ?? "Evento",
         recurringEventId: row.id,
+        startTimeUtc: row.startTimeUtc ?? "00:00",
+        endTimeUtc: row.endTimeUtc ?? "23:59",
       };
     }
   }
