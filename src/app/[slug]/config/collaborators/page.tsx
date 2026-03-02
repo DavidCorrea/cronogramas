@@ -121,7 +121,7 @@ export default function CollaboratorsPage() {
           Colaboradores
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Gestiona quién puede administrar este grupo. Los colaboradores tienen acceso completo.
+          Gestiona quién puede administrar este grupo. Solo los miembros del grupo pueden ser colaboradores; tienen acceso completo.
         </p>
       </div>
 
