@@ -1,6 +1,12 @@
 # Project Overview
 - Found in `PROJECT.md`.
 
+# Codebase context (where to look)
+- **API structure** — `docs/API.md`: route index by domain (Auth, Admin, Groups, Members, Schedules, Configuration, Cronograma, User, Holidays), auth rules, and which files to edit for new or changed endpoints.
+- **Client structure** — `docs/CLIENT.md`: route map (pages by path), layouts and nav, key components, shared lib used by the UI, and where to add or change screens.
+- **Database** — `docs/DATABASE.md`: schema location (`src/db/schema.ts`), table groups and relations, migration workflow, and where to look for schema or migration changes.
+- **Keep these docs in sync:** When adding or changing API routes, pages/components, or schema/migrations, update the corresponding doc (`docs/API.md`, `docs/CLIENT.md`, or `docs/DATABASE.md`) so the route index, route map, or table list stays accurate.
+
 # Build and test commands
 - Found in `PROJECT.md`.
 
