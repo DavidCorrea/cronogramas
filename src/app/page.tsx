@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { formatDateLong, formatDateShort } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
-import { debugLoadingDelay } from "@/lib/debug-loading-delay";
 
 interface Group {
   id: number;
@@ -72,7 +71,6 @@ export default function HomePage() {
     ]);
     setGroups(await groupsRes.json());
     setDashboard(await dashboardRes.json());
-    await debugLoadingDelay();
     setLoading(false);
   }, []);
 

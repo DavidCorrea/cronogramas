@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import LoadingScreen from "@/components/LoadingScreen";
-import { debugLoadingDelay } from "@/lib/debug-loading-delay";
 
 interface UserRow {
   id: string;
@@ -35,7 +34,6 @@ export default function AdminPage() {
       return;
     }
     setUsers(await res.json());
-    await debugLoadingDelay();
     setLoading(false);
   }, [router]);
 

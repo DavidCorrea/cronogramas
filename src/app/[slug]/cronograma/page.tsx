@@ -6,7 +6,6 @@ import SharedScheduleView, {
   SharedScheduleData,
 } from "@/components/SharedScheduleView";
 import LoadingScreen from "@/components/LoadingScreen";
-import { debugLoadingDelay } from "@/lib/debug-loading-delay";
 
 export default function CronogramaPage() {
   const params = useParams();
@@ -27,7 +26,6 @@ export default function CronogramaPage() {
     } catch {
       setError(true);
     }
-    await debugLoadingDelay();
     setLoading(false);
   }, [slug]);
 

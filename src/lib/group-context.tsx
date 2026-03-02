@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useParams } from "next/navigation";
-import { debugLoadingDelay } from "@/lib/debug-loading-delay";
 
 interface GroupContextValue {
   groupId: number | null;
@@ -47,7 +46,6 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       } catch {
         setError(true);
       }
-      await debugLoadingDelay();
       setLoading(false);
     }
     if (slug) resolve();
