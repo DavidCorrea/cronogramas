@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { formatDateRangeWithYear } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
 
@@ -16,6 +17,7 @@ interface Holiday {
 
 export default function SettingsPage() {
   const { data: session } = useSession();
+  const t = useTranslations("settings");
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +44,7 @@ export default function SettingsPage() {
     setError("");
 
     if (!startDate || !endDate) {
-      setError("Las fechas son obligatorias");
+      setError(t("datesRequired"));
       return;
     }
 
@@ -58,7 +60,7 @@ export default function SettingsPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error || "Error al crear la fecha");
+      setError(data.error || t("errorCreateDate"));
       return;
     }
 
@@ -81,10 +83,10 @@ export default function SettingsPage() {
         {/* Header */}
         <div className="mb-12">
           <h1 className="font-[family-name:var(--font-display)] text-4xl sm:text-5xl uppercase">
-            Ajustes
+            {t("title")}
           </h1>
           <p className="mt-3 text-muted-foreground">
-            Configura tu perfil y fechas de ausencia.
+            {t("subtitle")}
           </p>
         </div>
 
@@ -92,7 +94,7 @@ export default function SettingsPage() {
         {session?.user && (
           <div className="mb-12 border-t border-border pt-8">
             <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
-              Perfil
+              {t("profile")}
             </h2>
             <div className="flex items-center gap-4">
               {session.user.image && (
@@ -114,7 +116,7 @@ export default function SettingsPage() {
                   href="/admin"
                   className="rounded-md border border-border px-4 py-2 text-sm hover:border-foreground transition-colors"
                 >
-                  Panel de administración
+                  {t("adminPanel")}
                 </Link>
               </div>
             )}
@@ -124,17 +126,17 @@ export default function SettingsPage() {
         {/* Holidays section */}
         <div className="border-t border-border pt-8">
           <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
-            Fechas de ausencia
+            {t("absenceDates")}
           </h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Estas fechas aplican a todos los grupos en los que participas. No se te asignará en estos días.
+            {t("absenceDatesHelp")}
           </p>
 
           <form onSubmit={handleAddHoliday} className="space-y-4 mb-8">
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="block text-sm text-muted-foreground mb-1.5">
-                  Desde
+                  {t("from")}
                 </label>
                 <input
                   type="date"
@@ -146,7 +148,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="block text-sm text-muted-foreground mb-1.5">
-                  Hasta
+                  {t("until")}
                 </label>
                 <input
                   type="date"
@@ -158,14 +160,14 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="block text-sm text-muted-foreground mb-1.5">
-                  Descripción
+                  {t("description")}
                 </label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-                  placeholder="Opcional"
+                  placeholder={t("optional")}
                 />
               </div>
             </div>
@@ -176,12 +178,12 @@ export default function SettingsPage() {
               type="submit"
               className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
             >
-              Agregar
+              {t("add")}
             </button>
           </form>
 
           {loading ? (
-            <LoadingScreen message="Cargando..." fullPage={false} />
+            <LoadingScreen fullPage={false} />
           ) : holidays.length === 0 ? null : (
             <div className="divide-y divide-border">
               {holidays.map((h) => (
@@ -200,7 +202,7 @@ export default function SettingsPage() {
                     onClick={() => handleDeleteHoliday(h.id)}
                     className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:border-destructive transition-colors"
                   >
-                    Eliminar
+                    {t("delete")}
                   </button>
                 </div>
               ))}

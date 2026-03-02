@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import { useUnsavedConfig } from "@/lib/unsaved-config-context";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -27,6 +28,9 @@ export default function NewRolePage() {
   const params = useParams();
   const slug = params.slug as string;
   const router = useRouter();
+  const t = useTranslations("roles");
+  const tCommon = useTranslations("common");
+  const tConfigNav = useTranslations("configNav");
   const { groupId, loading: groupLoading } = useGroup();
   const { setDirty } = useUnsavedConfig();
   const [roleName, setRoleName] = useState("");
@@ -100,7 +104,7 @@ export default function NewRolePage() {
 
     if (!roleRes.ok) {
       const data = await roleRes.json();
-      setFormError(data.error || "Error al guardar el rol");
+      setFormError(data.error || t("errorSave"));
       return;
     }
 
@@ -117,7 +121,7 @@ export default function NewRolePage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        setFormError(data.error || "Error al asignar personas al rol");
+        setFormError(data.error || t("errorAssign"));
         return;
       }
     }
@@ -127,17 +131,17 @@ export default function NewRolePage() {
   };
 
   if (groupLoading || loading) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   return (
     <div className="space-y-12">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
-          Agregar rol
+          {t("addRoleTitle")}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Crea un nuevo rol para el grupo y configura sus opciones.
+          {t("addRoleSubtitle")}
         </p>
       </div>
 
@@ -145,21 +149,21 @@ export default function NewRolePage() {
         <form onSubmit={handleSubmit} className="space-y-5 max-w-md">
           <div>
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Nombre del rol
+              {t("roleNameLabel")}
             </label>
             <input
               type="text"
               value={roleName}
               onChange={(e) => setRoleName(e.target.value)}
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-              placeholder="ej. Saxofón"
+              placeholder={t("roleNamePlaceholder")}
               required
             />
           </div>
 
           <div>
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Máximo
+              {t("maxLabel")}
             </label>
             <select
               value={requiredCount}
@@ -181,12 +185,12 @@ export default function NewRolePage() {
               onChange={(e) => setIsRelevant(e.target.checked)}
               className="rounded border-border w-4 h-4"
             />
-            <span className="text-sm text-muted-foreground">Resaltar</span>
+            <span className="text-sm text-muted-foreground">{t("highlight")}</span>
           </label>
 
           <div>
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Depende de
+              {t("dependsOn")}
             </label>
             <select
               value={dependsOnRoleId ?? ""}
@@ -197,7 +201,7 @@ export default function NewRolePage() {
               }
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:border-foreground"
             >
-              <option value="">Ninguno</option>
+              <option value="">{t("none")}</option>
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
@@ -208,7 +212,7 @@ export default function NewRolePage() {
 
           <div>
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Grupo exclusivo
+              {t("exclusiveGroup")}
             </label>
             <select
               value={exclusiveGroupId ?? ""}
@@ -219,7 +223,7 @@ export default function NewRolePage() {
               }
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:border-foreground"
             >
-              <option value="">Ninguno</option>
+              <option value="">{t("none")}</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -230,11 +234,11 @@ export default function NewRolePage() {
 
           <div>
             <h3 className="text-sm font-medium text-foreground mb-2">
-              Asignar personas a este rol
+              {t("assignPeople")}
             </h3>
             {members.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No hay miembros en el grupo.
+                {t("noMembersInGroup")}
               </p>
             ) : (
               <>
@@ -256,7 +260,7 @@ export default function NewRolePage() {
                           }
                           className="text-muted-foreground hover:text-foreground text-xs"
                         >
-                          Quitar
+                          {t("remove")}
                         </button>
                       </li>
                     ) : null;
@@ -264,13 +268,13 @@ export default function NewRolePage() {
                 </ul>
                 {memberIdsToAssign.length === 0 && (
                   <p className="text-sm text-muted-foreground mb-3">
-                    Ninguna persona asignada aún.
+                    {t("noOneAssigned")}
                   </p>
                 )}
                 {members.some((m) => !memberIdsToAssign.includes(m.id)) && (
                   <div>
                     <label className="sr-only" htmlFor="assign-member-new">
-                      Asignar persona al rol
+                      {t("assignPersonLabel")}
                     </label>
                     <select
                       id="assign-member-new"
@@ -286,7 +290,7 @@ export default function NewRolePage() {
                       }}
                       className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:border-foreground"
                     >
-                      <option value="">Seleccionar persona…</option>
+                      <option value="">{t("selectPerson")}</option>
                       {members
                         .filter((m) => !memberIdsToAssign.includes(m.id))
                         .map((m) => (
@@ -311,42 +315,37 @@ export default function NewRolePage() {
               disabled={!roleName.trim()}
               className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Agregar rol
+              {t("addRoleButton")}
             </button>
             <Link
               href={`/${slug}/config/roles`}
               onClick={(e) => {
                 if (
                   dirty &&
-                  !window.confirm(
-                    "Hay cambios sin guardar. ¿Salir de todas formas?"
-                  )
+                  !window.confirm(tConfigNav("unsavedConfirm"))
                 ) {
                   e.preventDefault();
                 }
               }}
               className="rounded-md border border-border px-5 py-2.5 text-sm hover:border-foreground transition-colors inline-block"
             >
-              Cancelar
+              {tCommon("cancel")}
             </Link>
           </div>
         </form>
 
         <div className="border border-border rounded-md p-5 text-sm text-muted-foreground space-y-2 w-full mt-8">
           <p>
-            <span className="font-medium text-foreground">Depende de:</span>{" "}
-            El rol no se asigna automáticamente. Al generar el cronograma, se
-            elige manualmente entre los miembros asignados al rol del que depende.
+            <span className="font-medium text-foreground">{t("dependsOn")}:</span>{" "}
+            {t("helpDependsOn")}
           </p>
           <p>
-            <span className="font-medium text-foreground">Grupo exclusivo:</span>{" "}
-            Dos roles del mismo grupo no pueden asignarse a la misma persona en
-            la misma fecha.
+            <span className="font-medium text-foreground">{t("exclusiveGroup")}:</span>{" "}
+            {t("helpExclusiveGroup")}
           </p>
           <p>
-            <span className="font-medium text-foreground">Resaltar:</span>{" "}
-            Las fechas donde un miembro tiene un rol con Resaltar se resaltan en la
-            vista compartida al filtrar por esa persona.
+            <span className="font-medium text-foreground">{t("highlight")}:</span>{" "}
+            {t("helpHighlight")}
           </p>
         </div>
       </section>

@@ -2,6 +2,7 @@
 
 /* eslint-disable react-hooks/preserve-manual-memoization -- Dependencies are derived arrays (e.g. .filter()); compiler flags them as potentially mutable but they are not. */
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import {
   formatDateLong,
   formatDateWeekdayDay,
@@ -147,7 +148,11 @@ function getWeekDateRange(year: number, month: number, weekNumber: number): { st
  * Get a friendly relative label in Spanish for the distance between today and a target date.
  * Uses user's local date for today and target.
  */
-function getRelativeLabel(targetStr: string, todayStr: string): string {
+function getRelativeLabel(
+  targetStr: string,
+  todayStr: string,
+  t: (key: string, values?: { n?: number }) => string
+): string {
   const [ty, tm, td] = todayStr.split("-").map(Number);
   const [dy, dm, dd] = targetStr.split("-").map(Number);
   const todayDate = new Date(ty, tm - 1, td);
@@ -155,13 +160,13 @@ function getRelativeLabel(targetStr: string, todayStr: string): string {
   const diffMs = targetDate.getTime() - todayDate.getTime();
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays <= 0) return "Hoy";
-  if (diffDays === 1) return "Mañana";
-  if (diffDays === 2) return "Pasado mañana";
-  if (diffDays <= 6) return `En ${diffDays} días`;
-  if (diffDays <= 13) return "La próxima semana";
+  if (diffDays <= 0) return t("today");
+  if (diffDays === 1) return t("tomorrow");
+  if (diffDays === 2) return t("dayAfterTomorrow");
+  if (diffDays <= 6) return t("inDays", { n: diffDays });
+  if (diffDays <= 13) return t("nextWeek");
   const weeks = Math.floor(diffDays / 7);
-  return `En ${weeks} semanas`;
+  return t("inWeeks", { n: weeks });
 }
 
 /**
@@ -182,6 +187,7 @@ export default function SharedScheduleView({
   schedule: SharedScheduleData;
   basePath?: string;
 }) {
+  const t = useTranslations("cronograma");
   const [filteredMemberId, setFilteredMemberId] = useState<number | null>(null);
   const [filteredRoleId, setFilteredRoleId] = useState<number | null>(null);
   const [today, setToday] = useState("");
@@ -230,7 +236,7 @@ export default function SharedScheduleView({
   const getDateDisplayLabel = (sd: ScheduleDateInfo): string => {
     const label = sd.recurringEventLabel ?? sd.label ?? null;
     if (label) return label;
-    return sd.type === "for_everyone" ? "Ensayo" : "Evento";
+    return sd.type === "for_everyone" ? t("defaultRehearsalLabel") : t("defaultEventLabel");
   };
 
   /** Format event time range in local time (e.g. "14:00 – 16:00"). Returns null if no times. */
@@ -545,7 +551,7 @@ export default function SharedScheduleView({
               </svg>
               {(() => {
                 const count = [filteredMemberId, filteredRoleId, dayFilter, showPastDates].filter(Boolean).length;
-                return count > 0 ? `Filtros (${count})` : "Filtros";
+                return count > 0 ? `${t("filters")} (${count})` : t("filters");
               })()}
               <svg className={`w-3.5 h-3.5 transition-transform ${mobileFiltersOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -563,7 +569,7 @@ export default function SharedScheduleView({
                 }
                 className="rounded-md border border-border bg-transparent px-3.5 py-2 text-sm"
               >
-                <option value="">Todas las personas</option>
+                <option value="">{t("allPeople")}</option>
                 {schedule.members.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -579,7 +585,7 @@ export default function SharedScheduleView({
                 }
                 className="rounded-md border border-border bg-transparent px-3.5 py-2 text-sm"
               >
-                <option value="">Todos los roles</option>
+                <option value="">{t("allRoles")}</option>
                 {roleOrder.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -593,7 +599,7 @@ export default function SharedScheduleView({
                     onChange={(e) => setDayFilter(e.target.value)}
                     className="rounded-md border border-border bg-transparent px-3.5 py-2 text-sm"
                   >
-                    <option value="">Todos los días</option>
+                    <option value="">{t("allDays")}</option>
                     {availableWeekdays.map((day) => (
                       <option key={day} value={day}>
                         {day.charAt(0).toUpperCase() + day.slice(1)}
@@ -607,7 +613,7 @@ export default function SharedScheduleView({
                       onChange={(e) => setShowPastDates(e.target.checked)}
                       className="rounded border-border"
                     />
-                    <span className="text-muted-foreground">Mostrar fechas pasadas</span>
+                    <span className="text-muted-foreground">{t("showPastDates")}</span>
                   </label>
                 </>
               )}
@@ -623,7 +629,7 @@ export default function SharedScheduleView({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Lista
+                {t("list")}
               </button>
               <button
                 onClick={() => { setViewMode("calendar"); setDayFilter(""); setShowPastDates(false); }}
@@ -633,7 +639,7 @@ export default function SharedScheduleView({
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Calendario
+                {t("calendar")}
               </button>
             </div>
           </div>
@@ -650,7 +656,7 @@ export default function SharedScheduleView({
                 }
                 className="w-full rounded-md border border-border bg-transparent px-3.5 py-2 text-sm"
               >
-                <option value="">Todas las personas</option>
+                <option value="">{t("allPeople")}</option>
                 {schedule.members.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -666,7 +672,7 @@ export default function SharedScheduleView({
                 }
                 className="w-full rounded-md border border-border bg-transparent px-3.5 py-2 text-sm"
               >
-                <option value="">Todos los roles</option>
+                <option value="">{t("allRoles")}</option>
                 {roleOrder.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -680,7 +686,7 @@ export default function SharedScheduleView({
                     onChange={(e) => setDayFilter(e.target.value)}
                     className="w-full rounded-md border border-border bg-transparent px-3.5 py-2 text-sm"
                   >
-                    <option value="">Todos los días</option>
+                    <option value="">{t("allDays")}</option>
                     {availableWeekdays.map((day) => (
                       <option key={day} value={day}>
                         {day.charAt(0).toUpperCase() + day.slice(1)}
@@ -694,7 +700,7 @@ export default function SharedScheduleView({
                       onChange={(e) => setShowPastDates(e.target.checked)}
                       className="rounded border-border"
                     />
-                    <span className="text-muted-foreground">Mostrar fechas pasadas</span>
+                    <span className="text-muted-foreground">{t("showPastDates")}</span>
                   </label>
                 </>
               )}
@@ -708,24 +714,22 @@ export default function SharedScheduleView({
         {filteredMemberId && selectedMember && (
           <div className="mb-8 border border-foreground/20 rounded-md p-5 lg:hidden">
             <h2 className="text-lg font-medium">
-              Agenda de {selectedMember.name}
+              {t("agendaOf", { name: selectedMember.name })}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
               {assignedDateCount}{" "}
-              {assignedDateCount === 1
-                ? "fecha asignada"
-                : "fechas asignadas"}
+              {assignedDateCount === 1 ? t("dateAssigned") : t("datesAssigned")}
             </p>
             {upcomingDate && (
               <div className="mt-4 pt-4 border-t border-border/50">
                 <h3 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">
-                  Próxima asignación
+                  {t("nextAssignment")}
                 </h3>
                 <p className="font-medium">
                   {formatDateLong(upcomingDate)}
                   {today && (
                     <span className="ml-2 text-sm text-muted-foreground font-normal">
-                      — {getRelativeLabel(upcomingDate, today)}
+                      — {getRelativeLabel(upcomingDate, today, t)}
                     </span>
                   )}
                 </p>
@@ -752,26 +756,24 @@ export default function SharedScheduleView({
           <div className="hidden lg:block">
             <div className="mb-8 border-b border-border pb-6">
               <h2 className="text-lg font-medium">
-                Agenda de {selectedMember.name}
+                {t("agendaOf", { name: selectedMember.name })}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {assignedDateCount}{" "}
-                {assignedDateCount === 1
-                  ? "fecha asignada"
-                  : "fechas asignadas"}
+                {assignedDateCount === 1 ? t("dateAssigned") : t("datesAssigned")}
               </p>
             </div>
             {upcomingDate && (
               <div className="mb-8 border border-foreground/20 rounded-md p-5">
                 <h3 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
-                  Próxima asignación
+                  {t("nextAssignment")}
                 </h3>
                 <div className="flex items-center justify-between gap-1">
                   <span className="font-medium">
                     {formatDateLong(upcomingDate)}
                     {today && (
                       <span className="ml-2 text-sm text-muted-foreground font-normal">
-                        — {getRelativeLabel(upcomingDate, today)}
+                        — {getRelativeLabel(upcomingDate, today, t)}
                       </span>
                     )}
                   </span>
@@ -811,7 +813,7 @@ export default function SharedScheduleView({
                       aria-expanded={!isCollapsed}
                     >
                       <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        Semana {weekNumber}
+                        {t("week")} {weekNumber}
                         <span className="normal-case font-normal tracking-normal text-muted-foreground/90">
                           {" · "}
                           {formatDateRange(
@@ -899,7 +901,7 @@ export default function SharedScheduleView({
                   aria-expanded={!isCollapsed}
                 >
                   <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                    Semana {weekNumber}
+                    {t("week")} {weekNumber}
                     <span className="normal-case font-normal tracking-normal text-muted-foreground/90">
                       {" · "}
                       {formatDateRange(
@@ -1019,7 +1021,7 @@ export default function SharedScheduleView({
           return (
             <div className="max-w-md mx-auto mb-10">
               <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-4">
-                Calendario
+                {t("calendar")}
               </h2>
               <div className="grid grid-cols-7 gap-1 mb-1">
                 {calDayHeaders.map((d) => (
@@ -1099,7 +1101,7 @@ export default function SharedScheduleView({
                     aria-expanded={!isCollapsed}
                   >
                           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                            Semana {weekNumber}
+                            {t("week")} {weekNumber}
                             <span className="normal-case font-normal tracking-normal text-muted-foreground/90">
                               {" · "}
                               {formatDateRange(
@@ -1117,10 +1119,10 @@ export default function SharedScheduleView({
                       <thead>
                         <tr className="border-b border-border">
                           <th className="px-4 py-4 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                            Fecha
+                            {t("date")}
                           </th>
                           <th className="px-4 py-4 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                            Rol
+                            {t("role")}
                           </th>
                         </tr>
                       </thead>
@@ -1218,7 +1220,7 @@ export default function SharedScheduleView({
                           aria-expanded={!isCollapsed}
                         >
                           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                            Semana {weekNumber}
+                            {t("week")} {weekNumber}
                             <span className="normal-case font-normal tracking-normal text-muted-foreground/90">
                               {" · "}
                               {formatDateRange(
@@ -1236,7 +1238,7 @@ export default function SharedScheduleView({
                             <thead>
                               <tr className="border-b border-border">
                                 <th className="px-4 py-4 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                                  Fecha
+                                  {t("date")}
                                 </th>
                                 {visibleRoles.map((role) => (
                                   <th
@@ -1317,7 +1319,7 @@ export default function SharedScheduleView({
                                               <span className="font-medium text-xs">
                                                 {roleEntries[0].memberName}
                                                 {hasConflict(date, roleEntries[0].memberId) && (
-                                                  <span className="text-amber-500 ml-0.5" title="Conflicto con vacaciones">⚠</span>
+                                                  <span className="text-amber-500 ml-0.5" title={t("conflictWithHolidays")}>⚠</span>
                                                 )}
                                               </span>
                                             ) : (
@@ -1329,7 +1331,7 @@ export default function SharedScheduleView({
                                                       {i > 0 && <span className="text-muted-foreground">, </span>}
                                                       {e.memberName}
                                                       {hasConflict(date, e.memberId) && (
-                                                        <span className="text-amber-500 shrink-0" title="Conflicto con vacaciones">⚠</span>
+                                                        <span className="text-amber-500 shrink-0" title={t("conflictWithHolidays")}>⚠</span>
                                                       )}
                                                     </span>
                                                   ))}
@@ -1360,8 +1362,8 @@ export default function SharedScheduleView({
               {filteredMemberId
                 ? "Este miembro no tiene asignaciones este mes."
                 : hasActiveFilter
-                  ? "No se encontraron asignaciones con los filtros seleccionados."
-                  : "No se encontraron entradas."}
+                  ? t("noAssignmentsFilter")
+                  : t("noEntries")}
             </p>
           </div>
         )}
@@ -1401,7 +1403,7 @@ export default function SharedScheduleView({
                 .map((roleId) => ({
                   roleId,
                   role: (schedule.roles ?? []).find((r) => r.id === roleId),
-                  name: roleOrder.find((r) => r.id === roleId)?.name ?? "Rol",
+                  name: roleOrder.find((r) => r.id === roleId)?.name ?? t("role"),
                 }))
                 .sort((a, b) => {
                   const aRelevant = a.role?.isRelevant ? 1 : 0;
@@ -1413,7 +1415,7 @@ export default function SharedScheduleView({
               const hasContent = label || timeRange || rolesSorted.length > 0 || note;
 
               if (!hasContent) {
-                return <p className="text-sm text-muted-foreground">No hay detalles</p>;
+                return <p className="text-sm text-muted-foreground">{t("noDetails")}</p>;
               }
 
               return (
@@ -1442,7 +1444,7 @@ export default function SharedScheduleView({
                                     <span className="flex items-center gap-1">
                                       {members[0].name}
                                       {members[0].hasConflict && (
-                                        <span className="text-amber-500 shrink-0" title="Conflicto con vacaciones">⚠</span>
+                                        <span className="text-amber-500 shrink-0" title={t("conflictWithHolidays")}>⚠</span>
                                       )}
                                     </span>
                                   ) : (
@@ -1454,7 +1456,7 @@ export default function SharedScheduleView({
                                             {i > 0 && ", "}
                                             {m.name}
                                             {m.hasConflict && (
-                                              <span className="text-amber-500 shrink-0" title="Conflicto con vacaciones">⚠</span>
+                                              <span className="text-amber-500 shrink-0" title={t("conflictWithHolidays")}>⚠</span>
                                             )}
                                           </span>
                                         ))}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 function generateSlug(value: string) {
   return value
@@ -15,6 +16,7 @@ function generateSlug(value: string) {
 
 export default function NewGroupPage() {
   const router = useRouter();
+  const t = useTranslations("newGroup");
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -43,7 +45,7 @@ export default function NewGroupPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error || "Error al crear el grupo");
+      setError(data.error || t("errorCreate"));
       setSubmitting(false);
       return;
     }
@@ -57,42 +59,42 @@ export default function NewGroupPage() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="mb-12">
           <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
-            Nuevo grupo
+            {t("title")}
           </h1>
           <p className="mt-3 text-muted-foreground">
-            Indica el nombre y la URL del grupo. El resto se configura después.
+            {t("subtitle")}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <section>
             <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
-              Información del grupo
+              {t("groupInfo")}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2 max-w-xl">
               <div>
                 <label className="block text-sm text-muted-foreground mb-1.5">
-                  Nombre *
+                  {t("nameLabel")}
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-                  placeholder="Nombre del grupo"
+                  placeholder={t("namePlaceholder")}
                   required
                 />
               </div>
               <div>
                 <label className="block text-sm text-muted-foreground mb-1.5">
-                  Slug (URL) *
+                  {t("slugLabel")}
                 </label>
                 <input
                   type="text"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                   className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-                  placeholder="slug-del-grupo"
+                  placeholder={t("slugPlaceholder")}
                   required
                 />
               </div>
@@ -107,13 +109,13 @@ export default function NewGroupPage() {
               disabled={submitting || !name.trim() || !slug.trim()}
               className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {submitting ? "Creando..." : "Crear grupo"}
+              {submitting ? t("creating") : t("create")}
             </button>
             <Link
               href="/"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              Cancelar
+              {t("cancel")}
             </Link>
           </div>
         </form>

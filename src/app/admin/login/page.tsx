@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const t = useTranslations("admin");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,7 +25,7 @@ export default function AdminLoginPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error || "Error de autenticación");
+      setError(data.error || t("authError"));
       setLoading(false);
       return;
     }
@@ -37,30 +39,30 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm space-y-8 text-center">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase tracking-tight">
-            Administración
+            {t("loginTitle")}
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Ingresa las credenciales de administrador para la configuración inicial.
+            {t("loginSubtitle")}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <div>
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Usuario
+              {t("username")}
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-              placeholder="admin"
+              placeholder={t("usernamePlaceholder")}
               required
             />
           </div>
           <div>
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Contraseña
+              {t("password")}
             </label>
             <input
               type="password"
@@ -78,12 +80,12 @@ export default function AdminLoginPage() {
             disabled={loading}
             className="w-full rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {loading ? "Verificando..." : "Ingresar"}
+            {loading ? t("verifying") : t("enter")}
           </button>
         </form>
 
         <p className="text-xs text-muted-foreground/50">
-          Este acceso solo funciona cuando no existen usuarios administradores en el sistema.
+          {t("bootstrapNote")}
         </p>
       </div>
     </div>

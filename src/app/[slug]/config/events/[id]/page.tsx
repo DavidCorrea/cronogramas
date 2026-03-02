@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import EventForm from "../EventForm";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -40,6 +42,7 @@ export default function EditEventPage() {
   const params = useParams();
   const slug = params.slug as string;
   const id = params.id as string;
+  const t = useTranslations("events");
   const eventId = parseInt(id, 10);
   const { groupId, loading: groupLoading } = useGroup();
   const [event, setEvent] = useState<EventData | null>(null);
@@ -79,24 +82,24 @@ export default function EditEventPage() {
   }, [groupId, eventId, fetchData]);
 
   if (groupLoading || loading) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   if (notFound || !event) {
     return (
       <div className="space-y-4">
         <h1 className="font-[family-name:var(--font-display)] text-2xl uppercase">
-          Evento no encontrado
+          {t("eventNotFound")}
         </h1>
         <p className="text-muted-foreground">
-          El evento que buscas no existe o no tienes acceso.
+          {t("eventNotFoundDesc")}
         </p>
-        <a
+        <Link
           href={`/${slug}/config/events`}
           className="text-sm text-accent hover:opacity-80"
         >
-          Volver a eventos
-        </a>
+          {t("backToEvents")}
+        </Link>
       </div>
     );
   }

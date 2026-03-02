@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import LoadingScreen from "@/components/LoadingScreen";
 
 interface UserRow {
@@ -20,6 +21,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const t = useTranslations("admin");
 
   const fetchUsers = useCallback(async () => {
     const res = await fetch("/api/admin/users");
@@ -29,13 +31,13 @@ export default function AdminPage() {
       return;
     }
     if (!res.ok) {
-      setError("Error al cargar usuarios");
+      setError(t("errorLoadUsers"));
       setLoading(false);
       return;
     }
     setUsers(await res.json());
     setLoading(false);
-  }, [router]);
+  }, [router, t]);
 
   useEffect(() => {
     // Wait for session to load, then check access
@@ -56,13 +58,13 @@ export default function AdminPage() {
   };
 
   const deleteUser = async (userId: string, userName: string | null) => {
-    if (!confirm(`¿Estás seguro de que deseas eliminar a ${userName ?? "este usuario"}?`)) return;
+    if (!confirm(t("confirmDeleteUser", { name: userName ?? "este usuario" }))) return;
     await fetch(`/api/admin/users?id=${userId}`, { method: "DELETE" });
     fetchUsers();
   };
 
   if (loading) {
-    return <LoadingScreen message="Cargando..." fullPage />;
+    return <LoadingScreen fullPage />;
   }
 
   if (error) {
@@ -79,23 +81,23 @@ export default function AdminPage() {
         {/* Header */}
         <div className="mb-12">
           <h1 className="font-[family-name:var(--font-display)] text-4xl sm:text-5xl uppercase">
-            Administración
+            {t("title")}
           </h1>
           <p className="mt-3 text-muted-foreground">
-            Gestiona usuarios y permisos de la plataforma.
+            {t("subtitle")}
           </p>
         </div>
 
         {/* Users list */}
         <div className="border-t border-border pt-8">
           <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
-            Usuarios ({users.length})
+            {t("usersCount", { n: users.length })}
           </h2>
 
           {users.length === 0 ? (
             <div className="border-t border-dashed border-border py-10 text-center">
               <p className="text-sm text-muted-foreground">
-                No hay usuarios registrados.
+                {t("noUsers")}
               </p>
             </div>
           ) : (
@@ -114,7 +116,7 @@ export default function AdminPage() {
                         />
                       )}
                       <div className="min-w-0">
-                        <p className="font-medium truncate">{user.name ?? "Sin nombre"}</p>
+                        <p className="font-medium truncate">{user.name ?? t("noName")}</p>
                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                       </div>
                     </div>
@@ -128,7 +130,7 @@ export default function AdminPage() {
                           onChange={(e) => toggleFlag(user.id, "isAdmin", e.target.checked)}
                           className="h-4 w-4 rounded border-border accent-primary"
                         />
-                        <span className="text-sm">Admin</span>
+                        <span className="text-sm">{t("adminFlag")}</span>
                       </label>
 
                       <label className="flex items-center gap-2 cursor-pointer">
@@ -138,14 +140,14 @@ export default function AdminPage() {
                           onChange={(e) => toggleFlag(user.id, "canCreateGroups", e.target.checked)}
                           className="h-4 w-4 rounded border-border accent-primary"
                         />
-                        <span className="text-sm">Crear grupos</span>
+                        <span className="text-sm">{t("createGroupsFlag")}</span>
                       </label>
 
                       <button
                         onClick={() => deleteUser(user.id, user.name)}
                         className="rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:border-destructive transition-colors"
                       >
-                        Eliminar
+                        {t("delete")}
                       </button>
                     </div>
                   </div>
@@ -158,8 +160,8 @@ export default function AdminPage() {
         {/* Legend */}
         <div className="mt-8 border-t border-border pt-6">
           <p className="text-xs text-muted-foreground">
-            <strong>Admin</strong> — Acceso completo al panel de administración y gestión de usuarios.{" "}
-            <strong>Crear grupos</strong> — Permite al usuario crear nuevos grupos.
+            <strong>{t("adminFlag")}</strong> — {t("legendAdmin")}{" "}
+            <strong>{t("createGroupsFlag")}</strong> — {t("legendCreateGroups")}
           </p>
         </div>
       </div>

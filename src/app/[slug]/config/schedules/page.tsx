@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import { buildColumnOrderPayload } from "@/lib/column-order";
 import { useUnsavedConfig } from "@/lib/unsaved-config-context";
@@ -16,9 +17,17 @@ interface Role {
 function ColumnOrderEditor({
   orderedRoles,
   onOrderChange,
+  moveLeftLabel,
+  moveRightLabel,
+  moveUpLabel,
+  moveDownLabel,
 }: {
   orderedRoles: Role[];
   onOrderChange: (roles: Role[]) => void;
+  moveLeftLabel: string;
+  moveRightLabel: string;
+  moveUpLabel: string;
+  moveDownLabel: string;
 }) {
   const moveUp = (index: number) => {
     if (index === 0) return;
@@ -51,6 +60,8 @@ function ColumnOrderEditor({
             total={orderedRoles.length}
             onMoveLeft={() => moveUp(index)}
             onMoveRight={() => moveDown(index)}
+            moveLeftLabel={moveLeftLabel}
+            moveRightLabel={moveRightLabel}
           />
         ))}
       </div>
@@ -66,6 +77,8 @@ function ColumnOrderEditor({
                 total={orderedRoles.length}
                 onMoveUp={() => moveUp(index)}
                 onMoveDown={() => moveDown(index)}
+                moveUpLabel={moveUpLabel}
+                moveDownLabel={moveDownLabel}
               />
             ))}
           </tbody>
@@ -81,12 +94,16 @@ function OrderChip({
   total,
   onMoveLeft,
   onMoveRight,
+  moveLeftLabel,
+  moveRightLabel,
 }: {
   role: Role;
   index: number;
   total: number;
   onMoveLeft: () => void;
   onMoveRight: () => void;
+  moveLeftLabel: string;
+  moveRightLabel: string;
 }) {
   return (
     <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted/30 shrink-0">
@@ -94,7 +111,7 @@ function OrderChip({
         type="button"
         onClick={onMoveLeft}
         disabled={index === 0}
-        aria-label="Mover a la izquierda"
+        aria-label={moveLeftLabel}
         className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors rounded focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
       >
         ←
@@ -106,7 +123,7 @@ function OrderChip({
         type="button"
         onClick={onMoveRight}
         disabled={index === total - 1}
-        aria-label="Mover a la derecha"
+        aria-label={moveRightLabel}
         className="p-1.5 text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors rounded focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
       >
         →
@@ -121,12 +138,16 @@ function OrderRow({
   total,
   onMoveUp,
   onMoveDown,
+  moveUpLabel,
+  moveDownLabel,
 }: {
   role: Role;
   index: number;
   total: number;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  moveUpLabel: string;
+  moveDownLabel: string;
 }) {
   return (
     <tr className="border-b border-border hover:bg-muted/30 transition-colors text-sm">
@@ -139,7 +160,7 @@ function OrderRow({
             type="button"
             onClick={onMoveUp}
             disabled={index === 0}
-            aria-label="Subir"
+            aria-label={moveUpLabel}
             className="p-2 text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors rounded focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           >
             ↑
@@ -148,7 +169,7 @@ function OrderRow({
             type="button"
             onClick={onMoveDown}
             disabled={index === total - 1}
-            aria-label="Bajar"
+            aria-label={moveDownLabel}
             className="p-2 text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors rounded focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           >
             ↓
@@ -223,7 +244,10 @@ function getNextAvailableMonth(
 }
 
 export default function SchedulesPage() {
+  const t = useTranslations("schedules");
+  const tCommon = useTranslations("common");
   const { groupId, slug, loading: groupLoading } = useGroup();
+  const monthNames = (t as unknown as { raw: (k: string) => string[] }).raw("months") ?? MONTH_NAMES;
   const { setDirty } = useUnsavedConfig();
   const [schedulesList, setSchedulesList] = useState<Schedule[]>([]);
   const [, setRoles] = useState<Role[]>([]);
@@ -316,7 +340,7 @@ export default function SchedulesPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Error al generar cronograma");
+        alert(err.error || t("errorGenerate"));
         return;
       }
 
@@ -327,30 +351,30 @@ export default function SchedulesPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar este cronograma?")) return;
+    if (!confirm(t("confirmDelete"))) return;
     await fetch(`/api/schedules/${id}`, { method: "DELETE" });
     fetchData();
   };
 
   if (groupLoading || loading) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">Cronogramas</h1>
+        <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">{t("title")}</h1>
         <p className="mt-3 text-muted-foreground">
-          Genera nuevos cronogramas o consulta los existentes.
+          {t("subtitle")}
         </p>
       </div>
 
       <div className="border-t border-border pt-8">
         {/* Generate form */}
         <div>
-          <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-2">Generar cronograma</h2>
+          <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-2">{t("generate")}</h2>
           <p className="text-sm text-muted-foreground mb-5">
-            Selecciona un mes para generar el cronograma.
+            {t("generateHelp")}
           </p>
 
           {selectedMonths.length > 0 && (
@@ -362,7 +386,7 @@ export default function SchedulesPage() {
                 }
                 className="flex-1 sm:flex-none rounded-md border border-border bg-transparent px-3 py-2.5 text-sm min-h-[40px]"
               >
-                {MONTH_NAMES.map((name, i) => {
+                {monthNames.map((name, i) => {
                   const monthNum = i + 1;
                   const now = new Date();
                   const currentMonth = now.getMonth() + 1;
@@ -398,7 +422,7 @@ export default function SchedulesPage() {
                 disabled={generating}
                 className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {generating ? "Generando..." : "Generar"}
+                {generating ? t("generating") : t("generate")}
               </button>
             </div>
           )}
@@ -406,11 +430,11 @@ export default function SchedulesPage() {
 
         {/* Schedules list */}
         <div className="border-t border-border pt-8 mt-8">
-          <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">Cronogramas existentes</h2>
+          <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">{t("existing")}</h2>
           {schedulesList.length === 0 ? (
             <div className="border border-dashed border-border rounded-lg py-10 text-center">
               <p className="text-sm text-muted-foreground">
-                Aún no se han generado cronogramas.
+                {t("noSchedulesYet")}
               </p>
             </div>
           ) : (
@@ -425,7 +449,7 @@ export default function SchedulesPage() {
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">
-                        {MONTH_NAMES[schedule.month - 1]} {schedule.year}
+                        {monthNames[schedule.month - 1]} {schedule.year}
                       </span>
                       <span
                         className={`inline-block rounded-full border px-2.5 py-0.5 text-xs ${
@@ -435,9 +459,9 @@ export default function SchedulesPage() {
                         }`}
                       >
                         {schedule.status === "committed"
-                          ? "Visible"
+                          ? t("statusVisible")
                           : schedule.status === "draft"
-                            ? "Borrador"
+                            ? t("statusDraft")
                             : schedule.status}
                       </span>
                     </div>
@@ -446,21 +470,21 @@ export default function SchedulesPage() {
                         href={`/${slug}/config/schedules/${schedule.id}`}
                         className="flex-1 min-w-0 text-center rounded-md border border-border px-3.5 py-2 text-sm hover:border-foreground transition-colors"
                       >
-                        Editar
+                        {t("edit")}
                       </Link>
                       {schedule.status === "committed" && (
                         <Link
                           href={`/${slug}/cronograma/${schedule.year}/${schedule.month}`}
                           className="flex-1 min-w-0 text-center rounded-md border border-foreground px-3.5 py-2 text-sm font-medium hover:bg-foreground hover:text-background transition-colors"
                         >
-                          Ver
+                          {t("view")}
                         </Link>
                       )}
                       <button
                         onClick={() => handleDelete(schedule.id)}
                         className="flex-1 min-w-0 rounded-md border border-border px-3.5 py-2 text-sm text-destructive hover:border-destructive transition-colors"
                       >
-                        Eliminar
+                        {tCommon("delete")}
                       </button>
                     </div>
                   </div>
@@ -476,15 +500,19 @@ export default function SchedulesPage() {
         <section className="space-y-4">
           <div>
             <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-2">
-              Orden de columnas
+              {t("columnOrder")}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Configura el orden de visualización de las columnas de roles en todas las vistas de cronogramas.
+              {t("columnOrderHelp")}
             </p>
           </div>
           <ColumnOrderEditor
             orderedRoles={orderedRoles}
             onOrderChange={setOrderedRoles}
+            moveLeftLabel={t("moveLeft")}
+            moveRightLabel={t("moveRight")}
+            moveUpLabel={t("moveUp")}
+            moveDownLabel={t("moveDown")}
           />
           {orderDirty && (
             <button
@@ -492,7 +520,7 @@ export default function SchedulesPage() {
               onClick={handleSaveOrder}
               className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
             >
-              Guardar orden
+              {t("saveOrder")}
             </button>
           )}
         </section>

@@ -7,6 +7,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 - Schema: `src/db/schema.ts` — migrations: `src/db/migrations/` (generate with `db:generate`, never edit SQL/journal by hand).
 - API routes: `src/app/api/` — index and auth: **docs/API.md**.
 - Pages/components: `src/app/`, `src/components/` — route map and nav: **docs/CLIENT.md**.
+- Client-facing copy: **`messages/es.json`** — buttons, labels, headings, messages (Spanish). The app uses **next-intl**; in client components use **`useTranslations('namespace')`** and **`t('key')`** (or **`t('key', { n: value })`** for placeholders).
 - Lint: `eslint.config.mjs` — pre-commit: `.husky/pre-commit` (runs lint-staged).
 - Tests: `spec/` — Jest; describe real scenarios, no technical jargon.
 
@@ -51,7 +52,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 - **Event time window**: Assignable events can have `start_time_utc` and `end_time_utc` (HH:MM UTC). Scheduler only assigns members whose availability overlaps that window on that weekday. Config: start/end inputs on event edit form (UTC). Defaults 00:00–23:59.
 
 ## Stack and setup
-- Next.js 16 App Router, TypeScript, Tailwind CSS. Drizzle ORM + PostgreSQL (postgres-js, Neon). Auth.js v5 (next-auth) Google OAuth + Drizzle adapter. Jest + ts-jest (TDD).
+- Next.js 16 App Router, TypeScript, Tailwind CSS. **next-intl** for client-facing copy (single locale `es`, messages from `messages/es.json`). Drizzle ORM + PostgreSQL (postgres-js, Neon). Auth.js v5 (next-auth) Google OAuth + Drizzle adapter. Jest + ts-jest (TDD).
 - **Tables**: users, accounts, groups, group_collaborators, members, exclusive_groups, roles, member_roles, weekdays, recurring_events, member_availability, holidays, schedules, schedule_date, schedule_date_assignments, schedule_audit_log, event_role_priorities.
 
 ## User authentication
@@ -95,6 +96,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 
 ## Locale, seeds, env
 - UI in Spanish. App name **Cronogramas**.
+- **Copy:** Client-facing text in **`messages/es.json`**. The app uses **next-intl**: client components use `useTranslations('namespace')` and `t('key')` (or `t('key', { n: value })` for placeholders).
 - **Seeds**: weekdays (7 rows in migration). Recurring events per group on creation if no days (Wed/Fri/Sun, assignable). No default roles.
 - **Env**: `DATABASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXTAUTH_SECRET`, `AUTH_TRUST_HOST=true`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.
 
@@ -102,6 +104,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 
 # UI
 - Mobile-first. All user-facing text in **Spanish**.
+- **Copy:** Client-facing wordings live in **`messages/es.json`**. Use **next-intl**: `useTranslations('namespace')` and `t('key')` in components.
 
 # Code style
 - Clean code. No changes without Prompter confirmation; explain changes first.

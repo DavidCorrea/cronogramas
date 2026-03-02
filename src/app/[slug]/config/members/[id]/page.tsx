@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import { OptionToggleGroup } from "@/components/OptionToggleGroup";
 import AvailabilityWeekGrid from "@/components/AvailabilityWeekGrid";
@@ -47,6 +48,8 @@ export default function EditMemberPage() {
   const slug = params.slug as string;
   const id = params.id as string;
   const router = useRouter();
+  const t = useTranslations("members");
+  const tCommon = useTranslations("common");
   const { groupId, loading: groupLoading } = useGroup();
   const [member, setMember] = useState<Member | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -132,7 +135,7 @@ export default function EditMemberPage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        setFormError(data.error || "Error al vincular");
+        setFormError(data.error || t("errorLink"));
         return;
       }
       await fetchData();
@@ -178,7 +181,7 @@ export default function EditMemberPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      setFormError(data.error || "Error al guardar el miembro");
+      setFormError(data.error || t("errorSave"));
       return;
     }
 
@@ -186,29 +189,29 @@ export default function EditMemberPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("¿Estás seguro de que deseas eliminar este miembro?")) return;
+    if (!confirm(t("confirmDelete"))) return;
     const res = await fetch(`/api/members/${member!.id}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json();
-      setFormError(data.error || "Error al eliminar el miembro");
+      setFormError(data.error || t("errorDelete"));
       return;
     }
     router.push(`/${slug}/config/members`);
   };
 
   if (groupLoading || loading) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   if (notFound || !member) {
     return (
       <div className="space-y-6">
-        <p className="text-sm text-muted-foreground">Miembro no encontrado.</p>
+        <p className="text-sm text-muted-foreground">{t("memberNotFound")}</p>
         <Link
           href={`/${slug}/config/members`}
           className="text-sm text-primary hover:underline"
         >
-          Volver a Miembros
+          {t("backToMembers")}
         </Link>
       </div>
     );
@@ -218,10 +221,10 @@ export default function EditMemberPage() {
     <div className="space-y-12">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
-          Editar miembro
+          {t("editMemberTitle")}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Modifica los datos del miembro.
+          {t("editMemberSubtitle")}
         </p>
       </div>
 
@@ -229,35 +232,35 @@ export default function EditMemberPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="max-w-md">
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Nombre
+              {t("nameLabel")}
             </label>
             <input
               type="text"
               value={memberName}
               onChange={(e) => setMemberName(e.target.value)}
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-              placeholder="Nombre del miembro"
+              placeholder={t("namePlaceholder")}
               required
             />
           </div>
 
           <div className="max-w-md">
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Email <span className="text-muted-foreground/50">(opcional)</span>
+              {t("emailLabel")} <span className="text-muted-foreground/50">{t("emailOptional")}</span>
             </label>
             <input
               type="email"
               value={memberEmail}
               onChange={(e) => setMemberEmail(e.target.value)}
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-              placeholder="correo@ejemplo.com"
+              placeholder={t("emailPlaceholder")}
             />
           </div>
 
           {linkCheck?.canLink && "user" in linkCheck && (
             <div className="rounded-lg border border-border bg-muted/30 p-4">
               <p className="text-sm text-muted-foreground mb-2">
-                Este email coincide con una cuenta de Google que ya ha accedido a la app. Puedes vincular el miembro a esa cuenta.
+                {t("linkAccountNote")}
               </p>
               <button
                 type="button"
@@ -265,7 +268,7 @@ export default function EditMemberPage() {
                 disabled={linkLoading}
                 className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-foreground hover:bg-muted/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {linkLoading ? "Vinculando…" : "Vincular con cuenta de Google"}
+                {linkLoading ? t("linking") : t("linkWithGoogle")}
               </button>
             </div>
           )}
@@ -277,13 +280,13 @@ export default function EditMemberPage() {
               getLabel={(r) => r.name}
               isSelected={(r) => selectedRoles.includes(r.id)}
               onToggle={(r) => toggleRole(r.id)}
-              title="Roles"
+              title={t("rolesTitle")}
             />
           </div>
 
           <div>
             <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-2">
-              Días y horarios disponibles
+              {t("daysAndTimes")}
             </h2>
             <AvailabilityWeekGrid
               days={days}
@@ -303,20 +306,20 @@ export default function EditMemberPage() {
               disabled={!memberName.trim()}
               className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Actualizar
+              {t("update")}
             </button>
             <Link
               href={`/${slug}/config/members`}
               className="rounded-md border border-border px-5 py-2.5 text-sm hover:border-foreground transition-colors inline-block"
             >
-              Cancelar
+              {tCommon("cancel")}
             </Link>
             <button
               type="button"
               onClick={handleDelete}
               className="rounded-md border border-border px-5 py-2.5 text-sm text-destructive hover:border-destructive hover:bg-destructive/10 transition-colors"
             >
-              Eliminar
+              {tCommon("delete")}
             </button>
           </div>
         </form>

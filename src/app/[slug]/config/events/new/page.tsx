@@ -42,7 +42,7 @@ export default function NewEventPage() {
   }, [groupId, fetchData]);
 
   if (groupLoading || loading) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   return (

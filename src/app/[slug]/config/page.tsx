@@ -1,51 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import LoadingScreen from "@/components/LoadingScreen";
 
 export default function AdminHome() {
   const { slug, groupName, loading, error } = useGroup();
+  const tConfig = useTranslations("configHome");
+  const tNav = useTranslations("configNav");
 
-  if (loading) return <LoadingScreen message="Cargando..." fullPage={false} />;
-  if (error) return <p className="text-sm text-destructive">Grupo no encontrado</p>;
+  if (loading) return <LoadingScreen fullPage={false} />;
+  if (error) return <p className="text-sm text-destructive">{tNav("groupNotFound")}</p>;
 
   const cards = [
-    {
-      href: `/${slug}/config/members`,
-      label: "Miembros",
-      description: "Agrega y gestiona los miembros del grupo. Asigna roles y configura disponibilidad.",
-    },
-    {
-      href: `/${slug}/config/roles`,
-      label: "Roles",
-      description: "Define roles, cantidades requeridas y grupos exclusivos.",
-    },
-    {
-      href: `/${slug}/config/events`,
-      label: "Eventos",
-      description: "Configura días activos, ensayos, prioridades y orden de columnas.",
-    },
-    {
-      href: `/${slug}/config/holidays`,
-      label: "Vacaciones",
-      description: "Gestiona fechas de ausencia de los miembros del grupo.",
-    },
-    {
-      href: `/${slug}/config/collaborators`,
-      label: "Colaboradores",
-      description: "Gestiona quién puede administrar este grupo.",
-    },
-    {
-      href: `/${slug}/config/schedules`,
-      label: "Cronogramas",
-      description: "Genera, previsualiza y comparte los cronogramas del grupo.",
-    },
-    {
-      href: `/${slug}/cronograma`,
-      label: "Vista Pública",
-      description: "Ver el cronograma del mes actual como lo ven los miembros.",
-    },
+    { href: `/${slug}/config/members`, label: tConfig("membersCard"), description: tConfig("membersDesc") },
+    { href: `/${slug}/config/roles`, label: tConfig("rolesCard"), description: tConfig("rolesDesc") },
+    { href: `/${slug}/config/events`, label: tConfig("eventsCard"), description: tConfig("eventsDesc") },
+    { href: `/${slug}/config/holidays`, label: tConfig("holidaysCard"), description: tConfig("holidaysDesc") },
+    { href: `/${slug}/config/collaborators`, label: tConfig("collaboratorsCard"), description: tConfig("collaboratorsDesc") },
+    { href: `/${slug}/config/schedules`, label: tConfig("schedulesCard"), description: tConfig("schedulesDesc") },
+    { href: `/${slug}/cronograma`, label: tConfig("publicViewCard"), description: tConfig("publicViewDesc") },
   ];
 
   return (
@@ -55,7 +30,7 @@ export default function AdminHome() {
           {groupName}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Genera cronogramas rotacionales para tu grupo.
+          {tConfig("subtitle")}
         </p>
       </div>
 

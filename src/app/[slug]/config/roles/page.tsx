@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import LoadingScreen from "@/components/LoadingScreen";
 
@@ -29,6 +30,8 @@ interface ExclusiveGroup {
 export default function RolesPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const t = useTranslations("roles");
+  const tCommon = useTranslations("common");
   const { groupId, loading: groupLoading } = useGroup();
   const [roles, setRoles] = useState<Role[]>([]);
   const [groups, setGroups] = useState<ExclusiveGroup[]>([]);
@@ -83,9 +86,7 @@ export default function RolesPage() {
 
   const deleteGroup = async (group: ExclusiveGroup) => {
     if (
-      !confirm(
-        "¿Eliminar este grupo exclusivo? Los roles asociados perderán su grupo."
-      )
+      !confirm(t("confirmDeleteExclusive"))
     )
       return;
     if (!groupId) return;
@@ -99,18 +100,17 @@ export default function RolesPage() {
   };
 
   if (groupLoading || loading) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   return (
     <div className="space-y-12">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
-          Roles
+          {t("title")}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Define los roles necesarios para cada fecha de servicio, cuántas
-          personas se requieren y sus grupos exclusivos.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -118,14 +118,14 @@ export default function RolesPage() {
       <div className="border-t border-border pt-8">
         <section className="space-y-4">
           <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground">
-            Roles ({roles.length})
+            {t("count", { n: roles.length })}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <Link
               href={`/${slug}/config/roles/new`}
               className="rounded-lg border border-dashed border-border p-4 flex items-center justify-center h-20 text-sm font-medium text-muted-foreground hover:border-foreground hover:text-foreground transition-colors uppercase"
             >
-              Agregar rol
+              {t("addRole")}
             </Link>
             {roles.map((role) => (
               <Link
@@ -136,7 +136,7 @@ export default function RolesPage() {
                 <h3 className="font-medium truncate">{role.name}</h3>
                 <p className="text-xs text-muted-foreground">
                   {memberCountByRole[role.id] ?? 0}{" "}
-                  {memberCountByRole[role.id] === 1 ? "persona" : "personas"}
+                  {memberCountByRole[role.id] === 1 ? t("person") : t("people")}
                 </p>
               </Link>
             ))}
@@ -148,38 +148,37 @@ export default function RolesPage() {
       <div className="border-t border-border pt-8">
         <section className="space-y-4">
           <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground">
-            Grupos Exclusivos ({groups.length})
+            {t("exclusiveGroupsCount", { n: groups.length })}
           </h2>
 
           <p className="text-sm text-muted-foreground">
-            Dos roles del mismo grupo no pueden asignarse a la misma persona en
-            la misma fecha.
+            {t("exclusiveGroupsHelp")}
           </p>
 
           <form onSubmit={addGroup} className="flex flex-wrap items-end gap-3 mb-4">
             <div className="min-w-[200px]">
               <label className="block text-sm text-muted-foreground mb-1.5">
-                Nuevo grupo exclusivo
+                {t("newExclusiveGroup")}
               </label>
               <input
                 type="text"
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
                 className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-                placeholder="ej. Instrumento"
+                placeholder={t("newExclusivePlaceholder")}
               />
             </div>
             <button
               type="submit"
               className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
             >
-              Agregar
+              {tCommon("add")}
             </button>
           </form>
 
           {groups.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No hay grupos exclusivos configurados.
+              {t("noExclusiveGroups")}
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -194,7 +193,7 @@ export default function RolesPage() {
                     onClick={() => deleteGroup(group)}
                     className="rounded-md border border-border px-3 py-1.5 text-sm text-destructive hover:border-destructive transition-colors shrink-0"
                   >
-                    Eliminar
+                    {tCommon("delete")}
                   </button>
                 </div>
               ))}

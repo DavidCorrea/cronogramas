@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 const MIN_BLOCK_MINUTES = 30;
 const SNAP_MINUTES = 30; // snap to 30-min boundaries
@@ -102,6 +103,7 @@ export default function AvailabilityWeekGrid({
   onChange,
   gridHeight = 540,
 }: AvailabilityWeekGridProps) {
+  const t = useTranslations("members");
   const gridRef = useRef<HTMLDivElement>(null);
   const mobileStripRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const [dragState, setDragState] = useState<{
@@ -464,8 +466,8 @@ export default function AvailabilityWeekGrid({
                 tabIndex={0}
                 aria-label={
                   hasBlocks
-                    ? `${d.dayOfWeek} ${blocks.length} bloque(s)`
-                    : `Agregar disponibilidad ${d.dayOfWeek}`
+                    ? t("availabilityBlocksCount", { day: d.dayOfWeek, n: blocks.length })
+                    : t("addAvailabilityDay", { day: d.dayOfWeek })
                 }
               >
                 {/* Hour borders: only at full hours, behind grid so they don't show inside blocks */}
@@ -615,8 +617,8 @@ export default function AvailabilityWeekGrid({
                 tabIndex={0}
                 aria-label={
                   hasBlocks
-                    ? `${d.dayOfWeek} ${blocks.length} bloque(s)`
-                    : `Agregar disponibilidad ${d.dayOfWeek}`
+                    ? t("availabilityBlocksCount", { day: d.dayOfWeek, n: blocks.length })
+                    : t("addAvailabilityDay", { day: d.dayOfWeek })
                 }
               >
                 {/* 48 step cells: click target; no borders */}

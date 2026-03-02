@@ -4,6 +4,8 @@
 
 The app uses **Next.js App Router**, is **mobile-first**, and all user-facing copy is in **Spanish**. The main areas are: **root layout** (global nav, session) for `/`, `/login`, `/settings`, `/admin`, and group list; **config layout** (group-scoped nav, `GroupProvider`, unsaved-changes guard) for `/[slug]/config/*`; and the **public cronograma** at `/[slug]/cronograma` (and `/[slug]/cronograma/[year]/[month]`) for viewing schedules.
 
+**Copy / wordings:** All client-facing text lives in **`messages/es.json`** (next-intl). In client components use `useTranslations('namespace')` and then `t('key')` or `t('key', { n: value })` for placeholders. Namespaces match the top-level keys in the messages file (e.g. `nav`, `home`, `members`, `configNav`, `common`, `cronograma`).
+
 ## 2. Route map
 
 ### Global
@@ -95,3 +97,4 @@ Client-facing modules under `src/lib` used for data or behavior:
 - **To find where X is rendered** — Search for the component name or feature text: e.g. `SharedScheduleView` → cronograma pages; `AvailabilityWeekGrid` → member new/edit; `OptionToggleGroup` → member and event forms; nav labels ("Miembros", "Roles", etc.) → `src/app/[slug]/config/layout.tsx`.
 - **To change global nav or theme** — `src/components/AppNavBar.tsx` and `src/app/layout.tsx`.
 - **To change group config sub-nav** — `src/app/[slug]/config/layout.tsx` (GroupSubNav and `navLinks`).
+- **To change any client-facing wording** — Edit **`messages/es.json`**. In components use **next-intl**: `useTranslations('namespace')` and `t('key')` (or `t('key', { n: value })` for placeholders).

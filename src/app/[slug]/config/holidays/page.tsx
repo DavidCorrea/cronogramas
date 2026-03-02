@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useGroup } from "@/lib/group-context";
+import { useTranslations } from "next-intl";
 import { formatDateRangeWithYear } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
 
@@ -26,6 +27,8 @@ function formatDateRange(start: string, end: string): string {
 }
 
 export default function HolidaysPage() {
+  const t = useTranslations("holidays");
+  const tCommon = useTranslations("common");
   const { groupId, loading: groupLoading } = useGroup();
   const [holidays, setHolidays] = useState<HolidayEntry[]>([]);
   const [memberOptions, setMemberOptions] = useState<MemberOption[]>([]);
@@ -63,12 +66,12 @@ export default function HolidaysPage() {
     setError("");
 
     if (!memberId || !startDate || !endDate) {
-      setError("Todos los campos son obligatorios");
+      setError(t("allFieldsRequired"));
       return;
     }
 
     if (startDate > endDate) {
-      setError("La fecha de inicio debe ser anterior o igual a la fecha de fin");
+      setError(t("startBeforeEnd"));
       return;
     }
 
@@ -85,7 +88,7 @@ export default function HolidaysPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      setError(data.error || "Error al crear la fecha");
+      setError(data.error || t("errorCreate"));
       return;
     }
 
@@ -107,17 +110,17 @@ export default function HolidaysPage() {
   const memberHolidays = holidays.filter((h) => h.source === "member");
 
   if (groupLoading || loading) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   return (
     <div className="space-y-12">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
-          Vacaciones
+          {t("title")}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Gestiona fechas de ausencia de los miembros del grupo.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -125,16 +128,16 @@ export default function HolidaysPage() {
         {/* Add holiday form */}
         <div>
           <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-2">
-            Agregar ausencia
+            {t("addAbsence")}
           </h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Configura una fecha de ausencia para un miembro específico de este grupo.
+            {t("addAbsenceHelp")}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm text-muted-foreground mb-1.5">
-                Miembro
+                {t("memberLabel")}
               </label>
               <select
                 value={memberId}
@@ -144,7 +147,7 @@ export default function HolidaysPage() {
                 className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:border-foreground"
                 required
               >
-                <option value="">Seleccionar miembro...</option>
+                <option value="">{t("selectMember")}</option>
                 {memberOptions.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}
@@ -154,20 +157,20 @@ export default function HolidaysPage() {
             </div>
             <div>
               <label className="block text-sm text-muted-foreground mb-1.5">
-                Descripción
+                {tCommon("description")}
               </label>
               <input
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-                placeholder="Opcional"
+                placeholder={tCommon("optional")}
               />
             </div>
             <div className="grid gap-4 grid-cols-2">
               <div>
                 <label className="block text-sm text-muted-foreground mb-1.5">
-                  Desde
+                  {tCommon("from")}
                 </label>
                 <input
                   type="date"
@@ -179,7 +182,7 @@ export default function HolidaysPage() {
               </div>
               <div>
                 <label className="block text-sm text-muted-foreground mb-1.5">
-                  Hasta
+                  {tCommon("until")}
                 </label>
                 <input
                   type="date"
@@ -197,7 +200,7 @@ export default function HolidaysPage() {
               type="submit"
               className="w-full rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
             >
-              Agregar
+              {tCommon("add")}
             </button>
           </form>
         </div>
@@ -207,16 +210,16 @@ export default function HolidaysPage() {
           {/* Group holidays (admin-set) */}
           <div>
             <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-2">
-              Ausencias del grupo
+              {t("groupAbsences")}
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Fechas configuradas por los administradores para miembros de este grupo.
+              {t("groupAbsencesHelp")}
             </p>
 
             {memberHolidays.length === 0 ? (
               <div className="border-t border-dashed border-border py-10 text-center">
                 <p className="text-sm text-muted-foreground">
-                  No hay ausencias configuradas para este grupo.
+                  {t("noGroupAbsences")}
                 </p>
               </div>
             ) : (
@@ -241,7 +244,7 @@ export default function HolidaysPage() {
                       onClick={() => handleDelete(h.id)}
                       className="shrink-0 rounded-md border border-border px-3.5 py-2 text-sm text-destructive hover:border-destructive transition-colors"
                     >
-                      Eliminar
+                      {tCommon("delete")}
                     </button>
                   </div>
                 ))}
@@ -253,10 +256,10 @@ export default function HolidaysPage() {
           {userHolidays.length > 0 && (
             <div className="border-t border-border pt-8">
               <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-2">
-                Ausencias personales
+                {t("personalAbsences")}
               </h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Fechas configuradas por los propios miembros desde sus ajustes personales. Aplican a todos sus grupos.
+                {t("personalAbsencesHelp")}
               </p>
 
               <div className="divide-y divide-border">
@@ -265,7 +268,7 @@ export default function HolidaysPage() {
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium">{h.memberName}</p>
                       <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                        Personal
+                        {t("personal")}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground">

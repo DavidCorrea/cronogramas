@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { GroupProvider, useGroup } from "@/lib/group-context";
 import { UnsavedConfigProvider, useUnsavedConfig } from "@/lib/unsaved-config-context";
 import { isConfigFormPageWithUnsavedGuard } from "@/lib/config-nav-guard";
@@ -13,14 +14,16 @@ function GroupSubNav() {
   const router = useRouter();
   const { dirty: configDirty } = useUnsavedConfig();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const tNav = useTranslations("configNav");
+  const tGlobal = useTranslations("nav");
 
   const navLinks: { href: string; label: string; exact?: boolean }[] = [
-    { href: `/${slug}/config/members`, label: "Miembros" },
-    { href: `/${slug}/config/roles`, label: "Roles" },
-    { href: `/${slug}/config/events`, label: "Eventos" },
-    { href: `/${slug}/config/holidays`, label: "Vacaciones" },
-    { href: `/${slug}/config/collaborators`, label: "Colaboradores" },
-    { href: `/${slug}/config/schedules`, label: "Cronogramas" },
+    { href: `/${slug}/config/members`, label: tNav("members") },
+    { href: `/${slug}/config/roles`, label: tNav("roles") },
+    { href: `/${slug}/config/events`, label: tNav("events") },
+    { href: `/${slug}/config/holidays`, label: tNav("holidays") },
+    { href: `/${slug}/config/collaborators`, label: tNav("collaborators") },
+    { href: `/${slug}/config/schedules`, label: tNav("schedules") },
   ];
 
   const isActive = (href: string, exact?: boolean) => {
@@ -32,7 +35,7 @@ function GroupSubNav() {
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string): boolean => {
     if (isFormPageWithGuard && configDirty && href !== pathname) {
       e.preventDefault();
-      if (window.confirm("Hay cambios sin guardar. ¿Salir de todas formas?")) {
+      if (window.confirm(tNav("unsavedConfirm"))) {
         setMobileOpen(false);
         router.push(href);
         return true;
@@ -55,7 +58,7 @@ function GroupSubNav() {
       <nav className="border-b border-border">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-12 items-center">
-            <span className="text-destructive text-sm">Grupo no encontrado</span>
+            <span className="text-destructive text-sm">{tNav("groupNotFound")}</span>
           </div>
         </div>
       </nav>
@@ -101,7 +104,7 @@ function GroupSubNav() {
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="md:hidden p-2.5 text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Menú de sección"
+            aria-label={tGlobal("sectionMenu")}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {mobileOpen ? (

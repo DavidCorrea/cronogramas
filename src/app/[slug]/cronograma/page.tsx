@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import SharedScheduleView, {
   SharedScheduleData,
 } from "@/components/SharedScheduleView";
@@ -10,6 +11,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 export default function CronogramaPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const t = useTranslations("cronograma");
   const [schedule, setSchedule] = useState<SharedScheduleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -34,16 +36,16 @@ export default function CronogramaPage() {
   }, [fetchSchedule]);
 
   if (loading) {
-    return <LoadingScreen message="Cargando agenda..." fullPage />;
+    return <LoadingScreen fullPage />;
   }
 
   if (error || !schedule) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Agenda no encontrada</h1>
+          <h1 className="text-2xl font-bold">{t("agendaNotFound")}</h1>
           <p className="mt-2 text-muted-foreground">
-            No hay una agenda creada para el mes actual.
+            {t("noAgendaThisMonth")}
           </p>
         </div>
       </div>

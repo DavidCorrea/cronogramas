@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { formatDateLong } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
 
@@ -32,37 +33,40 @@ interface DashboardData {
   conflicts: Conflict[];
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "Dueño",
-  collaborator: "Colaborador",
-  member: "Miembro",
-};
-
-const MONTH_NAMES = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-];
-
-function getRelativeLabel(dateStr: string, todayStr: string): string {
+function getRelativeLabel(
+  dateStr: string,
+  todayStr: string,
+  t: (key: string, opts?: { n?: number }) => string,
+): string {
   const [dy, dm, dd] = dateStr.split("-").map(Number);
   const [ty, tm, td] = todayStr.split("-").map(Number);
   const d = new Date(dy, dm - 1, dd);
-  const t = new Date(ty, tm - 1, td);
-  const diff = Math.round((d.getTime() - t.getTime()) / 86400000);
-  if (diff === 0) return "hoy";
-  if (diff === 1) return "mañana";
-  if (diff < 0) return `hace ${Math.abs(diff)} día${Math.abs(diff) > 1 ? "s" : ""}`;
-  return `en ${diff} día${diff > 1 ? "s" : ""}`;
+  const todayDate = new Date(ty, tm - 1, td);
+  const diff = Math.round((d.getTime() - todayDate.getTime()) / 86400000);
+  if (diff === 0) return t("today");
+  if (diff === 1) return t("tomorrow");
+  if (diff < 0) return t("daysAgo", { n: Math.abs(diff) });
+  return t("daysAhead", { n: diff });
 }
 
 export default function HomePage() {
   const { data: session } = useSession();
+  const t = useTranslations("home");
   const [groups, setGroups] = useState<Group[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<string | null>(null);
 
   const canCreate = session?.user?.isAdmin || session?.user?.canCreateGroups || false;
+
+  const ROLE_LABELS: Record<string, string> = useMemo(
+    () => ({
+      owner: t("roleOwner"),
+      collaborator: t("roleCollaborator"),
+      member: t("roleMember"),
+    }),
+    [t],
+  );
 
   const fetchData = useCallback(async () => {
     const [groupsRes, dashboardRes] = await Promise.all([
@@ -122,13 +126,14 @@ export default function HomePage() {
   }, [dashboard, todayISO]);
 
   if (loading) {
-    return <LoadingScreen message="Cargando..." fullPage />;
+    return <LoadingScreen fullPage />;
   }
 
   const daysInMonth = new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate();
   const firstDayDow = new Date(Date.UTC(currentYear, currentMonth - 1, 1)).getUTCDay();
   const leadingBlanks = firstDayDow === 0 ? 6 : firstDayDow - 1;
-  const dayHeaders = ["L", "M", "X", "J", "V", "S", "D"];
+  const MONTH_NAMES = (t as unknown as { raw: (k: string) => string[] }).raw("monthsLowercase") ?? [];
+  const dayHeaders = (t as unknown as { raw: (k: string) => string[] }).raw("dayHeaders") ?? [];
   const hasAssignments = dashboard && dashboard.assignments.length > 0;
 
   return (
@@ -136,10 +141,10 @@ export default function HomePage() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="mb-12">
           <h1 className="font-[family-name:var(--font-display)] text-4xl sm:text-5xl uppercase">
-            Inicio
+            {t("title")}
           </h1>
           <p className="mt-3 text-muted-foreground">
-            Tus grupos y próximas asignaciones.
+            {t("subtitle")}
           </p>
         </div>
 
@@ -150,16 +155,16 @@ export default function HomePage() {
             {nextAssignment && (
               <div className="mb-12">
                 <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
-                  Próxima asignación
+                  {t("nextAssignment")}
                 </h2>
                 <p className="font-medium capitalize">
                   {formatDateLong(nextAssignment.date)}
                   <span className="ml-2 text-sm text-muted-foreground font-normal">
-                    — {getRelativeLabel(nextAssignment.date, todayISO)}
+                    — {getRelativeLabel(nextAssignment.date, todayISO, t)}
                   </span>
                 </p>
                 {conflictDateSet.has(nextAssignment.date) && (
-                  <p className="text-xs text-destructive mt-1">Conflicto: múltiples grupos en esta fecha</p>
+                  <p className="text-xs text-destructive mt-1">{t("conflictMultipleGroups")}</p>
                 )}
                 <div className="mt-3 space-y-1.5">
                   {nextAssignment.items.map((item) => (
@@ -249,21 +254,21 @@ export default function HomePage() {
             <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
             <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground">
-              Mis grupos
+              {t("myGroups")}
             </h2>
             {canCreate && (
               <Link
                 href="/groups/new"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
-                + Crear grupo
+                {t("createGroup")}
               </Link>
             )}
           </div>
           {groups.length === 0 ? (
             <div className="border-t border-dashed border-border py-12 text-center">
               <p className="text-muted-foreground text-sm">
-                No perteneces a ningún grupo aún.
+                {t("noGroups")}
               </p>
             </div>
           ) : (
@@ -287,7 +292,7 @@ export default function HomePage() {
                         href={`/${group.slug}/config`}
                         className="shrink-0 rounded-md border border-border px-4 py-2 text-sm hover:border-foreground transition-colors"
                       >
-                        Configurar
+                        {t("configure")}
                       </Link>
                     )}
                   </div>
@@ -316,13 +321,13 @@ export default function HomePage() {
                   {formatDateLong(calendarSelectedDate)}
                 </h3>
                 {conflictDateSet.has(calendarSelectedDate) && (
-                  <p className="text-xs text-destructive mt-0.5">Conflicto</p>
+                  <p className="text-xs text-destructive mt-0.5">{t("conflict")}</p>
                 )}
               </div>
               <button
                 onClick={() => setCalendarSelectedDate(null)}
                 className="text-muted-foreground hover:text-foreground transition-colors text-lg leading-none ml-3"
-                aria-label="Cerrar"
+                aria-label={t("close")}
               >
                 &times;
               </button>
@@ -347,7 +352,7 @@ export default function HomePage() {
                 </div>
               ))}
               {(assignmentsByDate.get(calendarSelectedDate) ?? []).length === 0 && (
-                <p className="text-sm text-muted-foreground">Sin asignaciones</p>
+                <p className="text-sm text-muted-foreground">{t("noAssignments")}</p>
               )}
             </div>
           </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import { OptionToggleGroup } from "@/components/OptionToggleGroup";
 import AvailabilityWeekGrid from "@/components/AvailabilityWeekGrid";
@@ -31,6 +32,8 @@ export default function NewMemberPage() {
   const params = useParams();
   const slug = params.slug as string;
   const router = useRouter();
+  const t = useTranslations("members");
+  const tCommon = useTranslations("common");
   const { groupId, loading: groupLoading } = useGroup();
   const [roles, setRoles] = useState<Role[]>([]);
   const [days, setDays] = useState<WeekdayOption[]>([]);
@@ -88,7 +91,7 @@ export default function NewMemberPage() {
 
     if (!res.ok) {
       const data = await res.json();
-      setFormError(data.error || "Error al guardar el miembro");
+      setFormError(data.error || t("errorSave"));
       return;
     }
 
@@ -96,17 +99,17 @@ export default function NewMemberPage() {
   };
 
   if (groupLoading || loading) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   return (
     <div className="space-y-12">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
-          Agregar miembro
+          {t("addMemberTitle")}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Completa los datos del nuevo miembro del grupo.
+          {t("addMemberSubtitle")}
         </p>
       </div>
 
@@ -114,28 +117,28 @@ export default function NewMemberPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="max-w-md">
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Nombre
+              {t("nameLabel")}
             </label>
             <input
               type="text"
               value={memberName}
               onChange={(e) => setMemberName(e.target.value)}
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-              placeholder="Nombre del miembro"
+              placeholder={t("namePlaceholder")}
               required
             />
           </div>
 
           <div className="max-w-md">
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Email <span className="text-muted-foreground/50">(opcional)</span>
+              {t("emailLabel")} <span className="text-muted-foreground/50">{t("emailOptional")}</span>
             </label>
             <input
               type="email"
               value={memberEmail}
               onChange={(e) => setMemberEmail(e.target.value)}
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-              placeholder="correo@ejemplo.com"
+              placeholder={t("emailPlaceholder")}
             />
           </div>
 
@@ -146,13 +149,13 @@ export default function NewMemberPage() {
               getLabel={(r) => r.name}
               isSelected={(r) => selectedRoles.includes(r.id)}
               onToggle={(r) => toggleRole(r.id)}
-              title="Roles"
+              title={t("rolesTitle")}
             />
           </div>
 
           <div>
             <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-2">
-              Días y horarios disponibles
+              {t("daysAndTimes")}
             </h2>
             <AvailabilityWeekGrid
               days={days}
@@ -172,13 +175,13 @@ export default function NewMemberPage() {
               disabled={!memberName.trim()}
               className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Agregar miembro
+              {t("addMemberButton")}
             </button>
             <Link
               href={`/${slug}/config/members`}
               className="rounded-md border border-border px-5 py-2.5 text-sm hover:border-foreground transition-colors inline-block"
             >
-              Cancelar
+              {tCommon("cancel")}
             </Link>
           </div>
         </form>

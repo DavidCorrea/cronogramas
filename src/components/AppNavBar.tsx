@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { useTranslations } from "next-intl";
 
 const HIDDEN_PATHS = ["/login"];
 
@@ -12,6 +13,7 @@ export default function AppNavBar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
+  const t = useTranslations("nav");
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -46,7 +48,7 @@ export default function AppNavBar() {
             href="/"
             className="font-[family-name:var(--font-display)] text-lg uppercase tracking-tight hover:opacity-80 transition-opacity"
           >
-            Cronogramas
+            {t("appName")}
           </Link>
 
           {/* Desktop */}
@@ -54,7 +56,7 @@ export default function AppNavBar() {
             <button
               onClick={() => setDarkMode(!darkMode)}
               className="w-8 h-8 flex items-center justify-center rounded-full border border-border hover:border-foreground transition-colors"
-              aria-label="Cambiar modo"
+              aria-label={t("toggleTheme")}
             >
               <span className="text-sm leading-none">{darkMode ? "☀️" : "🌙"}</span>
             </button>
@@ -81,7 +83,7 @@ export default function AppNavBar() {
                     onClick={() => signOut({ callbackUrl: "/login" })}
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors ml-2 pl-2 border-l border-border"
                   >
-                    Salir
+                    {t("signOut")}
                   </button>
                 </>
               ) : (
@@ -89,7 +91,7 @@ export default function AppNavBar() {
                   href="/login"
                   className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Iniciar sesión
+                  {t("signIn")}
                 </Link>
               ))}
           </div>
@@ -99,14 +101,14 @@ export default function AppNavBar() {
             <button
               onClick={() => setDarkMode(!darkMode)}
               className="w-8 h-8 flex items-center justify-center rounded-full border border-border hover:border-foreground transition-colors"
-              aria-label="Cambiar modo"
+              aria-label={t("toggleTheme")}
             >
               <span className="text-sm leading-none">{darkMode ? "☀️" : "🌙"}</span>
             </button>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="p-2.5 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Menú"
+              aria-label={t("menu")}
             >
               <svg
                 className="w-5 h-5"
@@ -164,7 +166,7 @@ export default function AppNavBar() {
                     onClick={() => signOut({ callbackUrl: "/login" })}
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
                   >
-                    Salir
+                    {t("signOut")}
                   </button>
                 </div>
               ) : (
@@ -173,7 +175,7 @@ export default function AppNavBar() {
                   onClick={() => setMobileOpen(false)}
                   className="block px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Iniciar sesión
+                  {t("signIn")}
                 </Link>
               ))}
           </div>

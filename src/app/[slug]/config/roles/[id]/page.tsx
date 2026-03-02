@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import { useUnsavedConfig } from "@/lib/unsaved-config-context";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -40,6 +41,9 @@ export default function EditRolePage() {
   const slug = params.slug as string;
   const id = params.id as string;
   const router = useRouter();
+  const t = useTranslations("roles");
+  const tCommon = useTranslations("common");
+  const tConfigNav = useTranslations("configNav");
   const { groupId, loading: groupLoading } = useGroup();
   const { setDirty } = useUnsavedConfig();
   const [role, setRole] = useState<Role | null>(null);
@@ -174,7 +178,7 @@ export default function EditRolePage() {
 
     if (!roleRes.ok) {
       const data = await roleRes.json();
-      setFormError(data.error || "Error al guardar el rol");
+      setFormError(data.error || t("errorSave"));
       return;
     }
 
@@ -202,7 +206,7 @@ export default function EditRolePage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        setFormError(data.error || "Error al actualizar asignaciones");
+        setFormError(data.error || t("errorUpdateAssignments"));
         return;
       }
     }
@@ -214,9 +218,7 @@ export default function EditRolePage() {
   const handleDelete = async () => {
     if (
       !role ||
-      !confirm(
-        `¿Eliminar "${role.name}"? Esto también eliminará todas las entradas de cronograma para este rol.`
-      )
+      !confirm(t("confirmDeleteRole", { name: role.name }))
     )
       return;
     const res = await fetch(
@@ -225,25 +227,25 @@ export default function EditRolePage() {
     );
     if (!res.ok) {
       const data = await res.json();
-      setFormError(data.error || "Error al eliminar el rol");
+      setFormError(data.error || t("errorDelete"));
       return;
     }
     router.push(`/${slug}/config/roles`);
   };
 
   if (groupLoading || loading) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   if (notFound || !role) {
     return (
       <div className="space-y-6">
-        <p className="text-sm text-muted-foreground">Rol no encontrado.</p>
+        <p className="text-sm text-muted-foreground">{t("rolNotFound")}</p>
         <Link
           href={`/${slug}/config/roles`}
           className="text-sm text-primary hover:underline"
         >
-          Volver a Roles
+          {t("backToRoles")}
         </Link>
       </div>
     );
@@ -253,10 +255,10 @@ export default function EditRolePage() {
     <div className="space-y-12">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
-          Editar rol
+          {t("editRoleTitle")}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Modifica el rol y sus opciones.
+          {t("editRoleSubtitle")}
         </p>
       </div>
 
@@ -264,21 +266,21 @@ export default function EditRolePage() {
         <form onSubmit={handleSubmit} className="space-y-5 max-w-md">
           <div>
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Nombre
+              {tCommon("name")}
             </label>
             <input
               type="text"
               value={roleName}
               onChange={(e) => setRoleName(e.target.value)}
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-              placeholder="Nombre del rol"
+              placeholder={t("roleNamePlaceholderEdit")}
               required
             />
           </div>
 
           <div>
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Máximo
+              {t("maxLabel")}
             </label>
             <select
               value={requiredCount}
@@ -300,12 +302,12 @@ export default function EditRolePage() {
               onChange={(e) => setIsRelevant(e.target.checked)}
               className="rounded border-border w-4 h-4"
             />
-            <span className="text-sm text-muted-foreground">Resaltar</span>
+            <span className="text-sm text-muted-foreground">{t("highlight")}</span>
           </label>
 
           <div>
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Depende de
+              {t("dependsOn")}
             </label>
             <select
               value={dependsOnRoleId ?? ""}
@@ -316,7 +318,7 @@ export default function EditRolePage() {
               }
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:border-foreground"
             >
-              <option value="">Ninguno</option>
+              <option value="">{t("none")}</option>
               {roles
                 .filter((r) => r.id !== role.id)
                 .map((r) => (
@@ -329,7 +331,7 @@ export default function EditRolePage() {
 
           <div>
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Grupo exclusivo
+              {t("exclusiveGroup")}
             </label>
             <select
               value={exclusiveGroupId ?? ""}
@@ -340,7 +342,7 @@ export default function EditRolePage() {
               }
               className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:border-foreground"
             >
-              <option value="">Ninguno</option>
+              <option value="">{t("none")}</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -351,11 +353,11 @@ export default function EditRolePage() {
 
           <div>
             <h3 className="text-sm font-medium text-foreground mb-2">
-              Personas con este rol
+              {t("peopleWithRole")}
             </h3>
             {members.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No hay miembros en el grupo.
+                {t("noMembersInGroup")}
               </p>
             ) : (
               <>
@@ -377,7 +379,7 @@ export default function EditRolePage() {
                           }
                           className="text-muted-foreground hover:text-foreground text-xs"
                         >
-                          Quitar
+                          {t("remove")}
                         </button>
                       </li>
                     ) : null;
@@ -385,13 +387,13 @@ export default function EditRolePage() {
                 </ul>
                 {selectedMemberIds.length === 0 && (
                   <p className="text-sm text-muted-foreground mb-3">
-                    Ninguna persona asignada aún.
+                    {t("noOneAssigned")}
                   </p>
                 )}
                 {members.some((m) => !selectedMemberIds.includes(m.id)) && (
                   <div>
                     <label className="sr-only" htmlFor="assign-member">
-                      Asignar persona al rol
+                      {t("assignPersonLabel")}
                     </label>
                     <select
                       id="assign-member"
@@ -408,7 +410,7 @@ export default function EditRolePage() {
                       className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:border-foreground"
                     >
                       <option value="">
-                        Seleccionar persona…
+                        {t("selectPerson")}
                       </option>
                       {members
                         .filter((m) => !selectedMemberIds.includes(m.id))
@@ -434,44 +436,41 @@ export default function EditRolePage() {
               disabled={!roleName.trim()}
               className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Actualizar
+              {tCommon("update")}
             </button>
             <Link
               href={`/${slug}/config/roles`}
               onClick={(e) => {
-                if (dirty && !window.confirm("Hay cambios sin guardar. ¿Salir de todas formas?")) {
+                if (dirty && !window.confirm(tConfigNav("unsavedConfirm"))) {
                   e.preventDefault();
                 }
               }}
               className="rounded-md border border-border px-5 py-2.5 text-sm hover:border-foreground transition-colors inline-block"
             >
-              Cancelar
+              {tCommon("cancel")}
             </Link>
             <button
               type="button"
               onClick={handleDelete}
               className="rounded-md border border-border px-5 py-2.5 text-sm text-destructive hover:border-destructive hover:bg-destructive/10 transition-colors"
             >
-              Eliminar
+              {tCommon("delete")}
             </button>
           </div>
         </form>
 
         <div className="border border-border rounded-md p-5 text-sm text-muted-foreground space-y-2 w-full mt-8">
           <p>
-            <span className="font-medium text-foreground">Depende de:</span>{" "}
-            El rol no se asigna automáticamente. Al generar el cronograma, se
-            elige manualmente entre los miembros asignados al rol del que depende.
+            <span className="font-medium text-foreground">{t("dependsOn")}:</span>{" "}
+            {t("helpDependsOn")}
           </p>
           <p>
-            <span className="font-medium text-foreground">Grupo exclusivo:</span>{" "}
-            Dos roles del mismo grupo no pueden asignarse a la misma persona en
-            la misma fecha.
+            <span className="font-medium text-foreground">{t("exclusiveGroup")}:</span>{" "}
+            {t("helpExclusiveGroup")}
           </p>
           <p>
-            <span className="font-medium text-foreground">Resaltar:</span>{" "}
-            Las fechas donde un miembro tiene un rol con Resaltar se resaltan en la
-            vista compartida al filtrar por esa persona.
+            <span className="font-medium text-foreground">{t("highlight")}:</span>{" "}
+            {t("helpHighlight")}
           </p>
         </div>
       </section>

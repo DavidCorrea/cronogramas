@@ -1,17 +1,19 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { useTranslations } from "next-intl";
 
 export default function LoginPage() {
+  const t = useTranslations("login");
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8 text-center">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-4xl uppercase tracking-tight">
-            Cronogramas
+            {t("title")}
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Inicia sesión para gestionar tus grupos y cronogramas
+            {t("subtitle")}
           </p>
         </div>
 
@@ -37,7 +39,7 @@ export default function LoginPage() {
               fill="#EA4335"
             />
           </svg>
-          Iniciar sesión con Google
+          {t("signInWithGoogle")}
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import LoadingScreen from "@/components/LoadingScreen";
 
@@ -27,6 +28,8 @@ interface Owner {
 }
 
 export default function CollaboratorsPage() {
+  const t = useTranslations("collaborators");
+  const tCommon = useTranslations("common");
   const { groupId, loading: groupLoading } = useGroup();
   const [owner, setOwner] = useState<Owner | null>(null);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -106,7 +109,7 @@ export default function CollaboratorsPage() {
 
   const removeCollaborator = async (collabId: number) => {
     if (!groupId) return;
-    if (!confirm("¿Estás seguro de que deseas eliminar este colaborador?")) return;
+    if (!confirm(t("confirmRemove"))) return;
     await fetch(`/api/groups/${groupId}/collaborators?collabId=${collabId}`, {
       method: "DELETE",
     });
@@ -114,17 +117,17 @@ export default function CollaboratorsPage() {
   };
 
   if (groupLoading || loading) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   return (
     <div className="space-y-12">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
-          Colaboradores
+          {t("title")}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Gestiona quién puede administrar este grupo. Solo los miembros del grupo pueden ser colaboradores; tienen acceso completo.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -135,7 +138,7 @@ export default function CollaboratorsPage() {
           {owner && (
             <div>
               <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
-                Dueño
+                {t("owner")}
               </h2>
               <div className="flex items-center gap-3">
                 {owner.image && (
@@ -143,7 +146,7 @@ export default function CollaboratorsPage() {
                   <img src={owner.image} alt="" className="h-8 w-8 rounded-full" />
                 )}
                 <div>
-                  <p className="text-sm font-medium">{owner.name ?? "Sin nombre"}</p>
+                  <p className="text-sm font-medium">{owner.name ?? t("noName")}</p>
                   <p className="text-xs text-muted-foreground">{owner.email}</p>
                 </div>
               </div>
@@ -153,7 +156,7 @@ export default function CollaboratorsPage() {
           {/* Add collaborator */}
           <div className={owner ? "border-t border-border pt-8 lg:border-t-0 lg:pt-0" : ""}>
             <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
-              Agregar colaborador
+              {t("addCollaborator")}
             </h2>
             <div className="relative">
               <input
@@ -163,7 +166,7 @@ export default function CollaboratorsPage() {
                 onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
                 onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                 className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
-                placeholder="Buscar miembro del grupo por email o nombre..."
+                placeholder={t("searchPlaceholder")}
               />
               {showDropdown && (
                 <div className="absolute z-10 top-full mt-1 w-full rounded-md border border-border bg-background shadow-sm max-h-60 overflow-y-auto">
@@ -193,12 +196,12 @@ export default function CollaboratorsPage() {
         {/* Right column: Collaborators list */}
         <div className="border-t border-border pt-8 mt-12 lg:border-t-0 lg:pt-0 lg:mt-0">
           <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
-            Colaboradores ({collaborators.length})
+            {t("count", { n: collaborators.length })}
           </h2>
           {collaborators.length === 0 ? (
             <div className="border-t border-dashed border-border py-10 text-center">
               <p className="text-sm text-muted-foreground">
-                No hay colaboradores aún.
+                {t("noCollaborators")}
               </p>
             </div>
           ) : (
@@ -211,7 +214,7 @@ export default function CollaboratorsPage() {
                       <img src={collab.userImage} alt="" className="h-7 w-7 rounded-full shrink-0" />
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{collab.userName ?? "Sin nombre"}</p>
+                      <p className="text-sm font-medium truncate">{collab.userName ?? t("noName")}</p>
                       <p className="text-xs text-muted-foreground truncate">{collab.userEmail}</p>
                     </div>
                   </div>
@@ -219,7 +222,7 @@ export default function CollaboratorsPage() {
                     onClick={() => removeCollaborator(collab.id)}
                     className="shrink-0 rounded-md border border-border px-3.5 py-2 text-sm text-destructive hover:border-destructive transition-colors"
                   >
-                    Eliminar
+                    {tCommon("delete")}
                   </button>
                 </div>
               ))}

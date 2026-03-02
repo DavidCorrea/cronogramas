@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import {
   formatDateShort as formatDate,
@@ -89,21 +90,6 @@ interface ScheduleDay {
   groupId?: number;
 }
 
-const MONTH_NAMES = [
-  "Enero",
-  "Febrero",
-  "Marzo",
-  "Abril",
-  "Mayo",
-  "Junio",
-  "Julio",
-  "Agosto",
-  "Septiembre",
-  "Octubre",
-  "Noviembre",
-  "Diciembre",
-];
-
 /** Full calendar date range for a week of the month (independent of filters). Week 1 = days 1-7, week 2 = 8-14, etc. */
 function getWeekDateRange(year: number, month: number, weekNumber: number): { start: string; end: string } {
   const lastDay = new Date(year, month, 0).getDate();
@@ -134,18 +120,21 @@ function tryParseJson(str: string | null): AuditDetailStructured | null {
   }
 }
 
-function formatRelativeTime(isoStr: string): string {
+function formatRelativeTime(
+  isoStr: string,
+  t: (key: string, values?: { n?: number }) => string
+): string {
   const now = Date.now();
   const then = new Date(isoStr).getTime();
   const diffMs = now - then;
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "ahora";
-  if (diffMin < 60) return `hace ${diffMin} min`;
+  if (diffMin < 1) return t("now");
+  if (diffMin < 60) return t("minutesAgo", { n: diffMin });
   const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `hace ${diffHours}h`;
+  if (diffHours < 24) return t("hoursAgo", { n: diffHours });
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return "ayer";
-  if (diffDays < 30) return `hace ${diffDays} dias`;
+  if (diffDays === 1) return t("yesterday");
+  if (diffDays < 30) return t("daysAgo", { n: diffDays });
   return new Date(isoStr).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 }
 
@@ -157,6 +146,10 @@ function slotKey(scheduleDateId: number, roleId: number, slotIndex: number): str
 export default function SchedulePreviewPage() {
   const params = useParams();
   const router = useRouter();
+  const t = useTranslations("scheduleDetail");
+  const tCommon = useTranslations("common");
+  const tSchedules = useTranslations("schedules");
+  const monthNames = (tSchedules as unknown as { raw: (k: string) => string[] }).raw("months");
   const { groupId, slug, loading: groupLoading } = useGroup();
   const [schedule, setSchedule] = useState<ScheduleDetail | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -368,7 +361,7 @@ export default function SchedulePreviewPage() {
   };
 
   const handleCommit = async () => {
-    if (!confirm("¿Crear este cronograma? Se finalizará y se generará un enlace compartido."))
+    if (!confirm(t("confirmCreateSchedule")))
       return;
 
     const res = await fetch(`/api/schedules/${params.id}`, {
@@ -400,7 +393,7 @@ export default function SchedulePreviewPage() {
       fetchData();
     } else {
       const data = await res.json();
-      alert(data.error || "Error al agregar fecha");
+      alert(data.error || t("errorAddDate"));
     }
   };
 
@@ -435,12 +428,12 @@ export default function SchedulePreviewPage() {
       fetchData();
     } else {
       const data = await res.json();
-      alert(data.error || "Error al guardar");
+      alert(data.error || t("errorSave"));
     }
   };
 
   const handleDeleteFromEditModal = async () => {
-    if (!editDateModal || !confirm("¿Eliminar este evento y todas sus asignaciones?")) return;
+    if (!editDateModal || !confirm(t("confirmDeleteDate"))) return;
     const res = await fetch(`/api/schedules/${params.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -466,7 +459,7 @@ export default function SchedulePreviewPage() {
       setRebuildPreview(data.preview);
       setRebuildRemovedCount(data.removedCount);
     } else {
-      alert(data.error || "Error al generar vista previa");
+      alert(data.error || t("errorPreview"));
       setRebuildOpen(false);
     }
     setRebuildLoading(false);
@@ -534,7 +527,7 @@ export default function SchedulePreviewPage() {
   }, [schedule?.id, visibleScheduleDatesByWeek, todayISO]);
 
   if (groupLoading || loading || !schedule) {
-    return <LoadingScreen message="Cargando..." fullPage={false} />;
+    return <LoadingScreen fullPage={false} />;
   }
 
   // Helper: check if a member is available on a given date
@@ -616,7 +609,7 @@ export default function SchedulePreviewPage() {
             updateSlot(scheduleDateId, role.id, slotIndex, val ? parseInt(val, 10) : null);
           }}
         >
-          <option value="">— Vacío —</option>
+          <option value="">{t("emptySlot")}</option>
           {options.map((m) => (
             <option key={m.id} value={m.id}>
               {m.name}
@@ -624,7 +617,7 @@ export default function SchedulePreviewPage() {
           ))}
         </select>
         {showConflict && (
-          <p className="text-xs text-amber-500 mt-0.5">⚠ En vacaciones</p>
+          <p className="text-xs text-amber-500 mt-0.5">{t("onHoliday")}</p>
         )}
       </div>
     );
@@ -641,18 +634,18 @@ export default function SchedulePreviewPage() {
                 href={`/${slug}/config/schedules/${schedule.prevScheduleId}`}
                 className="rounded-md border border-border px-3 py-2 text-sm hover:border-foreground transition-colors"
               >
-                ← Anterior
+                {t("previous")}
               </a>
             )}
             <h1 className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl uppercase">
-              {MONTH_NAMES[schedule.month - 1]} {schedule.year}
+              {monthNames[schedule.month - 1]} {schedule.year}
             </h1>
             {schedule.nextScheduleId && (
               <a
                 href={`/${slug}/config/schedules/${schedule.nextScheduleId}`}
                 className="rounded-md border border-border px-3 py-2 text-sm hover:border-foreground transition-colors"
               >
-                Siguiente →
+                {t("next")}
               </a>
             )}
           </div>
@@ -662,9 +655,9 @@ export default function SchedulePreviewPage() {
                 onClick={() => setRebuildOpen(true)}
                 disabled={isDirty}
                 className="flex-1 sm:flex-none rounded-md border border-border px-4 py-2.5 text-sm hover:border-foreground transition-colors disabled:opacity-50"
-                title={isDirty ? "Guarda los cambios primero" : "Reconstruir desde hoy"}
+                title={isDirty ? t("rebuildTitleSaveFirst") : t("rebuildTitle")}
               >
-                Reconstruir
+                {t("rebuild")}
               </button>
             )}
             {schedule.status === "draft" && (
@@ -672,9 +665,9 @@ export default function SchedulePreviewPage() {
                 onClick={handleCommit}
                 disabled={isDirty}
                 className="flex-1 sm:flex-none rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-                title={isDirty ? "Guarda los cambios primero" : undefined}
+                title={isDirty ? t("rebuildTitleSaveFirst") : undefined}
               >
-                Crear cronograma
+                {t("createSchedule")}
               </button>
             )}
           </div>
@@ -682,16 +675,16 @@ export default function SchedulePreviewPage() {
         <p className="text-sm text-muted-foreground">
           {schedule.status === "committed" ? (
             <>
-              Cronograma creado.{" "}
+              {t("scheduleCreated")}{" "}
               <a
                 href={`/${slug}/cronograma/${schedule.year}/${schedule.month}`}
                 className="text-accent hover:opacity-80 transition-opacity"
               >
-                Ver enlace compartido
+                {t("viewSharedLink")}
               </a>
             </>
           ) : (
-            "Borrador — revisa y edita antes de crear."
+            t("draftNote")
           )}
         </p>
       </div>
@@ -702,7 +695,7 @@ export default function SchedulePreviewPage() {
           onClick={() => setShowAddDate(!showAddDate)}
           className="text-sm text-accent hover:opacity-80 transition-opacity"
         >
-          {showAddDate ? "Cancelar" : "+ Agregar fecha"}
+          {showAddDate ? tCommon("cancel") : t("addDate")}
         </button>
         {hasPastDates && (
           <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
@@ -712,14 +705,14 @@ export default function SchedulePreviewPage() {
               onChange={(e) => setShowPastDates(e.target.checked)}
               className="rounded border-border"
             />
-            Mostrar fechas pasadas
+            {t("showPastDates")}
           </label>
         )}
       </div>
       {showAddDate && (
           <div className="mt-3 flex flex-wrap items-end gap-3 border border-border rounded-md p-4">
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Fecha</label>
+              <label className="block text-xs text-muted-foreground mb-1">{t("dateLabel")}</label>
               <input
                 type="date"
                 value={extraDateValue}
@@ -730,7 +723,7 @@ export default function SchedulePreviewPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-muted-foreground mb-1">Tipo</label>
+              <label className="block text-xs text-muted-foreground mb-1">{t("typeLabel")}</label>
               <div className="flex gap-1">
                 <button
                   onClick={() => setExtraDateType("assignable")}
@@ -740,7 +733,7 @@ export default function SchedulePreviewPage() {
                       : "border-border text-muted-foreground"
                   }`}
                 >
-                  Asignación por roles
+                  {t("typeAssignable")}
                 </button>
                 <button
                   onClick={() => setExtraDateType("for_everyone")}
@@ -750,18 +743,18 @@ export default function SchedulePreviewPage() {
                       : "border-border text-muted-foreground"
                   }`}
                 >
-                  Para todos
+                  {t("typeForEveryone")}
                 </button>
               </div>
             </div>
             {extraDateType === "for_everyone" && (
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Etiqueta</label>
+                <label className="block text-xs text-muted-foreground mb-1">{t("labelLabel")}</label>
                 <input
                   type="text"
                   value={extraDateLabel}
                   onChange={(e) => setExtraDateLabel(e.target.value)}
-                  placeholder="Ej. Ensayo, Picnic"
+                  placeholder={t("labelPlaceholder")}
                   className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-40"
                 />
               </div>
@@ -771,7 +764,7 @@ export default function SchedulePreviewPage() {
               disabled={!extraDateValue}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              Agregar
+              {tCommon("add")}
             </button>
           </div>
         )}
@@ -780,14 +773,14 @@ export default function SchedulePreviewPage() {
       {isDirty && (
         <div className="sticky top-0 z-20 bg-background border-b border-border py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            Hay cambios sin guardar.
+            {t("unsavedChanges")}
           </p>
           <button
             onClick={handleSave}
             disabled={saving}
             className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
           >
-            {saving ? "Guardando..." : "Guardar cambios"}
+            {saving ? t("saving") : t("saveChanges")}
           </button>
         </div>
       )}
@@ -808,7 +801,7 @@ export default function SchedulePreviewPage() {
               aria-expanded={!isCollapsed}
             >
               <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                Semana {weekNumber}
+                {t("week")} {weekNumber}
                 <span className="normal-case font-normal tracking-normal text-muted-foreground/90">
                   {" · "}
                   {formatDateRange(
@@ -855,9 +848,9 @@ export default function SchedulePreviewPage() {
                     <button
                       onClick={() => openEditDateModal(sd)}
                       className="text-xs text-accent hover:opacity-80"
-                      title="Editar evento"
+                      title={t("editEvent")}
                     >
-                      Editar
+                      {tCommon("edit")}
                     </button>
                   </div>
                 </div>
@@ -915,7 +908,7 @@ export default function SchedulePreviewPage() {
               aria-expanded={!isCollapsed}
             >
               <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                Semana {weekNumber}
+                {t("week")} {weekNumber}
                 <span className="normal-case font-normal tracking-normal text-muted-foreground/90">
                   {" · "}
                   {formatDateRange(
@@ -934,7 +927,7 @@ export default function SchedulePreviewPage() {
           <thead>
             <tr className="border-b border-border">
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                Fecha
+                {t("dateLabel")}
               </th>
               {roleOrder.map((role) => (
                 <th
@@ -945,7 +938,7 @@ export default function SchedulePreviewPage() {
                 </th>
               ))}
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                Acciones
+                {t("actions")}
               </th>
             </tr>
           </thead>
@@ -1007,9 +1000,9 @@ export default function SchedulePreviewPage() {
                     <button
                       onClick={() => openEditDateModal(sd)}
                       className="text-xs text-accent hover:opacity-80"
-                      title="Editar evento"
+                      title={t("editEvent")}
                     >
-                      Editar
+                      {tCommon("edit")}
                     </button>
                   </td>
                 </tr>
@@ -1031,7 +1024,7 @@ export default function SchedulePreviewPage() {
             onClick={() => setLogOpen(!logOpen)}
             className="w-full flex items-center justify-between px-4 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            <span>Historial de cambios ({schedule.auditLog.length})</span>
+            <span>{t("changeHistory")} ({schedule.auditLog.length})</span>
             <span className="text-xs">{logOpen ? "▲" : "▼"}</span>
           </button>
           {logOpen && (
@@ -1049,12 +1042,12 @@ export default function SchedulePreviewPage() {
                         </p>
                         {entry.userName && (
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            por {entry.userName}
+                            {t("byUser", { name: entry.userName })}
                           </p>
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                        {formatRelativeTime(entry.createdAt)}
+                        {formatRelativeTime(entry.createdAt, t)}
                       </span>
                     </div>
                     {isStructured && (
@@ -1063,7 +1056,7 @@ export default function SchedulePreviewPage() {
                           onClick={() => setLogDetailOpen(logDetailOpen === entry.id ? null : entry.id)}
                           className="text-xs text-accent hover:opacity-80 transition-opacity"
                         >
-                          {logDetailOpen === entry.id ? "Ocultar detalles" : "Ver detalles"}
+                          {logDetailOpen === entry.id ? t("hideDetails") : t("showDetails")}
                         </button>
                         {logDetailOpen === entry.id && (
                           <div className="mt-2 space-y-1 text-xs text-muted-foreground">
@@ -1103,7 +1096,7 @@ export default function SchedulePreviewPage() {
       )}
       {!schedule.auditLog?.length && (
         <div className="text-sm text-muted-foreground text-center py-4">
-          Sin cambios registrados.
+          {t("noChangesRecorded")}
         </div>
       )}
 
@@ -1113,10 +1106,10 @@ export default function SchedulePreviewPage() {
           <div className="bg-background border border-border rounded-lg shadow-lg max-w-lg w-full max-h-[80vh] flex flex-col">
             <div className="px-6 py-4 border-b border-border">
               <h2 className="font-[family-name:var(--font-display)] text-lg uppercase">
-                Reconstruir cronograma
+                {t("rebuildModalTitle")}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Regenerar asignaciones desde hoy hasta fin de mes.
+                {t("rebuildModalSubtitle")}
               </p>
             </div>
 
@@ -1127,18 +1120,18 @@ export default function SchedulePreviewPage() {
                     onClick={() => handleRebuildPreview("overwrite")}
                     className="w-full rounded-md border border-border p-4 text-left hover:border-foreground transition-colors"
                   >
-                    <p className="text-sm font-medium">Regenerar todo desde hoy</p>
+                    <p className="text-sm font-medium">{t("rebuildOverwrite")}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Reemplaza todas las asignaciones futuras con nuevas generadas por el algoritmo.
+                      {t("rebuildOverwriteHelp")}
                     </p>
                   </button>
                   <button
                     onClick={() => handleRebuildPreview("fill_empty")}
                     className="w-full rounded-md border border-border p-4 text-left hover:border-foreground transition-colors"
                   >
-                    <p className="text-sm font-medium">Solo llenar vacíos desde hoy</p>
+                    <p className="text-sm font-medium">{t("rebuildFillEmpty")}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Mantiene las asignaciones existentes y solo llena los espacios vacíos.
+                      {t("rebuildFillEmptyHelp")}
                     </p>
                   </button>
                 </div>
@@ -1146,7 +1139,7 @@ export default function SchedulePreviewPage() {
 
               {rebuildLoading && (
                 <p className="text-sm text-muted-foreground py-8 text-center">
-                  Generando vista previa...
+                  {t("generatingPreview")}
                 </p>
               )}
 
@@ -1154,12 +1147,12 @@ export default function SchedulePreviewPage() {
                 <div className="space-y-4">
                   {rebuildRemovedCount > 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Se reemplazarán {rebuildRemovedCount} asignaciones existentes.
+                      {t("willReplaceAssignments", { n: rebuildRemovedCount })}
                     </p>
                   )}
                   {rebuildPreview.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">
-                      No hay asignaciones nuevas para generar.
+                      {t("noNewAssignments")}
                     </p>
                   ) : (
                     <div className="divide-y divide-border">
@@ -1195,7 +1188,7 @@ export default function SchedulePreviewPage() {
                 onClick={closeRebuild}
                 className="rounded-md border border-border px-4 py-2 text-sm hover:border-foreground transition-colors"
               >
-                Cancelar
+                {tCommon("cancel")}
               </button>
               {rebuildPreview && rebuildPreview.length > 0 && (
                 <button
@@ -1203,7 +1196,7 @@ export default function SchedulePreviewPage() {
                   disabled={rebuildLoading}
                   className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  {rebuildLoading ? "Aplicando..." : "Aplicar"}
+                  {rebuildLoading ? t("applying") : t("apply")}
                 </button>
               )}
             </div>
@@ -1217,7 +1210,7 @@ export default function SchedulePreviewPage() {
           <div className="bg-background border border-border rounded-lg shadow-lg max-w-md w-full">
             <div className="px-6 py-4 border-b border-border">
               <h2 className="font-[family-name:var(--font-display)] text-lg uppercase">
-                Editar fecha
+                {t("editDateTitle")}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {formatDateWeekdayDay(editDateModal.date)}
@@ -1226,33 +1219,33 @@ export default function SchedulePreviewPage() {
             <div className="px-6 py-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Hora inicio</label>
+                  <label className="block text-xs text-muted-foreground mb-1">{t("startTimeLabel")}</label>
                   <input
                     type="time"
                     value={editDateStartUtc}
                     onChange={(e) => setEditDateStartUtc(e.target.value)}
                     className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
                   />
-                  <p className="text-xs text-muted-foreground mt-0.5">Tu horario</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("yourTimezone")}</p>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Hora fin</label>
+                  <label className="block text-xs text-muted-foreground mb-1">{t("endTimeLabel")}</label>
                   <input
                     type="time"
                     value={editDateEndUtc}
                     onChange={(e) => setEditDateEndUtc(e.target.value)}
                     className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
                   />
-                  <p className="text-xs text-muted-foreground mt-0.5">Tu horario</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("yourTimezone")}</p>
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">Nota</label>
+                <label className="block text-xs text-muted-foreground mb-1">{t("noteLabel")}</label>
                 <input
                   type="text"
                   value={editDateNote}
                   onChange={(e) => setEditDateNote(e.target.value)}
-                  placeholder="Opcional"
+                  placeholder={tCommon("optional")}
                   className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
                 />
               </div>
@@ -1262,21 +1255,21 @@ export default function SchedulePreviewPage() {
                 onClick={handleDeleteFromEditModal}
                 className="text-sm text-destructive hover:opacity-80"
               >
-                Eliminar fecha
+                {t("deleteDate")}
               </button>
               <div className="flex gap-2">
                 <button
                   onClick={closeEditDateModal}
                   className="rounded-md border border-border px-4 py-2 text-sm hover:border-foreground transition-colors"
                 >
-                  Cancelar
+                  {tCommon("cancel")}
                 </button>
                 <button
                   onClick={handleSaveEditDate}
                   disabled={editDateSaving}
                   className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  {editDateSaving ? "Guardando..." : "Guardar"}
+                  {editDateSaving ? t("saving") : t("save")}
                 </button>
               </div>
             </div>
