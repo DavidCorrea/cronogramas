@@ -10,7 +10,7 @@ import {
   users,
   recurringEvents,
 } from "@/db/schema";
-import { eq, and, or, lt, gt, asc, desc, gte, inArray } from "drizzle-orm";
+import { eq, and, or, lt, gt, asc, desc, inArray } from "drizzle-orm";
 import { requireAuth } from "@/lib/api-helpers";
 import { getHolidayConflicts } from "@/lib/holiday-conflicts";
 import { loadScheduleConfig, getPreviousAssignments } from "@/lib/schedule-helpers";

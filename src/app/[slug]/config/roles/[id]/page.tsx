@@ -114,7 +114,7 @@ export default function EditRolePage() {
   }, [groupId, id]);
 
   useEffect(() => {
-    if (groupId) fetchData();
+    if (groupId) queueMicrotask(() => fetchData());
   }, [groupId, fetchData]);
 
   const dirty = useMemo(() => {

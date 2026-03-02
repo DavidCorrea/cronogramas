@@ -14,12 +14,14 @@ export default function AppNavBar() {
   const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("band-scheduler-theme");
-    if (stored) {
-      setDarkMode(stored === "dark");
-    } else {
-      setDarkMode(window.matchMedia("(prefers-color-scheme: dark)").matches);
-    }
+    queueMicrotask(() => {
+      const stored = localStorage.getItem("band-scheduler-theme");
+      if (stored) {
+        setDarkMode(stored === "dark");
+      } else {
+        setDarkMode(window.matchMedia("(prefers-color-scheme: dark)").matches);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -64,6 +66,7 @@ export default function AppNavBar() {
                     className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {session.user.image && (
+                      // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL
                       <img
                         src={session.user.image}
                         alt=""
@@ -143,6 +146,7 @@ export default function AppNavBar() {
                     className="flex items-center gap-3 min-w-0 flex-1 text-foreground hover:opacity-80 transition-opacity"
                   >
                     {session.user.image && (
+                      // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL
                       <img
                         src={session.user.image}
                         alt=""

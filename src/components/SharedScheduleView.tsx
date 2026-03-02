@@ -1,11 +1,10 @@
 "use client";
 
+/* eslint-disable react-hooks/preserve-manual-memoization -- Dependencies are derived arrays (e.g. .filter()); compiler flags them as potentially mutable but they are not. */
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
   formatDateLong,
-  formatDateShort,
   formatDateWeekdayDay,
-  formatDayMonth,
   formatDateRange,
   getWeekdayName,
 } from "@/lib/timezone-utils";
@@ -118,8 +117,7 @@ function groupDatesByWeek(dates: string[]): { weekNumber: number; dates: string[
 
 /** Group schedule dates by week of month (one row per event). */
 function groupScheduleDatesByWeek(
-  scheduleDates: ScheduleDateInfo[],
-  schedule: { year: number; month: number }
+  scheduleDates: ScheduleDateInfo[]
 ): { weekNumber: number; scheduleDates: ScheduleDateInfo[] }[] {
   const weekMap = new Map<number, ScheduleDateInfo[]>();
   for (const sd of scheduleDates) {
@@ -143,22 +141,6 @@ function getWeekDateRange(year: number, month: number, weekNumber: number): { st
     start: `${year}-${pad(month)}-${pad(startDay)}`,
     end: `${year}-${pad(month)}-${pad(endDay)}`,
   };
-}
-
-/**
- * Get the Monday of the ISO week for a given date string.
- * Returns an ISO date string for that Monday.
- */
-function getMondayOfWeek(dateStr: string): string {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  const dow = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  const diff = dow === 0 ? 6 : dow - 1; // days since Monday
-  date.setDate(date.getDate() - diff);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
 }
 
 /**
@@ -208,13 +190,20 @@ export default function SharedScheduleView({
   const [selectedDateForModal, setSelectedDateForModal] = useState<string | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   useEffect(() => {
-    setToday(getTodayISO());
+    queueMicrotask(() => setToday(getTodayISO()));
   }, []);
 
   useEffect(() => {
-    setSelectedDateForModal(null);
+    queueMicrotask(() => setCurrentTime(Date.now()));
+    const interval = setInterval(() => setCurrentTime(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => setSelectedDateForModal(null));
   }, [filteredMemberId]);
 
   // Support both old leaderRoleId (single) and new dependentRoleIds (array)
@@ -228,12 +217,9 @@ export default function SharedScheduleView({
   );
 
   const entryDates = [...new Set(schedule.entries.map((e) => e.date))];
-  const scheduleDateList = schedule.scheduleDates ?? [];
-  const forEveryoneDates = scheduleDateList
-    .filter((d) => String(d.type).toLowerCase() === "for_everyone")
-    .map((d) => d.date);
-  const scheduleDateMap = new Map(
-    scheduleDateList.filter((d) => d.id != null).map((d) => [d.id!, d])
+  const scheduleDateList = useMemo(
+    () => schedule.scheduleDates ?? [],
+    [schedule.scheduleDates]
   );
   const scheduleDateByDateMap = new Map<string, ScheduleDateInfo>();
   for (const d of scheduleDateList) {
@@ -276,20 +262,13 @@ export default function SharedScheduleView({
     return date < today;
   };
 
-  /** True if the event's end (date + endTimeUtc in UTC) is before the user's current time. */
-  const hasScheduleDatePassed = (sd: ScheduleDateInfo): boolean => {
-    const endUtc = sd.endTimeUtc ?? sd.recurringEventEndTimeUtc ?? "23:59";
-    const [h, m] = endUtc.split(":").map(Number);
-    const endMs = new Date(`${sd.date}T${String(h).padStart(2, "0")}:${String(m ?? 0).padStart(2, "0")}:00.000Z`).getTime();
-    return endMs < Date.now();
-  };
-
   // Schedule dates that are visible (respecting day filter and hiding events that have already ended).
   const visibleScheduleDates = useMemo(() => {
     if (scheduleDateList.length === 0 || scheduleDateList.every((d) => d.id == null)) return [];
-    const now = Date.now();
+    const now = currentTime;
     const list = scheduleDateList.filter((sd) => {
-      if (!isDateVisible(sd.date)) return false;
+      if (!showPastDates && today && sd.date < today) return false;
+      if (dayFilter && getWeekdayName(sd.date) !== dayFilter) return false;
       if (showPastDates) return true;
       const endUtc = sd.endTimeUtc ?? sd.recurringEventEndTimeUtc ?? "23:59";
       const [h, m] = endUtc.split(":").map(Number);
@@ -301,7 +280,7 @@ export default function SharedScheduleView({
       if (d !== 0) return d;
       return (a.startTimeUtc ?? "00:00").localeCompare(b.startTimeUtc ?? "00:00");
     });
-  }, [scheduleDateList, showPastDates, dayFilter, today]);
+  }, [scheduleDateList, showPastDates, dayFilter, today, currentTime]);
 
   // Use scheduleDates as source of truth when present; only show dates that have at least one non-passed event.
   const allDates = (
@@ -391,12 +370,6 @@ export default function SharedScheduleView({
       ? scheduleDateList.filter((d) => String(d.type).toLowerCase() === "for_everyone").map((d) => d.date)
       : (schedule.rehearsalDates ?? [])
   );
-  const extraDateSet = new Set(
-    schedule.scheduleDates
-      ? scheduleDateList.map((d) => d.date)
-      : (schedule.extraDates ?? []).map((d) => d.date)
-  );
-
   const conflictSet = new Set(
     (schedule.holidayConflicts ?? []).map((c) => `${c.date}-${c.memberId}`)
   );
@@ -427,12 +400,6 @@ export default function SharedScheduleView({
       .map((e) => e.roleName);
   };
 
-  // Helper: get grouped roles for the filtered member on a date
-  const getRolesForDate = (date: string): string => {
-    const dateEntries = filteredEntries.filter((e) => e.date === date);
-    return dateEntries.map((e) => e.roleName).join(", ");
-  };
-
   // Helper: get non-dependent roles for the filtered member on a date
   const getNonDependentRolesForDate = (date: string): string => {
     const dateEntries = filteredEntries.filter(
@@ -445,12 +412,6 @@ export default function SharedScheduleView({
   const assignedDateCount = filteredMemberId
     ? filteredDates.filter((d) => !rehearsalSet.has(d)).length
     : 0;
-
-  // Helper: check if a new week starts between two dates (Monday-based)
-  const isNewWeek = (date: string, prevDate: string | null): boolean => {
-    if (!prevDate) return false;
-    return getMondayOfWeek(date) !== getMondayOfWeek(prevDate);
-  };
 
   // Upcoming assignment for filtered member
   const upcomingDate =
@@ -483,12 +444,12 @@ export default function SharedScheduleView({
     [tableDates]
   );
   const displayScheduleDatesByWeek = useMemo(
-    () => groupScheduleDatesByWeek(displayScheduleDates, { year: schedule.year, month: schedule.month }),
-    [displayScheduleDates, schedule.year, schedule.month]
+    () => groupScheduleDatesByWeek(displayScheduleDates),
+    [displayScheduleDates]
   );
   const tableScheduleDatesByWeek = useMemo(
-    () => groupScheduleDatesByWeek(tableScheduleDates, { year: schedule.year, month: schedule.month }),
-    [tableScheduleDates, schedule.year, schedule.month]
+    () => groupScheduleDatesByWeek(tableScheduleDates),
+    [tableScheduleDates]
   );
 
   const useScheduleDateRows = visibleScheduleDates.length > 0;
@@ -531,7 +492,7 @@ export default function SharedScheduleView({
     const toCollapse = weekWithToday != null
       ? allWeekNumbers.filter((n) => n !== weekWithToday)
       : allWeekNumbers;
-    setCollapsedWeeks(new Set(toCollapse));
+    queueMicrotask(() => setCollapsedWeeks(new Set(toCollapse)));
   }, [viewMode, schedule.year, schedule.month, filteredMemberId, filteredRoleId, displayDatesByWeek, tableDatesByWeek, displayScheduleDatesByWeek, tableScheduleDatesByWeek, useScheduleDateRows]);
 
   return (
@@ -956,9 +917,6 @@ export default function SharedScheduleView({
                     {dates.map((date) => {
                       const sd = scheduleDateByDateMap.get(date) ?? { date, type: "assignable" as const };
                       const isRehearsal = rehearsalSet.has(date);
-                      const entriesOnDate = filteredEntries.filter(
-                        (e) => e.date === date
-                      );
                       const depRoleDate = hasDependentRoleOnDate(date);
                       const relevantRoleDate = hasRelevantRoleOnDate(date);
                       const highlighted = filteredMemberId && (depRoleDate || relevantRoleDate);

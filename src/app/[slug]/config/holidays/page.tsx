@@ -55,7 +55,7 @@ export default function HolidaysPage() {
   }, [groupId]);
 
   useEffect(() => {
-    if (groupId) fetchData();
+    if (groupId) queueMicrotask(() => fetchData());
   }, [groupId, fetchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {

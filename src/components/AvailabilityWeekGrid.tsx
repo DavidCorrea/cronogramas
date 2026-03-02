@@ -43,7 +43,7 @@ function normalizeDayBlocks(blocks: AvailabilityBlock[]): AvailabilityBlock[] {
       merged.push({ start: b.start, end: b.end });
     }
   }
-  let total = merged.reduce((s, b) => s + (b.end - b.start), 0);
+  const total = merged.reduce((s, b) => s + (b.end - b.start), 0);
   if (total <= TOTAL_MINUTES) {
     return merged.map((b) => ({
       startLocal: minutesToHHMM(b.start),

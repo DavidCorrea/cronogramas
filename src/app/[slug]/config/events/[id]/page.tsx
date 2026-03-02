@@ -68,12 +68,14 @@ export default function EditEventPage() {
   }, [groupId, eventId]);
 
   useEffect(() => {
-    if (!groupId || isNaN(eventId)) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    fetchData();
+    queueMicrotask(() => {
+      if (!groupId || isNaN(eventId)) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      fetchData();
+    });
   }, [groupId, eventId, fetchData]);
 
   if (groupLoading || loading) {

@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
   const { groupId } = accessResult;
 
   const body = await request.json();
-  const { name, email, userId, roleIds = [], availableDayIds = [] } = body;
+  const { name, email, userId, roleIds = [] } = body;
 
   if (!name || typeof name !== "string" || name.trim().length === 0) {
     return NextResponse.json(

@@ -48,7 +48,7 @@ export function GroupProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false);
     }
-    if (slug) resolve();
+    if (slug) queueMicrotask(() => resolve());
   }, [slug]);
 
   return (

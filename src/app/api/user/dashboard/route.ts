@@ -27,7 +27,6 @@ export async function GET() {
   }
 
   const now = new Date();
-  const today = now.toISOString().split("T")[0];
   const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
   // Gather upcoming assignments across all groups

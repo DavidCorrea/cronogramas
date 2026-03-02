@@ -30,7 +30,7 @@ export default function CronogramaPage() {
   }, [slug]);
 
   useEffect(() => {
-    fetchSchedule();
+    queueMicrotask(() => fetchSchedule());
   }, [fetchSchedule]);
 
   if (loading) {

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { formatDateLong, formatDateShort } from "@/lib/timezone-utils";
+import { formatDateLong } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
 
 interface Group {
@@ -75,7 +75,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    queueMicrotask(() => fetchData());
   }, [fetchData]);
 
   const todayISO = useMemo(() => {

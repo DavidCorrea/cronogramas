@@ -226,7 +226,7 @@ export default function SchedulesPage() {
   const { groupId, slug, loading: groupLoading } = useGroup();
   const { setDirty } = useUnsavedConfig();
   const [schedulesList, setSchedulesList] = useState<Schedule[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [, setRoles] = useState<Role[]>([]);
   const [orderedRoles, setOrderedRoles] = useState<Role[]>([]);
   const [initialOrder, setInitialOrder] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);

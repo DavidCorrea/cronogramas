@@ -34,7 +34,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    fetchHolidays();
+    queueMicrotask(() => fetchHolidays());
   }, [fetchHolidays]);
 
   const handleAddHoliday = async (e: React.FormEvent) => {
@@ -96,6 +96,7 @@ export default function SettingsPage() {
             </h2>
             <div className="flex items-center gap-4">
               {session.user.image && (
+                // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL
                 <img
                   src={session.user.image}
                   alt=""

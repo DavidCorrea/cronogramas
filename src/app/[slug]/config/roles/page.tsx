@@ -59,12 +59,14 @@ export default function RolesPage() {
   }, [groupId]);
 
   useEffect(() => {
-    if (!groupId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    fetchData();
+    queueMicrotask(() => {
+      if (!groupId) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      fetchData();
+    });
   }, [groupId, fetchData]);
 
   const addGroup = async (e: React.FormEvent) => {

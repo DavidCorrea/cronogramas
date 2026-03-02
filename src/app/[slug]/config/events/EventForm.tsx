@@ -458,7 +458,7 @@ export default function EventForm({
     if (priorityOrder.length === 0 && assignableRoleIds.length > 0 && !editingPriorities) {
       setPriorityOrder(defaultOrder);
     }
-  }, [defaultOrder, assignableRoleIds.length, editingPriorities]);
+  }, [defaultOrder, assignableRoleIds.length, editingPriorities, priorityOrder.length]);
 
   return (
     <div className="space-y-12">

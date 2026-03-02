@@ -118,7 +118,7 @@ export default function EditMemberPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [member?.id, member?.memberEmail, member?.userId]);
+  }, [member?.id, member?.memberEmail, member?.userId, member]);
 
   const handleLinkToUser = async () => {
     if (!linkCheck || !linkCheck.canLink || !("user" in linkCheck)) return;

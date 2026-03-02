@@ -52,7 +52,7 @@ export default function NewMemberPage() {
   }, [groupId]);
 
   useEffect(() => {
-    if (groupId) fetchData();
+    if (groupId) queueMicrotask(() => fetchData());
   }, [groupId, fetchData]);
 
   const toggleRole = (roleId: number) => {

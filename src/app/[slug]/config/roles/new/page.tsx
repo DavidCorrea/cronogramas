@@ -56,7 +56,7 @@ export default function NewRolePage() {
   }, [groupId]);
 
   useEffect(() => {
-    if (groupId) fetchData();
+    if (groupId) queueMicrotask(() => fetchData());
   }, [groupId, fetchData]);
 
   const dirty =

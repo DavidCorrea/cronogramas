@@ -33,7 +33,7 @@ export default function MembersPage() {
   }, [groupId]);
 
   useEffect(() => {
-    if (groupId) fetchData();
+    if (groupId) queueMicrotask(() => fetchData());
   }, [groupId, fetchData]);
 
   if (groupLoading || loading) {
@@ -70,6 +70,7 @@ export default function MembersPage() {
             >
               <div className="flex items-center gap-3 min-w-0">
                 {member.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL
                   <img
                     src={member.image}
                     alt=""

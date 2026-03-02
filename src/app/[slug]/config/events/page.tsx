@@ -35,12 +35,14 @@ export default function EventsPage() {
   }, [groupId]);
 
   useEffect(() => {
-    if (!groupId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    fetchData();
+    queueMicrotask(() => {
+      if (!groupId) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      fetchData();
+    });
   }, [groupId, fetchData]);
 
   if (groupLoading || loading) {

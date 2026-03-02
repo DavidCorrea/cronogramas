@@ -30,7 +30,7 @@ export default function SharedSchedulePage() {
   }, [slug, params.year, params.month]);
 
   useEffect(() => {
-    fetchSchedule();
+    queueMicrotask(() => fetchSchedule());
   }, [fetchSchedule]);
 
   if (loading) {

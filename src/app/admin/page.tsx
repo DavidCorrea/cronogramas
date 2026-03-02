@@ -15,7 +15,7 @@ interface UserRow {
 }
 
 export default function AdminPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +43,7 @@ export default function AdminPage() {
 
     // If user has session but is not admin, or no session at all, try the API
     // The API itself handles bootstrap cookie check
-    fetchUsers();
+    queueMicrotask(() => fetchUsers());
   }, [status, fetchUsers]);
 
   const toggleFlag = async (userId: string, flag: "isAdmin" | "canCreateGroups", value: boolean) => {
@@ -106,6 +106,7 @@ export default function AdminPage() {
                     {/* User info */}
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       {user.image && (
+                        // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL; next/image would need explicit dimensions
                         <img
                           src={user.image}
                           alt=""

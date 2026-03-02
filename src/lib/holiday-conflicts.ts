@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { holidays, members } from "@/db/schema";
-import { eq, or, inArray, isNotNull } from "drizzle-orm";
+import { eq, or, inArray } from "drizzle-orm";
 
 export interface HolidayConflict {
   date: string;

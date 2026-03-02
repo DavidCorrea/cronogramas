@@ -59,15 +59,17 @@ export default function CollaboratorsPage() {
   }, [groupId]);
 
   useEffect(() => {
-    if (groupId) fetchData();
+    if (groupId) queueMicrotask(() => fetchData());
   }, [groupId, fetchData]);
 
   // Debounced user search
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     if (searchQuery.length < 2) {
-      setSearchResults([]);
-      setShowDropdown(false);
+      queueMicrotask(() => {
+        setSearchResults([]);
+        setShowDropdown(false);
+      });
       return;
     }
     searchTimeout.current = setTimeout(async () => {
@@ -137,6 +139,7 @@ export default function CollaboratorsPage() {
               </h2>
               <div className="flex items-center gap-3">
                 {owner.image && (
+                  // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL
                   <img src={owner.image} alt="" className="h-8 w-8 rounded-full" />
                 )}
                 <div>
@@ -172,6 +175,7 @@ export default function CollaboratorsPage() {
                       className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted transition-colors"
                     >
                       {user.image && (
+                        // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL
                         <img src={user.image} alt="" className="h-6 w-6 rounded-full" />
                       )}
                       <div>
@@ -203,6 +207,7 @@ export default function CollaboratorsPage() {
                 <div key={collab.id} className="py-4 first:pt-0 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     {collab.userImage && (
+                      // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL
                       <img src={collab.userImage} alt="" className="h-7 w-7 rounded-full shrink-0" />
                     )}
                     <div className="min-w-0">

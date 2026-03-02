@@ -6,7 +6,6 @@ import { useGroup } from "@/lib/group-context";
 import {
   formatDateShort as formatDate,
   formatDateWeekdayDay,
-  formatDayMonth,
   formatDateRange,
   getDayOfWeek,
   utcTimeToLocalDisplay,
@@ -35,11 +34,6 @@ interface ScheduleDateInfo {
   recurringEventId?: number | null;
   recurringEventLabel?: string | null;
   entries: ScheduleEntry[];
-}
-
-interface DateNote {
-  date: string;
-  description: string;
 }
 
 interface RoleInfo {
@@ -281,13 +275,6 @@ export default function SchedulePreviewPage() {
       ),
     [schedule]
   );
-  const scheduleDateMap = useMemo(
-    () =>
-      new Map(
-        (schedule?.scheduleDates ?? []).map((d) => [d.id, d])
-      ),
-    [schedule]
-  );
   const visibleScheduleDates = useMemo(() => {
     if (!schedule) return [];
     const list = [...schedule.scheduleDates];
@@ -415,16 +402,6 @@ export default function SchedulePreviewPage() {
       const data = await res.json();
       alert(data.error || "Error al agregar fecha");
     }
-  };
-
-  const handleRemoveDate = async (scheduleDateId: number) => {
-    if (!confirm("¿Eliminar este evento y todas sus asignaciones?")) return;
-    const res = await fetch(`/api/schedules/${params.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "remove_date", scheduleDateId }),
-    });
-    if (res.ok) fetchData();
   };
 
   const openEditDateModal = (sd: ScheduleDateInfo) => {
