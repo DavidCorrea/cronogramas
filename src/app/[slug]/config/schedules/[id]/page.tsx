@@ -1255,7 +1255,7 @@ export default function SchedulePreviewPage() {
                     onChange={(e) => setEditDateStartUtc(e.target.value)}
                     className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
                   />
-                  <p className="text-xs text-muted-foreground mt-0.5">Tu zona horaria</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Tu horario</p>
                 </div>
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1">Hora fin</label>
@@ -1265,7 +1265,7 @@ export default function SchedulePreviewPage() {
                     onChange={(e) => setEditDateEndUtc(e.target.value)}
                     className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
                   />
-                  <p className="text-xs text-muted-foreground mt-0.5">Tu zona horaria</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Tu horario</p>
                 </div>
               </div>
               <div>

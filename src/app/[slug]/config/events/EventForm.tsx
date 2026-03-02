@@ -586,8 +586,8 @@ export default function EventForm({
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {type === "assignable"
-                  ? "Solo se asignan personas disponibles en este horario (tu zona horaria local)."
-                  : "Horario mostrado en el cronograma (tu zona horaria local)."}
+                  ? "Solo se asignan personas disponibles en este horario."
+                  : "Horario mostrado en el cronograma."}
               </p>
             </div>
             <div>
