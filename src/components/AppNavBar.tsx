@@ -53,6 +53,20 @@ export default function AppNavBar() {
 
           {/* Desktop */}
           <div className="hidden md:flex items-center gap-2">
+            <Link
+              href="/"
+              className={`text-sm transition-colors ${pathname === "/" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {t("home")}
+            </Link>
+            {session?.user && (
+              <Link
+                href="/asignaciones"
+                className={`text-sm transition-colors ${pathname === "/asignaciones" ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {t("myAssignments")}
+              </Link>
+            )}
             <button
               onClick={() => setDarkMode(!darkMode)}
               className="w-8 h-8 flex items-center justify-center rounded-full border border-border hover:border-foreground transition-colors"
@@ -139,6 +153,22 @@ export default function AppNavBar() {
         {/* Mobile nav */}
         {mobileOpen && (
           <div className="md:hidden border-t border-border py-2 pb-3">
+            <Link
+              href="/"
+              onClick={() => setMobileOpen(false)}
+              className="block px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t("home")}
+            </Link>
+            {session?.user && (
+              <Link
+                href="/asignaciones"
+                onClick={() => setMobileOpen(false)}
+                className="block px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {t("myAssignments")}
+              </Link>
+            )}
             {status !== "loading" &&
               (session?.user ? (
                 <div className="px-3 py-2 flex items-center gap-3">

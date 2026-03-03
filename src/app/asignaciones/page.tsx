@@ -1,0 +1,220 @@
+"use client";
+
+import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { formatDateLong } from "@/lib/timezone-utils";
+import LoadingScreen from "@/components/LoadingScreen";
+
+interface Assignment {
+  date: string;
+  roleName: string;
+  groupName: string;
+  groupSlug: string;
+  groupId: number;
+}
+
+interface DashboardData {
+  assignments: Assignment[];
+  conflicts: { date: string; groups: string[] }[];
+}
+
+export default function MyAssignmentsPage() {
+  const { status } = useSession();
+  const router = useRouter();
+  const t = useTranslations("myAssignments");
+  const tHome = useTranslations("home");
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [filterGroupId, setFilterGroupId] = useState<string>("");
+  const [filterMonth, setFilterMonth] = useState<string>("");
+  const [filterYear, setFilterYear] = useState<string>("");
+  const [filterRole, setFilterRole] = useState<string>("");
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/login");
+      return;
+    }
+    if (status !== "authenticated") return;
+    fetch("/api/user/dashboard")
+      .then((res) => res.json())
+      .then((data: DashboardData) => {
+        setDashboard(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [status, router]);
+
+  const uniqueGroups = useMemo(() => {
+    if (!dashboard) return [];
+    const seen = new Map<number, { groupId: number; groupName: string; groupSlug: string }>();
+    for (const a of dashboard.assignments) {
+      if (!seen.has(a.groupId)) seen.set(a.groupId, { groupId: a.groupId, groupName: a.groupName, groupSlug: a.groupSlug });
+    }
+    return [...seen.values()].sort((a, b) => a.groupName.localeCompare(b.groupName));
+  }, [dashboard]);
+
+  const uniqueRoles = useMemo(() => {
+    if (!dashboard) return [];
+    const set = new Set(dashboard.assignments.map((a) => a.roleName));
+    return [...set].sort();
+  }, [dashboard]);
+
+  const years = useMemo(() => {
+    if (!dashboard) return [];
+    const set = new Set(dashboard.assignments.map((a) => a.date.slice(0, 4)));
+    return [...set].sort((a, b) => b.localeCompare(a));
+  }, [dashboard]);
+
+  const filtered = useMemo(() => {
+    if (!dashboard) return [];
+    return dashboard.assignments.filter((a) => {
+      if (filterGroupId && a.groupId !== parseInt(filterGroupId, 10)) return false;
+      if (filterRole && a.roleName !== filterRole) return false;
+      if (filterYear && a.date.slice(0, 4) !== filterYear) return false;
+      if (filterMonth && a.date.slice(5, 7) !== filterMonth.padStart(2, "0")) return false;
+      return true;
+    });
+  }, [dashboard, filterGroupId, filterRole, filterYear, filterMonth]);
+
+  const conflictDateSet = useMemo(() => {
+    if (!dashboard) return new Set<string>();
+    return new Set(dashboard.conflicts?.map((c) => c.date) ?? []);
+  }, [dashboard]);
+
+  if (status === "loading" || (status === "authenticated" && loading)) {
+    return <LoadingScreen fullPage />;
+  }
+
+  if (status === "unauthenticated") return null;
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="font-[family-name:var(--font-display)] text-4xl sm:text-5xl uppercase">
+            {t("title")}
+          </h1>
+          <p className="mt-3 text-muted-foreground">
+            {t("subtitle")}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <a
+            href="/api/user/assignments/ical"
+            download="mis-asignaciones.ics"
+            className="rounded-md border border-border px-4 py-2 text-sm hover:border-foreground transition-colors"
+          >
+            {t("exportIcal")}
+          </a>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              {t("filterGroup")}
+            </label>
+            <select
+              value={filterGroupId}
+              onChange={(e) => setFilterGroupId(e.target.value)}
+              className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+            >
+              <option value="">{t("allGroups")}</option>
+              {uniqueGroups.map((g) => (
+                <option key={g.groupId} value={g.groupId}>
+                  {g.groupName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              {t("filterRole")}
+            </label>
+            <select
+              value={filterRole}
+              onChange={(e) => setFilterRole(e.target.value)}
+              className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+            >
+              <option value="">{t("allRoles")}</option>
+              {uniqueRoles.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              {t("filterMonth")}
+            </label>
+            <select
+              value={filterYear}
+              onChange={(e) => setFilterYear(e.target.value)}
+              className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+            >
+              <option value="">{t("allMonths")}</option>
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Mes
+            </label>
+            <select
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
+            >
+              <option value="">—</option>
+              {(tHome as unknown as { raw: (k: string) => string[] }).raw("monthsLowercase").map((name, i) => (
+                <option key={i} value={String(i + 1)}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="border border-dashed border-border rounded-lg py-12 text-center">
+            <p className="text-muted-foreground">{t("noAssignments")}</p>
+          </div>
+        ) : (
+          <ul className="border border-border rounded-lg divide-y divide-border overflow-hidden">
+            {filtered.map((a, i) => (
+              <li
+                key={`${a.date}-${a.groupId}-${a.roleName}-${i}`}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium capitalize">{formatDateLong(a.date)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {a.roleName} · {a.groupName}
+                  </p>
+                  {conflictDateSet.has(a.date) && (
+                    <p className="text-xs text-destructive mt-0.5">{tHome("conflictMultipleGroups")}</p>
+                  )}
+                </div>
+                <Link
+                  href={`/${a.groupSlug}/cronograma/${a.date.slice(0, 4)}/${a.date.slice(5, 7)}`}
+                  className="shrink-0 rounded-md border border-border px-3 py-1.5 text-sm hover:border-foreground transition-colors"
+                >
+                  {t("viewCronograma")}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
