@@ -42,6 +42,10 @@ This file is the single source for product behaviour, scripts, migrations, and a
 # Features
 *(Add new items here when you implement a feature.)*
 
+## Config BFF and cronograma URL
+- **Config context (BFF):** One fetch `GET /api/configuration/context?slug=` returns group, members, roles, days, exclusiveGroups, schedules. Config layout uses it; list pages (members, roles, events, schedules) read from `configContext`; mutations call `refetchContext()` before navigating.
+- **Cronograma current month:** `/[slug]/cronograma` redirects (302) to `/[slug]/cronograma/[year]/[month]` for current month so bookmarks and links use a single URL shape.
+
 ## Schedule / recurring events (core model)
 - **Table names**: `schedule_entries` → `schedule_date_assignments`; `schedule_days` → `recurring_events`; `day_role_priorities` → `event_role_priorities`.
 - **Weekdays**: Reference table `weekdays` (id, name, display_order), 7 rows (Lunes–Domingo). `recurring_events` and `member_availability` use `weekday_id` FK.
@@ -51,8 +55,16 @@ This file is the single source for product behaviour, scripts, migrations, and a
 - **Schedule generation**: Per date, type/label from recurring_events; only assignable dates run scheduler and get schedule_date_assignments.
 - **Event time window**: Assignable events can have `start_time_utc` and `end_time_utc` (HH:MM UTC). Scheduler only assigns members whose availability overlaps that window on that weekday. Config: start/end inputs on event edit form (UTC). Defaults 00:00–23:59.
 
+## API consistency, security, and validation
+- **Error shape**: All API errors use `{ error: string, code?: string }` and consistent status codes (400 validation, 403 forbidden, 404 not found, 409 conflict, 429 rate limited). Helper: `apiError(message, status, code)` in `src/lib/api-helpers.ts`.
+- **Group access**: Resource-by-id routes (members, schedules, schedule notes, link-check) load the resource’s `groupId` and call `hasGroupAccess(userId, groupId)`; 403 if denied. Config routes (roles, priorities, exclusive-groups, days) use `requireGroupAccess(request)` so all are authenticated and accept slug.
+- **Slug in group-scoped APIs**: `requireGroupAccess(request)` and `extractGroupIdOrSlug(request)` accept either `?groupId=N` or `?slug=xxx`; slug is resolved to groupId via `resolveGroupBySlug`. Config pages can pass slug from the router.
+- **Request validation**: **Zod** schemas in `src/lib/schemas/`; use `parseBody(schema, body)` in handlers for POST/PUT; invalid payloads return 400 with first issue message. Used for roles, exclusive-groups, config holidays, schedule notes (and extensible to more routes).
+- **Rate limiting**: Public cronograma GET endpoints are rate limited by IP (in-memory, `src/lib/rate-limit.ts`); 429 when exceeded. For production at scale, consider @upstash/ratelimit (Redis).
+- **DELETE by path**: Prefer `DELETE /api/configuration/holidays/[id]` and `DELETE /api/configuration/exclusive-groups/[id]` with group in query (`?groupId=` or `?slug=`). Client uses these paths.
+
 ## Stack and setup
-- Next.js 16 App Router, TypeScript, Tailwind CSS. **next-intl** for client-facing copy (single locale `es`, messages from `messages/es.json`). Drizzle ORM + PostgreSQL (postgres-js, Neon). Auth.js v5 (next-auth) Google OAuth + Drizzle adapter. Jest + ts-jest (TDD).
+- Next.js 16 App Router, TypeScript, Tailwind CSS. **next-intl** for client-facing copy (single locale `es`, messages from `messages/es.json`). Drizzle ORM + PostgreSQL (postgres-js, Neon). Auth.js v5 (next-auth) Google OAuth + Drizzle adapter. **Zod** for request/response validation and shared types. Jest + ts-jest (TDD).
 - **Tables**: users, accounts, groups, group_collaborators, members, exclusive_groups, roles, member_roles, weekdays, recurring_events, member_availability, holidays, schedules, schedule_date, schedule_date_assignments, schedule_audit_log, event_role_priorities.
 
 ## User authentication
@@ -84,6 +96,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 - `/:slug/config/roles`. New role: name, optional member assignments on "Agregar rol". Edit: fields + "Personas con este rol"; "Actualizar" persists. Unsaved changes: UnsavedConfigProvider, config layout guards nav when configDirty. API: `/api/configuration/roles?groupId=N`, `/api/configuration/exclusive-groups?groupId=N`.
 
 ## Configuration
+- **Config context (BFF):** One fetch for the config shell: `GET /api/configuration/context?slug=xxx` (or `?groupId=N`) returns group, members, roles, days (recurring events), exclusiveGroups, schedules. `GroupProvider` uses it; config list pages (members, roles, events, schedules) read from `configContext`; mutations call `refetchContext()` before navigating. API: `src/app/api/configuration/context/route.ts`.
 - Recurring events: active, type, label per weekday; assignable can set start/end time UTC. Column order: role list reorder, "Guardar orden". Event role priorities: assignable events only. Member availability: 7 weekdays (member_id, weekday_id). API: `/api/configuration/days?groupId=N`, `/api/configuration/priorities?groupId=N`.
 
 ## Schedule generation & preview
@@ -91,8 +104,15 @@ This file is the single source for product behaviour, scripts, migrations, and a
 
 ## Dashboard, navigation, public view
 - **Dashboard**: `/`, cross-group assignments, conflicts (same date multiple groups). API `GET /api/user/dashboard`.
-- **Nav**: AppNavBar (root layout): Cronogramas, Inicio, Ajustes, auth. GroupSubNav (config layout): group name, Miembros, Roles, Configuración, Vacaciones, Colaboradores, Cronogramas.
-- **Public view**: `/:slug/cronograma`, `/:slug/cronograma/:year/:month`; mobile-first, dark toggle, member filter; API `/api/cronograma/:slug`, `/api/cronograma/:slug/:year/:month`.
+- **Nav**: AppNavBar (root layout): Cronogramas, Inicio, Mis asignaciones (when signed in), Ajustes, auth. GroupSubNav (config layout): group name, "Ir a…" quick jump (⌘K), Miembros, Roles, Configuración, Vacaciones, Colaboradores, Cronograma.
+- **Public view**: `/:slug/cronograma` redirects (302) to `/:slug/cronograma/:year/:month` for current month; `/:slug/cronograma/:year/:month` is the canonical schedule view. Mobile-first, dark toggle, member filter. API `/api/cronograma/:slug`, `/api/cronograma/:slug/:year/:month`.
+
+## Product and UX clarity
+- **One schedule mental model**: Copy and nav treat "schedule" as one entity per group with months as views. Config nav label "Cronograma"; schedules page "Meses del cronograma"; config home "Ver cronograma" and "Cronograma" card.
+- **My assignments**: Page `/asignaciones` lists the user's assignments across groups with filters (group, month, role). Uses `GET /api/user/dashboard`. Link "Exportar iCal" downloads from `GET /api/user/assignments/ical` (Content-Type: text/calendar). Auth required.
+- **Consistent back/cancel**: Shared `BackLink` component (top of page) on member/role/event/schedule form and detail pages; "Cancelar" / "Volver" at bottom of forms returns to list. Keys: `common.back`, `members.backToMembers`, `roles.backToRoles`, `events.backToEvents`, `scheduleDetail.backToScheduleList`.
+- **Keyboard shortcuts**: `react-hotkeys-hook`. **?** opens help overlay (shortcuts list). **g** then **h** → Inicio, **g** then **a** → Mis asignaciones. In config: **⌘K** (or Ctrl+K) opens "Ir a…" search. Component: `src/components/KeyboardShortcuts.tsx`.
+- **Quick jump (config)**: "Ir a…" in GroupSubNav + ⌘K: search by name over members, roles, events, schedule months; select to navigate. Data from `configContext`. Component: `src/components/ConfigGoTo.tsx`.
 
 ## Locale, seeds, env
 - UI in Spanish. App name **Cronogramas**.

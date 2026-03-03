@@ -13,6 +13,7 @@ The app uses **Next.js App Router**, is **mobile-first**, and all user-facing co
 | Path | Purpose | Page file |
 |------|---------|-----------|
 | `/` | Home: dashboard, groups list, next assignment, calendar | `src/app/page.tsx` |
+| `/asignaciones` | My assignments: list and filters (group, month, role), iCal export link | `src/app/asignaciones/page.tsx` |
 | `/login` | Google sign-in | `src/app/login/page.tsx` |
 | `/settings` | User profile, personal holidays, link to admin | `src/app/settings/page.tsx` |
 | `/admin` | Admin panel: users, flags (isAdmin, canCreateGroups) | `src/app/admin/page.tsx` |
@@ -47,8 +48,8 @@ The app uses **Next.js App Router**, is **mobile-first**, and all user-facing co
 
 | Path | Purpose | Page file |
 |------|---------|-----------|
-| `/[slug]/cronograma` | Current month schedule view | `src/app/[slug]/cronograma/page.tsx` |
-| `/[slug]/cronograma/[year]/[month]` | Specific month schedule view | `src/app/[slug]/cronograma/[year]/[month]/page.tsx` |
+| `/[slug]/cronograma` | Redirects (302) to `/[slug]/cronograma/[year]/[month]` for current month | `src/app/[slug]/cronograma/page.tsx` |
+| `/[slug]/cronograma/[year]/[month]` | Schedule view for that month | `src/app/[slug]/cronograma/[year]/[month]/page.tsx` |
 
 ## 3. Layouts and nav
 
@@ -59,7 +60,11 @@ The app uses **Next.js App Router**, is **mobile-first**, and all user-facing co
   Wraps all `/[slug]/config/*` routes with **GroupProvider**, **UnsavedConfigProvider**, and **GroupSubNav**. Provides group `slug`/name/loading, unsaved-form state, and sub-nav (Miembros, Roles, Eventos, Vacaciones, Colaboradores, Cronogramas). Confirms before leaving when `useUnsavedConfig().dirty` on guard pages (see `config-nav-guard`).
 
 - **AppNavBar** — `src/components/AppNavBar.tsx`  
-  Top bar: logo link to `/`, theme toggle, session (avatar + settings link + sign out) or "Iniciar sesión". Hidden on `/login`. Mobile: hamburger + dropdown.
+  Top bar: logo link to `/`, links to Inicio and Mis asignaciones (when signed in), theme toggle, session (avatar + settings link + sign out) or "Iniciar sesión". Hidden on `/login`. Mobile: hamburger + dropdown with same links.
+- **KeyboardShortcuts** — `src/components/KeyboardShortcuts.tsx`  
+  Global: `?` opens help overlay with shortcuts (g then h = Inicio, g then a = Mis asignaciones). Rendered in root layout.
+- **ConfigGoTo** — `src/components/ConfigGoTo.tsx`  
+  In config layout: "Ir a…" button and **⌘K** shortcut open a search that finds members, roles, events, or schedule months by name and navigates.
 
 - **GroupSubNav** — Defined and used in `src/app/[slug]/config/layout.tsx`  
   Second bar under AppNavBar: group name link to `/[slug]/config`, then links to members, roles, events, holidays, collaborators, schedules. Desktop horizontal links; mobile collapsible menu. Uses `useGroup()` and `useUnsavedConfig()` for guard on navigation.
@@ -81,7 +86,7 @@ Client-facing modules under `src/lib` used for data or behavior:
 
 | Module | Purpose |
 |--------|---------|
-| `group-context.tsx` | `GroupProvider` / `useGroup()`: resolves group by `[slug]`, exposes `groupId`, `slug`, `groupName`, `loading`, `error`. |
+| `group-context.tsx` | `GroupProvider` / `useGroup()`: fetches config context (group + members + roles + days + exclusiveGroups + schedules) by `[slug]` via `GET /api/configuration/context?slug=`, exposes `groupId`, `slug`, `groupName`, `loading`, `error`, `configContext`, `refetchContext()`. |
 | `unsaved-config-context.tsx` | `UnsavedConfigProvider` / `useUnsavedConfig()`: `dirty` / `setDirty` for config form leave guard. |
 | `config-nav-guard.ts` | `isConfigFormPageWithUnsavedGuard(pathname)`: whether current path should block nav when dirty (events/roles/schedules forms). |
 | `timezone-utils.ts` | Date/time display and input: `formatDateLong`, `formatDateShort`, `formatDateRangeWithYear`, `utcTimeToLocalDisplay`, `localTimeToUtc`, etc. |
@@ -95,6 +100,6 @@ Client-facing modules under `src/lib` used for data or behavior:
 - **To add a new config page** — Add a route under `src/app/[slug]/config/<name>/page.tsx`. Add a link in the `navLinks` array in `src/app/[slug]/config/layout.tsx` (GroupSubNav). Use `useGroup()` for `slug`/groupId and `useUnsavedConfig()` if the page has a form that should trigger the leave guard.
 - **To change the public schedule view** — Edit `src/components/SharedScheduleView.tsx`. The pages that feed it are `src/app/[slug]/cronograma/page.tsx` (current month) and `src/app/[slug]/cronograma/[year]/[month]/page.tsx` (specific month).
 - **To find where X is rendered** — Search for the component name or feature text: e.g. `SharedScheduleView` → cronograma pages; `AvailabilityWeekGrid` → member new/edit; `OptionToggleGroup` → member and event forms; nav labels ("Miembros", "Roles", etc.) → `src/app/[slug]/config/layout.tsx`.
-- **To change global nav or theme** — `src/components/AppNavBar.tsx` and `src/app/layout.tsx`.
+- **To change global nav or theme** — `src/components/AppNavBar.tsx` and `src/app/layout.tsx`. Keyboard shortcuts overlay: `src/components/KeyboardShortcuts.tsx`.
 - **To change group config sub-nav** — `src/app/[slug]/config/layout.tsx` (GroupSubNav and `navLinks`).
 - **To change any client-facing wording** — Edit **`messages/es.json`**. In components use **next-intl**: `useTranslations('namespace')` and `t('key')` (or `t('key', { n: value })` for placeholders).
