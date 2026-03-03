@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import EventForm from "../EventForm";
+import BackLink from "@/components/BackLink";
 import LoadingScreen from "@/components/LoadingScreen";
 
 interface Role {
@@ -18,6 +20,7 @@ interface Role {
 export default function NewEventPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const t = useTranslations("events");
   const { groupId, loading: groupLoading } = useGroup();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,13 +49,16 @@ export default function NewEventPage() {
   }
 
   return (
-    <EventForm
-      slug={slug}
-      groupId={groupId ?? null}
-      isNew={true}
-      initialEvent={null}
-      roles={roles}
-      initialPriorities={[]}
-    />
+    <div className="space-y-12">
+      <BackLink href={`/${slug}/config/events`} label={t("backToEvents")} />
+      <EventForm
+        slug={slug}
+        groupId={groupId ?? null}
+        isNew={true}
+        initialEvent={null}
+        roles={roles}
+        initialPriorities={[]}
+      />
+    </div>
   );
 }

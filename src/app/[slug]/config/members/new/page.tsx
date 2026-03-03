@@ -10,6 +10,7 @@ import AvailabilityWeekGrid from "@/components/AvailabilityWeekGrid";
 import { localTimeToUtc } from "@/lib/timezone-utils";
 import { DAY_ORDER } from "@/lib/constants";
 import LoadingScreen from "@/components/LoadingScreen";
+import BackLink from "@/components/BackLink";
 
 /** Canonical 7 weekdays for availability grid (weekdayId 1–7 match DB weekdays table). */
 const AVAILABILITY_WEEKDAYS: { id: number; weekdayId: number; dayOfWeek: string }[] = DAY_ORDER.map(
@@ -34,7 +35,7 @@ export default function NewMemberPage() {
   const router = useRouter();
   const t = useTranslations("members");
   const tCommon = useTranslations("common");
-  const { groupId, loading: groupLoading } = useGroup();
+  const { groupId, loading: groupLoading, refetchContext } = useGroup();
   const [roles, setRoles] = useState<Role[]>([]);
   const [days, setDays] = useState<WeekdayOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +96,7 @@ export default function NewMemberPage() {
       return;
     }
 
+    await refetchContext();
     router.push(`/${slug}/config/members`);
   };
 
@@ -105,6 +107,7 @@ export default function NewMemberPage() {
   return (
     <div className="space-y-12">
       <div>
+        <BackLink href={`/${slug}/config/members`} label={t("backToMembers")} />
         <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
           {t("addMemberTitle")}
         </h1>

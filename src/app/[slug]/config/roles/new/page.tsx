@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import { useUnsavedConfig } from "@/lib/unsaved-config-context";
 import LoadingScreen from "@/components/LoadingScreen";
+import BackLink from "@/components/BackLink";
 
 interface Member {
   id: number;
@@ -31,7 +32,7 @@ export default function NewRolePage() {
   const t = useTranslations("roles");
   const tCommon = useTranslations("common");
   const tConfigNav = useTranslations("configNav");
-  const { groupId, loading: groupLoading } = useGroup();
+  const { groupId, loading: groupLoading, refetchContext } = useGroup();
   const { setDirty } = useUnsavedConfig();
   const [roleName, setRoleName] = useState("");
   const [requiredCount, setRequiredCount] = useState(1);
@@ -127,6 +128,7 @@ export default function NewRolePage() {
     }
 
     setDirty(false);
+    await refetchContext();
     router.push(`/${slug}/config/roles`);
   };
 
@@ -137,6 +139,7 @@ export default function NewRolePage() {
   return (
     <div className="space-y-12">
       <div>
+        <BackLink href={`/${slug}/config/roles`} label={t("backToRoles")} />
         <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
           {t("addRoleTitle")}
         </h1>

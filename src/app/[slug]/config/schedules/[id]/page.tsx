@@ -13,6 +13,7 @@ import {
   localTimeToUtc,
 } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
+import BackLink from "@/components/BackLink";
 
 interface ScheduleEntry {
   id: number;
@@ -625,6 +626,7 @@ export default function SchedulePreviewPage() {
 
   return (
     <div className="space-y-8">
+      <BackLink href={`/${slug}/config/schedules`} label={t("backToScheduleList")} />
       {/* Header */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

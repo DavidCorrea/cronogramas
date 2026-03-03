@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import EventForm from "../EventForm";
+import BackLink from "@/components/BackLink";
 import LoadingScreen from "@/components/LoadingScreen";
 
 interface EventData {
@@ -111,13 +112,16 @@ export default function EditEventPage() {
   }));
 
   return (
-    <EventForm
-      slug={slug}
-      groupId={groupId ?? null}
-      isNew={false}
-      initialEvent={event}
-      roles={roles}
-      initialPriorities={initialPriorities}
-    />
+    <div className="space-y-12">
+      <BackLink href={`/${slug}/config/events`} label={t("backToEvents")} />
+      <EventForm
+        slug={slug}
+        groupId={groupId ?? null}
+        isNew={false}
+        initialEvent={event}
+        roles={roles}
+        initialPriorities={initialPriorities}
+      />
+    </div>
   );
 }

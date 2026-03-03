@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import { useUnsavedConfig } from "@/lib/unsaved-config-context";
 import LoadingScreen from "@/components/LoadingScreen";
+import BackLink from "@/components/BackLink";
 
 interface Role {
   id: number;
@@ -44,7 +45,7 @@ export default function EditRolePage() {
   const t = useTranslations("roles");
   const tCommon = useTranslations("common");
   const tConfigNav = useTranslations("configNav");
-  const { groupId, loading: groupLoading } = useGroup();
+  const { groupId, loading: groupLoading, refetchContext } = useGroup();
   const { setDirty } = useUnsavedConfig();
   const [role, setRole] = useState<Role | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -212,6 +213,7 @@ export default function EditRolePage() {
     }
 
     setDirty(false);
+    await refetchContext();
     router.push(`/${slug}/config/roles`);
   };
 
@@ -230,6 +232,7 @@ export default function EditRolePage() {
       setFormError(data.error || t("errorDelete"));
       return;
     }
+    await refetchContext();
     router.push(`/${slug}/config/roles`);
   };
 
@@ -254,6 +257,7 @@ export default function EditRolePage() {
   return (
     <div className="space-y-12">
       <div>
+        <BackLink href={`/${slug}/config/roles`} label={t("backToRoles")} />
         <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
           {t("editRoleTitle")}
         </h1>
