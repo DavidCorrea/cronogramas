@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
@@ -185,8 +185,7 @@ interface Schedule {
   month: number;
   year: number;
   status: string;
-
-  createdAt: string;
+  createdAt?: string;
 }
 
 const MONTH_NAMES = [
@@ -246,51 +245,43 @@ function getNextAvailableMonth(
 export default function SchedulesPage() {
   const t = useTranslations("schedules");
   const tCommon = useTranslations("common");
-  const { groupId, slug, loading: groupLoading } = useGroup();
+  const { groupId, slug, loading: groupLoading, configContext, refetchContext } = useGroup();
   const monthNames = (t as unknown as { raw: (k: string) => string[] }).raw("months") ?? MONTH_NAMES;
   const { setDirty } = useUnsavedConfig();
-  const [schedulesList, setSchedulesList] = useState<Schedule[]>([]);
-  const [, setRoles] = useState<Role[]>([]);
+
+  const schedulesList = useMemo<Schedule[]>(
+    () => configContext?.schedules ?? [],
+    [configContext?.schedules]
+  );
+  const sortedRoles = useMemo(() => {
+    const rolesFromContext = configContext?.roles ?? [];
+    return [...rolesFromContext].sort((a, b) => a.displayOrder - b.displayOrder);
+  }, [configContext?.roles]);
   const [orderedRoles, setOrderedRoles] = useState<Role[]>([]);
   const [initialOrder, setInitialOrder] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  // Generation form: start with no selection; set to next available after fetch
   const [selectedMonths, setSelectedMonths] = useState<
     { month: number; year: number }[]
   >([]);
 
-  const fetchData = useCallback(async () => {
-    if (!groupId) return;
-    const [schedulesRes, rolesRes] = await Promise.all([
-      fetch(`/api/schedules?groupId=${groupId}`),
-      fetch(`/api/configuration/roles?groupId=${groupId}`),
-    ]);
-    const schedulesListData = await schedulesRes.json();
-    setSchedulesList(schedulesListData);
-    const rolesData = await rolesRes.json();
-    setRoles(rolesData);
-    const sorted = [...rolesData].sort(
-      (a: Role, b: Role) => a.displayOrder - b.displayOrder
-    );
-    setOrderedRoles(sorted);
-    setInitialOrder(sorted.map((r: Role) => r.id));
-    setSelectedMonths((prev) =>
-      prev.length === 0 ? [getNextAvailableMonth(schedulesListData)] : prev
-    );
-    setLoading(false);
-  }, [groupId]);
+  useEffect(() => {
+    if (sortedRoles.length === 0) return;
+    setOrderedRoles(sortedRoles);
+    setInitialOrder(sortedRoles.map((r) => r.id));
+  }, [sortedRoles]);
 
   useEffect(() => {
-    if (groupId) fetchData();
-  }, [groupId, fetchData]);
+    if (selectedMonths.length > 0) return;
+    setSelectedMonths([getNextAvailableMonth(schedulesList)]);
+  }, [schedulesList, selectedMonths.length]);
 
+  const displayRoles = orderedRoles.length > 0 ? orderedRoles : sortedRoles;
   const orderDirty = useMemo(
     () =>
-      orderedRoles.length !== initialOrder.length ||
-      orderedRoles.some((r, i) => r.id !== initialOrder[i]),
-    [orderedRoles, initialOrder]
+      displayRoles.length !== initialOrder.length ||
+      displayRoles.some((r, i) => r.id !== initialOrder[i]),
+    [displayRoles, initialOrder]
   );
 
   useEffect(() => {
@@ -344,7 +335,7 @@ export default function SchedulesPage() {
         return;
       }
 
-      fetchData();
+      await refetchContext();
     } finally {
       setGenerating(false);
     }
@@ -353,10 +344,10 @@ export default function SchedulesPage() {
   const handleDelete = async (id: number) => {
     if (!confirm(t("confirmDelete"))) return;
     await fetch(`/api/schedules/${id}`, { method: "DELETE" });
-    fetchData();
+    await refetchContext();
   };
 
-  if (groupLoading || loading) {
+  if (groupLoading) {
     return <LoadingScreen fullPage={false} />;
   }
 
@@ -507,7 +498,7 @@ export default function SchedulesPage() {
             </p>
           </div>
           <ColumnOrderEditor
-            orderedRoles={orderedRoles}
+            orderedRoles={displayRoles}
             onOrderChange={setOrderedRoles}
             moveLeftLabel={t("moveLeft")}
             moveRightLabel={t("moveRight")}

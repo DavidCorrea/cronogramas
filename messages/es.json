@@ -2,8 +2,21 @@
   "app": {
     "name": "Cronogramas"
   },
+  "shortcuts": {
+    "title": "Atajos de teclado",
+    "close": "Cerrar (Esc)",
+    "home": "Inicio",
+    "myAssignments": "Mis asignaciones",
+    "goToHome": "Ir a Inicio",
+    "goToAssignments": "Ir a Mis asignaciones",
+    "pressGThen": "Pulsa «g» y luego:",
+    "inConfig": "En configuración:",
+    "goToSearch": "Ir a… (buscar)"
+  },
   "nav": {
     "appName": "Cronogramas",
+    "home": "Inicio",
+    "myAssignments": "Mis asignaciones",
     "signIn": "Iniciar sesión",
     "signOut": "Salir",
     "toggleTheme": "Cambiar modo",
@@ -16,9 +29,28 @@
     "events": "Eventos",
     "holidays": "Vacaciones",
     "collaborators": "Colaboradores",
-    "schedules": "Cronogramas",
+    "schedules": "Cronograma",
     "unsavedConfirm": "Hay cambios sin guardar. ¿Salir de todas formas?",
-    "groupNotFound": "Grupo no encontrado"
+    "groupNotFound": "Grupo no encontrado",
+    "goTo": "Ir a…",
+    "goToPlaceholder": "Buscar miembro, rol, evento o mes…",
+    "goToNoResults": "Sin resultados"
+  },
+  "myAssignments": {
+    "title": "Mis asignaciones",
+    "subtitle": "Todas tus asignaciones por grupo, mes y rol.",
+    "exportIcal": "Exportar iCal",
+    "noAssignments": "No tienes asignaciones.",
+    "filterGroup": "Grupo",
+    "filterMonth": "Mes",
+    "filterRole": "Rol",
+    "allGroups": "Todos los grupos",
+    "allMonths": "Todos los meses",
+    "allRoles": "Todos los roles",
+    "date": "Fecha",
+    "group": "Grupo",
+    "role": "Rol",
+    "viewCronograma": "Ver cronograma"
   },
   "home": {
     "title": "Inicio",
@@ -35,6 +67,7 @@
     "roleMember": "Miembro",
     "close": "Cerrar",
     "noAssignments": "Sin asignaciones",
+    "myAssignmentsLink": "Mis asignaciones",
     "dayHeaders": [
       "L",
       "M",
@@ -109,10 +142,10 @@
     "holidaysDesc": "Gestiona fechas de ausencia de los miembros del grupo.",
     "collaboratorsCard": "Colaboradores",
     "collaboratorsDesc": "Gestiona quién puede administrar este grupo.",
-    "schedulesCard": "Cronogramas",
-    "schedulesDesc": "Genera, previsualiza y comparte los cronogramas del grupo.",
-    "publicViewCard": "Vista Pública",
-    "publicViewDesc": "Ver el cronograma del mes actual como lo ven los miembros.",
+    "schedulesCard": "Cronograma",
+    "schedulesDesc": "Genera y edita el cronograma del grupo por mes.",
+    "publicViewCard": "Ver cronograma",
+    "publicViewDesc": "Ver el cronograma por mes como lo ven los miembros.",
     "subtitle": "Genera cronogramas rotacionales para tu grupo."
   },
   "members": {
@@ -282,15 +315,15 @@
     "confirmRemove": "¿Estás seguro de que deseas eliminar este colaborador?"
   },
   "schedules": {
-    "title": "Cronogramas",
-    "subtitle": "Genera nuevos cronogramas o consulta los existentes.",
-    "generate": "Generar cronograma",
-    "generateHelp": "Selecciona un mes para generar el cronograma.",
+    "title": "Cronograma",
+    "subtitle": "El cronograma del grupo por mes. Genera nuevos meses o edita los existentes.",
+    "generate": "Agregar mes al cronograma",
+    "generateHelp": "Selecciona un mes para generarlo en el cronograma.",
     "generating": "Generando...",
-    "existing": "Cronogramas existentes",
-    "noSchedulesYet": "Aún no se han generado cronogramas.",
-    "edit": "Editar",
-    "view": "Ver",
+    "existing": "Meses del cronograma",
+    "noSchedulesYet": "Aún no hay meses en el cronograma.",
+    "edit": "Editar mes",
+    "view": "Ver cronograma",
     "errorGenerate": "Error al generar cronograma",
     "confirmDelete": "¿Estás seguro de que deseas eliminar este cronograma?",
     "columnOrder": "Orden de columnas",
@@ -353,6 +386,7 @@
     "hoursAgo": "hace {n}h",
     "yesterday": "ayer",
     "daysAgo": "hace {n} dias",
+    "backToScheduleList": "Volver al cronograma",
     "rebuildModalTitle": "Reconstruir cronograma",
     "rebuildModalSubtitle": "Regenerar asignaciones desde hoy hasta fin de mes.",
     "rebuildOverwrite": "Regenerar todo desde hoy",
@@ -439,6 +473,7 @@
   "common": {
     "loading": "Cargando...",
     "cancel": "Cancelar",
+    "back": "Volver",
     "close": "Cerrar",
     "save": "Guardar",
     "delete": "Eliminar",
