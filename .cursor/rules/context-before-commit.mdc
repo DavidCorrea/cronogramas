@@ -1,0 +1,15 @@
+---
+description: Update context files (CONTEXT.md and docs) before any commit
+alwaysApply: true
+---
+
+# Context files before commit
+
+**Before any commit**, update any relevant context so the next agent (or future you) has accurate context:
+
+- **API routes** — Update **docs/API.md** (route index, auth, which file to edit).
+- **Pages, layouts, or nav** — Update **docs/CLIENT.md** (route map, layouts, components).
+- **Schema or migrations** — Update **docs/DATABASE.md** and run `npm run db:generate` / `npm run db:migrate` as needed.
+- **New or changed domain/top-level folders** — Add or update **CONTEXT.md** in the affected directory (purpose, main entry points, pointer to docs/API.md or docs/CLIENT.md if relevant).
+
+If your change did not touch routes, pages, schema, or folder structure, no context update is required—but always consider whether a CONTEXT.md or doc would help the next reader.
