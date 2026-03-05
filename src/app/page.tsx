@@ -109,6 +109,45 @@ export default function HomePage() {
     return new Set(dashboard.conflicts.map((c) => c.date));
   }, [dashboard]);
 
+  type CalendarDateRow = {
+    groupName: string;
+    groupSlug: string;
+    roles: string[];
+    startTimeUtc?: string;
+    endTimeUtc?: string;
+  };
+  const calendarDateDetailRows = useMemo((): CalendarDateRow[] => {
+    if (!calendarSelectedDate || !dashboard) return [];
+    const dateAssignments = (assignmentsByDate.get(calendarSelectedDate) ?? []) as Assignment[];
+    const byGroup = new Map<string, CalendarDateRow>();
+    for (const a of dateAssignments) {
+      const existing = byGroup.get(a.groupSlug);
+      if (existing) {
+        existing.roles.push(a.roleName);
+      } else {
+        byGroup.set(a.groupSlug, {
+          groupName: a.groupName,
+          groupSlug: a.groupSlug,
+          roles: [a.roleName],
+          startTimeUtc: a.startTimeUtc,
+          endTimeUtc: a.endTimeUtc,
+        });
+      }
+    }
+    return [...byGroup.values()];
+  }, [calendarSelectedDate, assignmentsByDate, dashboard]);
+
+  const calendarDateConflictContent = useMemo(() => {
+    if (!calendarSelectedDate || !conflictDateSet.has(calendarSelectedDate)) return null;
+    const dateAssignments = assignmentsByDate.get(calendarSelectedDate) ?? [];
+    const withTime = dateAssignments.filter(
+      (a): a is Assignment & { startTimeUtc: string; endTimeUtc: string } =>
+        a.startTimeUtc != null && a.endTimeUtc != null,
+    );
+    const timespans = withTime.length >= 2 ? getConflictTimespans(withTime) : [];
+    return timespans.length > 0 ? timespans : null;
+  }, [calendarSelectedDate, conflictDateSet, assignmentsByDate]);
+
   const nextAssignment = useMemo(() => {
     if (!dashboard || dashboard.assignments.length === 0) return null;
     const future = dashboard.assignments.filter((a) => a.date >= todayISO);
@@ -341,53 +380,48 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-2">
-              {conflictDateSet.has(calendarSelectedDate) && (() => {
-                const dateAssignments = assignmentsByDate.get(calendarSelectedDate) ?? [];
-                const withTime = dateAssignments.filter(
-                  (a): a is Assignment & { startTimeUtc: string; endTimeUtc: string } =>
-                    a.startTimeUtc != null && a.endTimeUtc != null,
-                );
-                const timespans = withTime.length >= 2 ? getConflictTimespans(withTime) : [];
-                return timespans.length > 0 ? (
-                  <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 mb-3 space-y-1">
-                    <p className="text-xs font-medium text-destructive uppercase tracking-wide">
-                      {t("conflict")}
+              {calendarDateConflictContent && (
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 mb-3 space-y-1">
+                  <p className="text-xs font-medium text-destructive uppercase tracking-wide">
+                    {t("conflict")}
+                  </p>
+                  {calendarDateConflictContent.map((ts, idx) => (
+                    <p key={idx} className="text-sm text-foreground">
+                      {ts.groupNames.join(" · ")}: {utcTimeToLocalDisplay(ts.startUtc)}–{utcTimeToLocalDisplay(ts.endUtc)}
                     </p>
-                    {timespans.map((ts, idx) => (
-                      <p key={idx} className="text-sm text-foreground">
-                        {ts.groupNames.join(" · ")}: {utcTimeToLocalDisplay(ts.startUtc)}–{utcTimeToLocalDisplay(ts.endUtc)}
-                      </p>
-                    ))}
-                  </div>
-                ) : null;
-              })()}
-              {(assignmentsByDate.get(calendarSelectedDate) ?? []).map((a) => (
-                <div
-                  key={`${a.date}-${a.groupSlug}-${a.roleName}`}
-                  className="flex items-center justify-between text-sm rounded-lg bg-muted/30 px-3 py-2"
-                >
-                  <span className="text-muted-foreground text-xs uppercase tracking-wide">
-                    {a.roleName}
-                    {a.startTimeUtc != null && a.endTimeUtc != null && (
-                      <span className="normal-case ml-1.5 text-muted-foreground">
-                        {utcTimeToLocalDisplay(a.startTimeUtc)}–{utcTimeToLocalDisplay(a.endTimeUtc)}
-                      </span>
-                    )}
-                  </span>
-                  <Link
-                    href={`/${a.groupSlug}/cronograma`}
-                    onClick={() => setCalendarSelectedDate(null)}
-                    className="text-xs font-medium text-accent hover:opacity-80 transition-opacity"
-                  >
-                    {a.groupName} &rarr;
-                  </Link>
+                  ))}
                 </div>
-              ))}
-              {(assignmentsByDate.get(calendarSelectedDate) ?? []).length === 0 && (
+              )}
+              {calendarDateDetailRows.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("noAssignments")}</p>
+              ) : (
+                <>
+                  {calendarDateDetailRows.map((row) => (
+                    <div
+                      key={`${calendarSelectedDate}-${row.groupSlug}`}
+                      className="flex items-center justify-between text-sm rounded-lg bg-muted/30 px-3 py-2"
+                    >
+                      <span className="text-muted-foreground text-xs uppercase tracking-wide">
+                        {row.roles.join(", ")}
+                        {row.startTimeUtc != null && row.endTimeUtc != null && (
+                          <span className="normal-case ml-1.5 text-muted-foreground">
+                            {utcTimeToLocalDisplay(row.startTimeUtc)}–{utcTimeToLocalDisplay(row.endTimeUtc)}
+                          </span>
+                        )}
+                      </span>
+                      <Link
+                        href={`/${row.groupSlug}/cronograma`}
+                        onClick={() => setCalendarSelectedDate(null)}
+                        className="text-xs font-medium text-accent hover:opacity-80 transition-opacity"
+                      >
+                        {row.groupName} &rarr;
+                      </Link>
+                    </div>
+                  ))}
+                </>
               )}
             </div>
-          </div>
+        </div>
         </div>
       )}
     </div>
