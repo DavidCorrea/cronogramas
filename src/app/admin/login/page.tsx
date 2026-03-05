@@ -35,41 +35,45 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-8 text-center">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-sm space-y-6 sm:space-y-8 text-center">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] font-semibold text-4xl uppercase tracking-tight">
+          <h1 className="font-[family-name:var(--font-display)] font-semibold text-3xl sm:text-4xl uppercase tracking-tight text-foreground">
             {t("loginTitle")}
           </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="mt-2 sm:mt-3 text-sm text-muted-foreground">
             {t("loginSubtitle")}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <div>
-            <label className="block text-sm text-muted-foreground mb-1.5">
+            <label htmlFor="admin-username" className="block text-sm text-muted-foreground mb-1.5">
               {t("username")}
             </label>
             <input
+              id="admin-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
+              className="w-full rounded-lg border border-border bg-card px-3 py-3 text-base sm:text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-ring min-h-[48px] sm:min-h-0 sm:py-2.5"
               placeholder={t("usernamePlaceholder")}
               required
+              autoComplete="username"
             />
           </div>
           <div>
-            <label className="block text-sm text-muted-foreground mb-1.5">
+            <label htmlFor="admin-password" className="block text-sm text-muted-foreground mb-1.5">
               {t("password")}
             </label>
             <input
+              id="admin-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-border bg-transparent px-3 py-2.5 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-foreground"
+              className="w-full rounded-lg border border-border bg-card px-3 py-3 text-base sm:text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-ring min-h-[48px] sm:min-h-0 sm:py-2.5"
               required
+              autoComplete="current-password"
             />
           </div>
 
@@ -78,7 +82,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="w-full rounded-lg bg-primary px-5 py-3.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 min-h-[48px] sm:min-h-0 sm:py-2.5"
           >
             {loading ? t("verifying") : t("enter")}
           </button>

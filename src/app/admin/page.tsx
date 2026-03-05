@@ -167,34 +167,37 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:py-12 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-12">
-          <h1 className="font-[family-name:var(--font-display)] font-semibold text-4xl sm:text-5xl uppercase">
+        <div className="mb-8 sm:mb-12">
+          <h1 className="font-[family-name:var(--font-display)] font-semibold text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight">
             {t("title")}
           </h1>
-          <p className="mt-3 text-muted-foreground">
+          <p className="mt-2 sm:mt-3 text-sm sm:text-base text-muted-foreground">
             {t("subtitle")}
           </p>
         </div>
 
         {/* Users list */}
-        <div className="border-t border-border pt-8">
-          <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
+        <section className="border-t border-border pt-6 sm:pt-8" aria-labelledby="admin-users-heading">
+          <h2 id="admin-users-heading" className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-4 sm:mb-6">
             {t("usersCount", { n: users.length })}
           </h2>
 
           {users.length === 0 ? (
-            <div className="border-t border-dashed border-border py-10 text-center">
+            <div className="rounded-xl border border-dashed border-border py-10 text-center">
               <p className="text-sm text-muted-foreground">
                 {t("noUsers")}
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="space-y-4 sm:space-y-0 sm:divide-y sm:divide-border">
               {users.map((user) => (
-                <div key={user.id} className="py-5 first:pt-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div
+                  key={user.id}
+                  className="rounded-xl border border-border bg-card p-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:pt-5 sm:pb-5 sm:first:pt-0"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-0">
                     {/* User info */}
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       {user.image && (
@@ -206,14 +209,14 @@ export default function AdminPage() {
                         />
                       )}
                       <div className="min-w-0">
-                        <p className="font-medium truncate">{user.name ?? t("noName")}</p>
+                        <p className="font-medium truncate text-foreground">{user.name ?? t("noName")}</p>
                         <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                       </div>
                     </div>
 
-                    {/* Toggles and actions */}
-                    <div className="flex items-center gap-4 shrink-0">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                    {/* Toggles: stacked on mobile with space, horizontal on desktop with generous gap */}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-8 sm:shrink-0">
+                      <label className="flex items-center gap-2.5 cursor-pointer py-1">
                         <input
                           type="checkbox"
                           checked={user.isAdmin}
@@ -222,8 +225,7 @@ export default function AdminPage() {
                         />
                         <span className="text-sm">{t("adminFlag")}</span>
                       </label>
-
-                      <label className="flex items-center gap-2 cursor-pointer">
+                      <label className="flex items-center gap-2.5 cursor-pointer py-1">
                         <input
                           type="checkbox"
                           checked={user.canCreateGroups}
@@ -232,8 +234,7 @@ export default function AdminPage() {
                         />
                         <span className="text-sm">{t("createGroupsFlag")}</span>
                       </label>
-
-                      <label className="flex items-center gap-2 cursor-pointer">
+                      <label className="flex items-center gap-2.5 cursor-pointer py-1">
                         <input
                           type="checkbox"
                           checked={user.canExportCalendars}
@@ -242,19 +243,22 @@ export default function AdminPage() {
                         />
                         <span className="text-sm">{t("userCalendarExportFlag")}</span>
                       </label>
+                    </div>
 
+                    {/* Actions: same row on both, extra padding on mobile for touch */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-border sm:border-t-0 sm:pt-0 sm:pl-6">
                       <button
                         type="button"
                         onClick={() => startImpersonating(user.id)}
                         disabled={impersonatingUserId === user.id}
-                        className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors disabled:opacity-50"
+                        className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors disabled:opacity-50 sm:py-1.5"
                       >
                         {impersonatingUserId === user.id ? "…" : t("impersonate")}
                       </button>
-
                       <button
+                        type="button"
                         onClick={() => deleteUser(user.id, user.name)}
-                        className="rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:border-destructive transition-colors"
+                        className="rounded-lg border border-border px-3 py-2 text-xs text-destructive hover:border-destructive transition-colors sm:py-1.5"
                       >
                         {t("delete")}
                       </button>
@@ -264,51 +268,58 @@ export default function AdminPage() {
               ))}
             </div>
           )}
-        </div>
+        </section>
 
         {/* Groups: Guardar en calendario */}
-        <div className="mt-12 border-t border-border pt-8">
-          <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
+        <section className="mt-10 sm:mt-12 border-t border-border pt-6 sm:pt-8" aria-labelledby="admin-groups-heading">
+          <h2 id="admin-groups-heading" className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-4 sm:mb-6">
             {t("groupsCount", { n: groups.length })}
           </h2>
           {groups.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noGroups")}</p>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="space-y-4 sm:space-y-0 sm:divide-y sm:divide-border">
               {groups.map((group) => (
-                <div key={group.id} className="py-5 first:pt-0 flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{group.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{group.slug}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("summaryCounts", {
-                        members: group.membersCount,
-                        events: group.eventsCount,
-                        schedules: group.schedulesCount,
-                      })}
-                    </p>
+                <div
+                  key={group.id}
+                  className="rounded-xl border border-border bg-card p-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:pt-5 sm:pb-5 sm:first:pt-0"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate text-foreground">{group.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{group.slug}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t("summaryCounts", {
+                          members: group.membersCount,
+                          events: group.eventsCount,
+                          schedules: group.schedulesCount,
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 sm:gap-6 sm:shrink-0">
+                      <label className="flex items-center gap-2.5 cursor-pointer py-1">
+                        <input
+                          type="checkbox"
+                          checked={group.calendarExportEnabled}
+                          onChange={(e) => toggleCalendarExport(group.id, e.target.checked)}
+                          className="h-4 w-4 rounded border-border accent-primary"
+                        />
+                        <span className="text-sm">{t("calendarExportFlag")}</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => deleteGroup(group)}
+                        className="rounded-lg border border-border px-3 py-2 text-xs text-destructive hover:border-destructive transition-colors sm:py-1.5"
+                      >
+                        {t("delete")}
+                      </button>
+                    </div>
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={group.calendarExportEnabled}
-                      onChange={(e) => toggleCalendarExport(group.id, e.target.checked)}
-                      className="h-4 w-4 rounded border-border accent-primary"
-                    />
-                    <span className="text-sm">{t("calendarExportFlag")}</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => deleteGroup(group)}
-                    className="rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:border-destructive transition-colors shrink-0"
-                  >
-                    {t("delete")}
-                  </button>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </section>
 
         <ConfirmDialog
           open={userIdToDelete != null}
