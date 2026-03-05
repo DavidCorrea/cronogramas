@@ -6,6 +6,8 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 
 **Error responses** use a single shape: `{ error: string, code?: string }`. Status codes: `400` validation, `403` forbidden, `404` not found, `409` conflict, `429` rate limited. Helper: `apiError(message, status, code)` in `src/lib/api-helpers.ts`.
 
+**Rate limiting and client identification:** Public cronograma and admin-auth/user-search rate limiters use the client IP from `x-forwarded-for` or `x-real-ip` when present. When the app is behind a **trusted reverse proxy** (e.g. Vercel), ensure the proxy sets and overwrites these headers; the app trusts them for rate limiting. Without a trusted proxy, clients could spoof these headers and bypass per-IP limits. For production at scale, consider a Redis-backed limiter (e.g. @upstash/ratelimit).
+
 **DELETE semantics**: Prefer path parameters for deletes, e.g. `DELETE /api/configuration/holidays/[id]` and `DELETE /api/configuration/exclusive-groups/[id]` with group from query (`?groupId=` or `?slug=`). Avoid `?id=...&groupId=...` on the collection URL.
 
 ---
@@ -20,7 +22,7 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 ### Admin
 | Method(s) | Path | Purpose | File |
 |-----------|------|---------|------|
-| POST | `/api/admin/auth` | Bootstrap admin auth (set cookie when no admin users); validates ADMIN_USERNAME/ADMIN_PASSWORD | `src/app/api/admin/auth/route.ts` |
+| POST | `/api/admin/auth` | Bootstrap admin auth (set short-lived random token cookie when no admin users); validates ADMIN_USERNAME/ADMIN_PASSWORD; **rate limited** (strict per IP). | `src/app/api/admin/auth/route.ts` |
 | GET | `/api/admin/users` | List all users (admin only) | `src/app/api/admin/users/route.ts` |
 | PUT | `/api/admin/users` | Update user (isAdmin, canCreateGroups, canExportCalendars) | `src/app/api/admin/users/route.ts` |
 | DELETE | `/api/admin/users` | Delete user by `id` query param | `src/app/api/admin/users/route.ts` |
@@ -30,7 +32,7 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 ### Groups
 | Method(s) | Path | Purpose | File |
 |-----------|------|---------|------|
-| GET | `/api/groups` | List groups for current user, or get one by `?slug=` | `src/app/api/groups/route.ts` |
+| GET | `/api/groups` | List groups for current user, or get one by `?slug=` (requires group access when slug provided) | `src/app/api/groups/route.ts` |
 | POST | `/api/groups` | Create group (name, slug, days, roles, collaboratorUserIds) | `src/app/api/groups/route.ts` |
 | GET | `/api/groups/[id]/collaborators` | List collaborators for group | `src/app/api/groups/[id]/collaborators/route.ts` |
 | POST | `/api/groups/[id]/collaborators` | Add collaborator (userId) | `src/app/api/groups/[id]/collaborators/route.ts` |
@@ -54,7 +56,7 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 | GET | `/api/schedules/[id]` | Get full schedule by id (dates, assignments, prev/next) | `src/app/api/schedules/[id]/route.ts` |
 | PUT | `/api/schedules/[id]` | Update schedule (assignments, status, etc.) | `src/app/api/schedules/[id]/route.ts` |
 | DELETE | `/api/schedules/[id]` | Delete schedule | `src/app/api/schedules/[id]/route.ts` |
-| GET | `/api/schedules/[id]/notes` | Get date notes for schedule (no auth) | `src/app/api/schedules/[id]/notes/route.ts` |
+| GET | `/api/schedules/[id]/notes` | Get date notes for schedule (auth + group access required) | `src/app/api/schedules/[id]/notes/route.ts` |
 | POST | `/api/schedules/[id]/notes` | Save note for a date | `src/app/api/schedules/[id]/notes/route.ts` |
 | DELETE | `/api/schedules/[id]/notes` | Delete note for a date (`?date=`) | `src/app/api/schedules/[id]/notes/route.ts` |
 
@@ -99,7 +101,7 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 |-----------|------|---------|------|
 | GET | `/api/user/dashboard` | Dashboard: assignments (with groupCalendarExportEnabled), conflicts, **canExportCalendars** (user flag, set by admin). | `src/app/api/user/dashboard/route.ts` |
 | GET | `/api/user/assignments/google-calendar` | Redirects to Google OAuth to add **current user's** assignments to Google Calendar. Auth required; user must have **canExportCalendars** (set by admin). Optional query: `groupId`, `year`, `month`. Callback redirects to `/asignaciones?calendar=success|error`. | `src/app/api/user/assignments/google-calendar/route.ts` |
-| GET | `/api/users/search` | Search users by name/email (`?q=`) for linking/invites | `src/app/api/users/search/route.ts` |
+| GET | `/api/users/search` | Search users by name/email (`?q=`) for linking/invites. Requires **groupId or slug** and group access (e.g. add collaborator). **Rate limited** per IP. | `src/app/api/users/search/route.ts` |
 
 ### Holidays (user-scoped)
 | Method(s) | Path | Purpose | File |
@@ -120,13 +122,13 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 
 - **Members** — CRUD for group members (and link-check). **Auth**: `requireGroupAccess(request)` for list/create (accepts `?groupId=` or `?slug=`); for `[id]` and link-check, `requireAuth()` plus **resource-level group check** via `hasGroupAccess(userId, resource.groupId)`. File: `src/app/api/members/route.ts`, `src/app/api/members/[id]/route.ts`, `src/app/api/members/[id]/link-check/route.ts`.
 
-- **Schedules** — Schedules and date notes. **Auth**: `requireGroupAccess(request)` for list/create (accepts `?groupId=` or `?slug=`); for `[id]` and notes POST/DELETE, `requireAuth()` plus **resource-level group check** (schedule’s groupId). GET notes is unauthenticated. Helpers: `src/lib/schedule-helpers.ts`, `src/lib/scheduler.ts`, `src/lib/audit-log.ts`.
+- **Schedules** — Schedules and date notes. **Auth**: `requireGroupAccess(request)` for list/create (accepts `?groupId=` or `?slug=`); for `[id]` and notes POST/DELETE/GET, `requireAuth()` plus **resource-level group check** (schedule’s groupId). Helpers: `src/lib/schedule-helpers.ts`, `src/lib/scheduler.ts`, `src/lib/audit-log.ts`.
 
 - **Configuration** — Days (recurring events), roles, priorities, exclusive-groups, group-scoped holidays. **Auth**: All use `requireGroupAccess(request)` (accepts `?groupId=` or `?slug=`). DELETE by path: `DELETE /api/configuration/holidays/[id]` and `DELETE /api/configuration/exclusive-groups/[id]` with group in query. Request bodies validated with **Zod** schemas in `src/lib/schemas/` where applicable. Types/schema: `src/db/schema.ts`.
 
 - **Cronograma** — Public read-only schedule by group slug. **Auth**: None. **Rate limiting**: in-memory per IP. Optional GET `.../google-calendar?memberId=` (group must have calendarExportEnabled) redirects to Google OAuth; callback can insert that member's assignment dates (description = roles). **Save in Calendar** is primarily on **Mis asignaciones** (see User below).
 
-- **User** — Dashboard (assignments with groupCalendarExportEnabled, conflicts, user's canExportCalendars), GET `/api/user/assignments/google-calendar` to start OAuth for "Guardar en calendario" (user must have canExportCalendars set by admin). Search: `GET /api/users/search`. **Auth**: `requireAuth()`.
+- **User** — Dashboard (assignments with groupCalendarExportEnabled, conflicts, user's canExportCalendars), GET `/api/user/assignments/google-calendar` to start OAuth for "Guardar en calendario" (user must have canExportCalendars set by admin). Search: `GET /api/users/search` requires **groupId or slug** + group access and is rate limited.
 
 - **Holidays** — User-level holidays (unavailability). **Auth**: `requireAuth()`. Scoped by `userId` from session; DELETE checks `existing.userId === authResult.user.id`.
 
