@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAssignments } from "@/lib/user-assignments";
+import { buildConflicts } from "@/lib/dashboard-conflicts";
 import { requireAuth } from "@/lib/api-helpers";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
@@ -17,21 +18,7 @@ export async function GET() {
 
   const allAssignments = await getAssignments(userId);
 
-  // Detect conflicts: same date in multiple groups
-  const dateGroupMap = new Map<string, Set<string>>();
-  for (const a of allAssignments) {
-    if (!dateGroupMap.has(a.date)) {
-      dateGroupMap.set(a.date, new Set());
-    }
-    dateGroupMap.get(a.date)!.add(a.groupName);
-  }
-
-  const conflicts = [...dateGroupMap.entries()]
-    .filter(([, groupNames]) => groupNames.size > 1)
-    .map(([date, groupNames]) => ({
-      date,
-      groups: [...groupNames],
-    }));
+  const conflicts = buildConflicts(allAssignments);
 
   return NextResponse.json({
     assignments: allAssignments,

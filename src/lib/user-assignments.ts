@@ -11,6 +11,8 @@ import { eq, and, gte, inArray } from "drizzle-orm";
 
 export type UserAssignment = {
   date: string;
+  startTimeUtc: string;
+  endTimeUtc: string;
   roleName: string;
   groupName: string;
   groupSlug: string;
@@ -35,6 +37,8 @@ export async function getAssignments(userId: string): Promise<UserAssignment[]> 
 
   type EntryWithGroup = {
     date: string;
+    startTimeUtc: string;
+    endTimeUtc: string;
     roleId: number;
     groupName: string;
     groupSlug: string;
@@ -58,7 +62,12 @@ export async function getAssignments(userId: string): Promise<UserAssignment[]> 
 
     for (const schedule of committedSchedules) {
       const scheduleDatesInRange = await db
-        .select({ id: scheduleDate.id, date: scheduleDate.date })
+        .select({
+          id: scheduleDate.id,
+          date: scheduleDate.date,
+          startTimeUtc: scheduleDate.startTimeUtc,
+          endTimeUtc: scheduleDate.endTimeUtc,
+        })
         .from(scheduleDate)
         .where(
           and(
@@ -68,8 +77,15 @@ export async function getAssignments(userId: string): Promise<UserAssignment[]> 
         );
 
       const scheduleDateIds = scheduleDatesInRange.map((sd) => sd.id);
-      const dateByScheduleDateId = new Map(
-        scheduleDatesInRange.map((sd) => [sd.id, sd.date])
+      const infoByScheduleDateId = new Map(
+        scheduleDatesInRange.map((sd) => [
+          sd.id,
+          {
+            date: sd.date,
+            startTimeUtc: sd.startTimeUtc,
+            endTimeUtc: sd.endTimeUtc,
+          },
+        ])
       );
       if (scheduleDateIds.length === 0) continue;
 
@@ -84,10 +100,12 @@ export async function getAssignments(userId: string): Promise<UserAssignment[]> 
         );
 
       for (const entry of entries) {
-        const date = dateByScheduleDateId.get(entry.scheduleDateId);
-        if (!date) continue;
+        const info = infoByScheduleDateId.get(entry.scheduleDateId);
+        if (!info) continue;
         entriesWithGroup.push({
-          date,
+          date: info.date,
+          startTimeUtc: info.startTimeUtc,
+          endTimeUtc: info.endTimeUtc,
           roleId: entry.roleId,
           groupName: group.name,
           groupSlug: group.slug,
@@ -110,6 +128,8 @@ export async function getAssignments(userId: string): Promise<UserAssignment[]> 
 
   const allAssignments: UserAssignment[] = entriesWithGroup.map((e) => ({
     date: e.date,
+    startTimeUtc: e.startTimeUtc,
+    endTimeUtc: e.endTimeUtc,
     roleName: roleNameById.get(e.roleId) ?? "Desconocido",
     groupName: e.groupName,
     groupSlug: e.groupSlug,

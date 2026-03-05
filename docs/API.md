@@ -99,7 +99,7 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 ### User (dashboard, search)
 | Method(s) | Path | Purpose | File |
 |-----------|------|---------|------|
-| GET | `/api/user/dashboard` | Dashboard: assignments (with groupCalendarExportEnabled), conflicts, **canExportCalendars** (user flag, set by admin). | `src/app/api/user/dashboard/route.ts` |
+| GET | `/api/user/dashboard` | Dashboard: assignments (with groupCalendarExportEnabled, startTimeUtc, endTimeUtc), conflicts (time-aware: same date and overlapping time windows in different groups), **canExportCalendars** (user flag, set by admin). | `src/app/api/user/dashboard/route.ts` |
 | GET | `/api/user/assignments/google-calendar` | Redirects to Google OAuth to add **current user's** assignments to Google Calendar. Auth required; user must have **canExportCalendars** (set by admin). Optional query: `groupId`, `year`, `month`. Callback redirects to `/asignaciones?calendar=success|error`. | `src/app/api/user/assignments/google-calendar/route.ts` |
 | GET | `/api/users/search` | Search users by name/email (`?q=`) for linking/invites. Requires **groupId or slug** and group access (e.g. add collaborator). **Rate limited** per IP. | `src/app/api/users/search/route.ts` |
 
@@ -128,7 +128,7 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 
 - **Cronograma** — Public read-only schedule by group slug. **Auth**: None. **Rate limiting**: in-memory per IP. Optional GET `.../google-calendar?memberId=` (group must have calendarExportEnabled) redirects to Google OAuth; callback can insert that member's assignment dates (description = roles). **Save in Calendar** is primarily on **Mis asignaciones** (see User below).
 
-- **User** — Dashboard (assignments with groupCalendarExportEnabled, conflicts, user's canExportCalendars), GET `/api/user/assignments/google-calendar` to start OAuth for "Guardar en calendario" (user must have canExportCalendars set by admin). Search: `GET /api/users/search` requires **groupId or slug** + group access and is rate limited.
+- **User** — Dashboard (assignments with groupCalendarExportEnabled and time windows, time-aware conflicts, user's canExportCalendars), GET `/api/user/assignments/google-calendar` to start OAuth for "Guardar en calendario" (user must have canExportCalendars set by admin). Search: `GET /api/users/search` requires **groupId or slug** + group access and is rate limited.
 
 - **Holidays** — User-level holidays (unavailability). **Auth**: `requireAuth()`. Scoped by `userId` from session; DELETE checks `existing.userId === authResult.user.id`.
 

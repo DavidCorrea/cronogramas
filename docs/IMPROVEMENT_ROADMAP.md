@@ -355,8 +355,8 @@ After assignments are published, let assignees confirm “Confirmo que asistiré
 
 Ways to prevent, surface, and resolve conflicts (cross-group, holidays, availability) so coordinators and members can act on them.
 
-**Cross-group conflicts (same date, multiple groups)**  
-Today the dashboard and Mis asignaciones show “Conflicto: múltiples grupos en esta fecha” but do not prevent or guide resolution.
+**Cross-group conflicts (same date, overlapping times, multiple groups)**
+Dashboard and Mis asignaciones use time-aware conflict detection: a date is a conflict only when the user has assignments in different groups whose time ranges overlap (see `src/lib/dashboard-conflicts.ts`). Today the UI shows “Conflicto: múltiples grupos en esta fecha” but does not prevent or guide resolution.
 
 - **Warn or block when assigning:** In schedule detail, when the coordinator picks a member for a date, check if that member (if linked to a user) already has an assignment that day in another group. Show a warning (“Este miembro ya está asignado en [Grupo X] este día”) or optionally block saving. Reuse dashboard conflict logic; consider a group setting “Solo advertir” vs “Bloquear asignaciones con conflicto”.
 - **Make conflicts actionable:** On Inicio and Mis asignaciones, turn conflict lines into links: e.g. “Ver en cronograma” for each group, or “Ir a [Grupo A] / [Grupo B]” so the user can open both and decide. Optional: “Sugerir intercambio” using members who are free that day in one of the groups.
@@ -378,7 +378,7 @@ The scheduler respects current availability when generating; existing assignment
 **Central place for conflict types**  
 Use consistent wording and icons for the three sources (cross-group, holiday, availability) in dashboard, Mis asignaciones, schedule detail, and cronograma. Consider a small “Leyenda” or tooltip: “⚠ = vacaciones” vs “⚠ = fuera de disponibilidad” vs “Conflicto entre grupos”. Helps coordinators and members interpret and act on each type.
 
-- **Implementation (conflicts):** Cross-group: reuse dashboard conflict logic in `src/app/api/user/dashboard/route.ts`; schedule detail `src/app/[slug]/config/schedules/[id]/page.tsx`. Holiday: `src/lib/holiday-conflicts.ts`; add "Comprobar vacaciones" button. Availability: new helper using `member_availability` + event time windows; return from schedule API; show in SharedScheduleView and schedule detail. Legend/tooltip in `messages/es.json`.
+- **Implementation (conflicts):** Cross-group: time-aware conflict logic in `src/lib/dashboard-conflicts.ts` (used by `src/app/api/user/dashboard/route.ts`); reuse in schedule detail `src/app/[slug]/config/schedules/[id]/page.tsx`. Holiday: `src/lib/holiday-conflicts.ts`; add "Comprobar vacaciones" button. Availability: new helper using `member_availability` + event time windows; return from schedule API; show in SharedScheduleView and schedule detail. Legend/tooltip in `messages/es.json`.
 
 ---
 
