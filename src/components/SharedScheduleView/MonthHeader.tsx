@@ -76,7 +76,7 @@ export function MonthHeader({
                 {schedule.groupName}
               </p>
             )}
-            <h1 className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl uppercase">
+            <h1 className="font-[family-name:var(--font-display)] font-semibold text-2xl sm:text-3xl uppercase">
               {MONTH_NAMES[schedule.month - 1]} {schedule.year}
             </h1>
           </div>

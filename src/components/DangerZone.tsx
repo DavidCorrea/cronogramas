@@ -19,7 +19,7 @@ export function DangerZone({ title, description, children }: DangerZoneProps) {
   const t = useTranslations("common");
   return (
     <section
-      className="mt-12 rounded-lg border border-destructive/30 bg-destructive/5 p-6"
+      className="mt-12 rounded-xl border border-destructive/30 bg-destructive/5 p-6"
       aria-labelledby="danger-zone-title"
     >
       <h2

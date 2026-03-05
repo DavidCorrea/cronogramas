@@ -66,11 +66,11 @@ export function DateDetailModal({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] z-50 w-full max-w-sm translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-background p-5 shadow-lg focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+          className="fixed left-[50%] top-[50%] z-50 flex max-h-[90vh] w-full max-w-sm translate-x-[-50%] translate-y-[-50%] flex-col rounded-lg border border-border bg-background p-5 shadow-lg focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
           aria-describedby={hasContent ? "date-detail-description" : undefined}
           onEscapeKeyDown={() => onOpenChange(false)}
         >
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex shrink-0 items-start justify-between pb-4">
             <Dialog.Title className="font-medium capitalize text-foreground">
               {formatDateLong(selectedDate)}
             </Dialog.Title>
@@ -86,17 +86,22 @@ export function DateDetailModal({
           </div>
 
           {hasContent ? (
-            <div id="date-detail-description">
+            <div
+              id="date-detail-description"
+              className="flex min-h-0 flex-1 flex-col overflow-hidden pt-4"
+            >
               {label ? (
-                <p className="text-sm text-muted-foreground italic">{label}</p>
+                <p className="shrink-0 text-sm text-muted-foreground italic">
+                  {label}
+                </p>
               ) : null}
               {timeRange ? (
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="shrink-0 text-xs text-muted-foreground mt-0.5">
                   {timeRange}
                 </p>
               ) : null}
               {rolesSorted.length > 0 ? (
-                <div className="mt-3 overflow-hidden rounded-md border border-border/40">
+                <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-md border border-border/40">
                   <table className="w-full border-collapse text-sm">
                     <tbody>
                       {rolesSorted.map(({ roleId, name }) => {
@@ -129,17 +134,16 @@ export function DateDetailModal({
                                   )}
                                 </span>
                               ) : (
-                                <span className="text-sm">
+                                <span className="flex flex-col gap-0.5 text-sm">
                                   {[...members]
                                     .sort((a, b) =>
                                       a.name.localeCompare(b.name, "es")
                                     )
-                                    .map((m, i) => (
+                                    .map((m) => (
                                       <span
                                         key={m.memberId}
                                         className="inline-flex items-center gap-0.5"
                                       >
-                                        {i > 0 ? ", " : null}
                                         {m.name}
                                         {m.hasConflict && (
                                           <span
@@ -162,7 +166,7 @@ export function DateDetailModal({
                 </div>
               ) : null}
               {note ? (
-                <p className="text-xs text-accent mt-3 pt-3 border-t border-border/50">
+                <p className="mt-3 shrink-0 border-t border-border/50 pt-3 text-xs text-accent">
                   {note}
                 </p>
               ) : null}

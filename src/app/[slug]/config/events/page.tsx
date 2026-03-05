@@ -23,7 +23,7 @@ export default function EventsPage() {
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
+        <h1 className="font-[family-name:var(--font-display)] font-semibold text-3xl sm:text-4xl uppercase">
           {t("title")}
         </h1>
         <p className="mt-3 text-muted-foreground">

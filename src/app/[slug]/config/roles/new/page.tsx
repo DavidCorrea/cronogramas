@@ -140,7 +140,7 @@ export default function NewRolePage() {
     <div className="space-y-12">
       <div>
         <BackLink href={`/${slug}/config/roles`} label={t("backToRoles")} />
-        <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
+        <h1 className="font-[family-name:var(--font-display)] font-semibold text-3xl sm:text-4xl uppercase">
           {t("addRoleTitle")}
         </h1>
         <p className="mt-3 text-muted-foreground">

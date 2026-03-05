@@ -238,7 +238,7 @@ export default function EditMemberPage() {
     <div className="space-y-12">
       <div>
         <BackLink href={`/${slug}/config/members`} label={t("backToMembers")} />
-        <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
+        <h1 className="font-[family-name:var(--font-display)] font-semibold text-3xl sm:text-4xl uppercase">
           {t("editMemberTitle")}
         </h1>
         <p className="mt-3 text-muted-foreground">

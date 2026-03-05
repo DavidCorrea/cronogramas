@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, DM_Serif_Display } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { NextIntlClientProvider } from "next-intl";
@@ -13,17 +13,12 @@ import "./globals.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-});
-
-const dmSerif = DM_Serif_Display({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -56,7 +51,7 @@ export default async function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${dmSerif.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <script
           dangerouslySetInnerHTML={{ __html: themeScript }}

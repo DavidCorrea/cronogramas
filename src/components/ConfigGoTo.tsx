@@ -98,19 +98,19 @@ export default function ConfigGoTo() {
           if (!open) setQuery("");
           setOpen(!open);
         }}
-        className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
       >
         {tNav("goTo")}
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-72 rounded-md border border-border bg-background shadow-lg z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-1 w-72 rounded-xl border border-border bg-card shadow-xl z-50 overflow-hidden">
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={tNav("goToPlaceholder")}
-            className="w-full px-3 py-2.5 text-sm border-b border-border bg-transparent placeholder:text-muted-foreground focus:outline-none focus:ring-0"
+            className="w-full px-3 py-2.5 text-sm border-b border-border bg-transparent placeholder:text-muted-foreground focus:outline-none focus:border-accent"
           />
           <ul className="max-h-64 overflow-y-auto py-1">
             {filtered.length === 0 ? (
@@ -123,7 +123,7 @@ export default function ConfigGoTo() {
                   <button
                     type="button"
                     onClick={() => handleSelect(item.href)}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 rounded mx-1 transition-colors"
                   >
                     {item.label}
                   </button>

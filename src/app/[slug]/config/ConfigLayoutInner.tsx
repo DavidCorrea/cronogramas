@@ -102,10 +102,10 @@ export default function ConfigLayoutInner() {
                   key={link.href}
                   href={link.href}
                   onClick={(e) => handleNavClick(e, link.href)}
-                  className={`px-3 py-1.5 text-sm transition-colors ${
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                     active
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "text-accent bg-accent/10"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`}
                 >
                   {link.label}
@@ -142,10 +142,10 @@ export default function ConfigLayoutInner() {
                   onClick={(e) => {
                     if (handleNavClick(e, link.href)) setMobileOpen(false);
                   }}
-                  className={`block px-3 py-2.5 text-sm transition-colors ${
+                  className={`block px-3 py-2.5 text-sm font-medium rounded-lg mx-2 transition-colors ${
                     active
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "text-accent bg-accent/10"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`}
                 >
                   {link.label}

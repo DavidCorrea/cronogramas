@@ -89,7 +89,7 @@ export default function EditEventPage() {
   if (notFound || !event) {
     return (
       <div className="space-y-4">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl uppercase">
+        <h1 className="font-[family-name:var(--font-display)] font-semibold text-2xl uppercase">
           {t("eventNotFound")}
         </h1>
         <p className="text-muted-foreground">

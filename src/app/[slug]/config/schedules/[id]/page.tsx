@@ -667,7 +667,7 @@ export default function SchedulePreviewPage() {
                 {t("previous")}
               </a>
             )}
-            <h1 className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl uppercase">
+            <h1 className="font-[family-name:var(--font-display)] font-semibold text-2xl sm:text-3xl uppercase">
               {monthNames[schedule.month - 1]} {schedule.year}
             </h1>
             {schedule.nextScheduleId && (
@@ -1146,7 +1146,7 @@ export default function SchedulePreviewPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-background border border-border rounded-lg shadow-lg max-w-lg w-full max-h-[80vh] flex flex-col">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-[family-name:var(--font-display)] text-lg uppercase">
+              <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
                 {t("rebuildModalTitle")}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
@@ -1250,7 +1250,7 @@ export default function SchedulePreviewPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-background border border-border rounded-lg shadow-lg max-w-md w-full">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-[family-name:var(--font-display)] text-lg uppercase">
+              <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
                 {t("editDateTitle")}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">

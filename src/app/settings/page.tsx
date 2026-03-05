@@ -97,7 +97,7 @@ export default function SettingsPage() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-12">
-          <h1 className="font-[family-name:var(--font-display)] text-4xl sm:text-5xl uppercase">
+          <h1 className="font-[family-name:var(--font-display)] font-semibold text-4xl sm:text-5xl uppercase">
             {t("title")}
           </h1>
           <p className="mt-3 text-muted-foreground">

@@ -26,7 +26,7 @@ export default function AdminHome() {
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl sm:text-4xl uppercase">
+        <h1 className="font-[family-name:var(--font-display)] font-semibold text-3xl sm:text-4xl uppercase">
           {groupName}
         </h1>
         <p className="mt-3 text-muted-foreground">
@@ -34,14 +34,14 @@ export default function AdminHome() {
         </p>
       </div>
 
-      <div className="grid gap-px sm:grid-cols-2 lg:grid-cols-3 border border-border rounded-md overflow-hidden">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <Link
             key={card.href}
             href={card.href}
-            className="group p-6 border border-border -m-px bg-background hover:bg-muted transition-colors"
+            className="card group block p-6 rounded-xl border border-border bg-card text-card-foreground hover:border-accent/50 hover:shadow-md transition-all duration-200"
           >
-            <h2 className="text-sm font-medium group-hover:text-accent transition-colors">
+            <h2 className="text-sm font-medium text-foreground group-hover:text-accent transition-colors">
               {card.label}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
