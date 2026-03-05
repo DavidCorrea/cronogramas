@@ -13,6 +13,7 @@ Reusable React components used across the app. All user-facing text should use *
 | **OptionToggleGroup** | Bordered multi-select toggle (e.g. active days, roles, available days). |
 | **KeyboardShortcuts** | Global shortcuts; `?` opens help overlay. Rendered in root layout. |
 | **LoadingScreen** | Loading state. |
+| **Skeletons** | `src/components/Skeletons/` — SkeletonCard, SkeletonRow, SkeletonText, SkeletonGrid, SkeletonRegion for route and inline loading placeholders. |
 | **SessionProvider** | Auth session provider wrapper. |
 
 Route map and which pages use which components: **docs/CLIENT.md**.
