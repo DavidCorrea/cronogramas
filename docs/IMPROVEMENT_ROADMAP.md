@@ -244,7 +244,7 @@ Allow group owners (or admins) to export group data (members, roles, events, sch
 Add **Playwright** and an E2E test for the main journey: sign in → create group → add member → add role → add event → generate schedule → view public cronograma. Use Playwright’s Next.js-friendly patterns (e.g. `baseURL`, `page.goto`). Run on CI so refactors do not break the core flow.
 
 **Seeded “big” group**  
-Add a seed or script that creates a group with many members, roles, events, and months of schedules. Use it for performance testing (scheduler, public cronograma, config lists) and manual QA.
+Implemented via **unified seed** `scripts/seed.ts`: solo artists, jazz trio, two rock bands, and an orchestra. Use it for performance testing (scheduler, public cronograma, config lists) and manual QA. Run: `npm run seed -- --user=<UUID>` (see scripts/CONTEXT.md).
 
 **Staging parity**  
 Keep a staging environment that mirrors production (same auth provider and DB shape) so full flows (OAuth, member linking, cronograma sharing) can be tested before release.
