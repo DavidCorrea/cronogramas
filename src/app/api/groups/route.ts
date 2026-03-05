@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { groups, groupCollaborators, members, users, recurringEvents, weekdays, roles } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { requireAuth, apiError, parseBody } from "@/lib/api-helpers";
+import { requireAuth, hasGroupAccess, apiError, parseBody } from "@/lib/api-helpers";
 import { groupCreateSchema } from "@/lib/schemas";
 
 export async function GET(request: NextRequest) {
@@ -21,6 +21,11 @@ export async function GET(request: NextRequest) {
 
     if (!group) {
       return apiError("Grupo no encontrado", 404, "GROUP_NOT_FOUND");
+    }
+
+    const access = await hasGroupAccess(userId, group.id);
+    if (!access) {
+      return apiError("Forbidden", 403, "FORBIDDEN");
     }
 
     return NextResponse.json(group);

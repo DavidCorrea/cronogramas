@@ -32,7 +32,7 @@ interface Owner {
 export default function CollaboratorsPage() {
   const t = useTranslations("collaborators");
   const tCommon = useTranslations("common");
-  const { groupId, loading: groupLoading } = useGroup();
+  const { groupId, slug, loading: groupLoading } = useGroup();
   const [owner, setOwner] = useState<Owner | null>(null);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [memberUserIds, setMemberUserIds] = useState<Set<string>>(new Set());
@@ -72,7 +72,7 @@ export default function CollaboratorsPage() {
   // Debounced user search
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    if (searchQuery.length < 2) {
+    if (searchQuery.length < 2 || (!slug && !groupId)) {
       queueMicrotask(() => {
         setSearchResults([]);
         setShowDropdown(false);
@@ -80,7 +80,10 @@ export default function CollaboratorsPage() {
       return;
     }
     searchTimeout.current = setTimeout(async () => {
-      const res = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
+      const params = new URLSearchParams({ q: searchQuery });
+      if (slug) params.set("slug", slug);
+      else if (groupId) params.set("groupId", String(groupId));
+      const res = await fetch(`/api/users/search?${params.toString()}`);
       const results = await res.json();
       const existingIds = new Set([
         owner?.id,
@@ -96,7 +99,7 @@ export default function CollaboratorsPage() {
     return () => {
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
     };
-  }, [searchQuery, owner, collaborators, memberUserIds]);
+  }, [searchQuery, owner, collaborators, memberUserIds, slug, groupId]);
 
   const addCollaborator = async (user: UserSearchResult) => {
     if (!groupId) return;
