@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useState,
+  useMemo,
   type ReactNode,
 } from "react";
 
@@ -18,8 +19,9 @@ const UnsavedConfigContext = createContext<UnsavedConfigContextValue | null>(
 
 export function UnsavedConfigProvider({ children }: { children: ReactNode }) {
   const [dirty, setDirty] = useState(false);
+  const value = useMemo(() => ({ dirty, setDirty }), [dirty]);
   return (
-    <UnsavedConfigContext.Provider value={{ dirty, setDirty }}>
+    <UnsavedConfigContext.Provider value={value}>
       {children}
     </UnsavedConfigContext.Provider>
   );

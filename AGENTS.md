@@ -1,16 +1,18 @@
 # Project overview
 
-This file is the single source for product behaviour, scripts, migrations, and agent rules. Features and domain context are inlined below.
+This file is the single source for product behaviour, scripts, migrations, and agent rules. **Read "When you begin" and "Workflow" first;** use "Quick reference" and the Features index to find where things live and how they work.
 
 ---
 
 # When you begin
 
 - **In a specific folder?** Read its `CONTEXT.md` first (what lives there, where to look next). Prefer that over broad searches.
-- **Touching a library we use?** Read the matching skill in **`.cursor/skills/`** before changing or adding usage: `next-auth`, `next-intl`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`.
+- **Touching a library we use?** Read the matching skill in **`.cursor/skills/<name>/SKILL.md`** before changing or adding usage. Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`.
 - **Adding or changing API routes?** See **docs/API.md** (route index, auth, which file to edit).
 - **Adding or changing pages or nav?** See **docs/CLIENT.md** (route map, layouts, components).
 - **Changing schema or migrations?** See **docs/DATABASE.md** and the "Database and migrations" section below.
+
+**Agent checklist (start of task):** (1) If scoped to a folder, read that folder’s `CONTEXT.md`. (2) If touching auth, i18n, React, TanStack Query, DB, Zod, dialogs, shortcuts, or Google APIs, read the corresponding skill in `.cursor/skills/`. (3) If adding/changing routes, pages, or schema, open the relevant doc (API.md, CLIENT.md, DATABASE.md) so you can update it when done. (4) Plan and explain; get confirmation before making changes.
 
 ---
 
@@ -27,6 +29,8 @@ This file is the single source for product behaviour, scripts, migrations, and a
 | Copy (Spanish) | `messages/es.json` — next-intl; client: `useTranslations('namespace')`, `t('key')`, `t('key', { n })` for placeholders |
 | Lint | `eslint.config.mjs`; pre-commit: `.husky/pre-commit` (lint-staged) |
 | Tests | `spec/` — Jest; describe real scenarios, no technical jargon |
+| Cursor rules | `.cursor/rules/` — workflow, lint, API, DB, UI, testing (always-applied + file-scoped) |
+| Library skills | `.cursor/skills/` — read before changing usage of listed libraries (see Library skills section) |
 
 **Scripts**
 
@@ -49,6 +53,12 @@ This file is the single source for product behaviour, scripts, migrations, and a
 3. **Done = green:** Work is complete only when **`npm run lint`** and **`npm run build`** pass. Fix any failures before finishing (including in files you did not change if they block the build).
 4. **Before committing:** Run `npm run lint` on changed files; update **docs/** (API, CLIENT, DATABASE) if you changed routes, pages, or schema; one logical change per commit (one commit per feature when multiple features are requested). Do not commit with `--no-verify`.
 
+**Change → doc update:** New/changed API route → **docs/API.md**. New/changed page, layout, or nav → **docs/CLIENT.md**. Schema or migration → **docs/DATABASE.md** and run `npm run db:generate` then `npm run db:migrate`. New copy → **messages/es.json** (correct namespace). New destructive action → use **ConfirmDialog** and note in danger-zone list if new surface.
+
+**Pre-commit:** The agent cannot run inside the git hook. To reduce failed commits, the user can ask the agent to “run lint and build and fix any issues” before committing. The hook runs lint-staged (ESLint --fix on staged `.js,.ts,.tsx`).
+
+**Pitfalls to avoid:** Do not edit migration `.sql` or `_journal.json` by hand (use `db:generate`). Do not use array index as React key for dynamic lists (use stable id or composite key). Do not skip doc updates when adding routes, pages, or schema. Do not commit with `--no-verify`; fix lint so the hook passes.
+
 ---
 
 # Library skills
@@ -57,7 +67,7 @@ Project skills in **`.cursor/skills/`** document how each major library is used 
 
 **Before using any library in a new use case:** Investigate the proper way to do it (official docs, best practices) and document the approach in that library’s skill file. Update the skill with patterns, gotchas, and “how it should be used” so future work stays consistent.
 
-Skills: `next-auth`, `next-intl`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`.
+Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`.
 
 ---
 
@@ -75,7 +85,8 @@ Skills: `next-auth`, `next-intl`, `tanstack-react-query`, `drizzle-orm`, `zod`, 
 *Feature index (where to look):* API consistency & validation → "API consistency, security, and validation". Config & BFF → "Config BFF", "View-scoped config", "Server-side group resolution", "Configuration". Schedule model → "Schedule / recurring events", "Schedule generation algorithm", "Schedule generation & preview". Auth & admin → "User authentication", "Admin panel". Calendar export → "Save in Calendar", "Library skills". UX → "Product and UX clarity", "Dashboard, navigation, public view". Data → "Member management", "Role management", "Holidays", "Multi-group architecture".
 
 ## Library skills
-- **Project skills** in `.cursor/skills/` document how each major library is used and how it should be used: next-auth, next-intl, tanstack-react-query, drizzle-orm, zod, radix-ui-dialog, react-hotkeys-hook, googleapis. Read the relevant skill before changing or adding usage of that library. See "Library skills" above.
+- **Project skills** in `.cursor/skills/` document how each major library is used and how it should be used: next-auth, next-intl, react, tanstack-react-query, drizzle-orm, zod, radix-ui-dialog, react-hotkeys-hook, googleapis. Read the relevant skill before changing or adding usage of that library. See "Library skills" above.
+- **React:** **`.cursor/skills/react/SKILL.md`** — when to use client vs server components, list keys (stable id or composite key; no index for dynamic lists), hooks (useEffect deps and cleanup, useCallback/useMemo), and patterns we use. Use when adding or changing components or hooks.
 
 ## Context files for navigation
 - **CONTEXT.md** in key folders (`src/`, `src/app/`, `src/app/api/`, `src/app/api/configuration/`, `src/app/[slug]/config/`, `src/components/`, `src/db/`, `src/lib/`, `spec/`, `docs/`) describe what belongs there and point to docs. Read these before broad searches. New domain or top-level folders get a `CONTEXT.md`. See "Codebase context" above.

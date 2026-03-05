@@ -335,9 +335,9 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-2">
-              {(assignmentsByDate.get(calendarSelectedDate) ?? []).map((a, i) => (
+              {(assignmentsByDate.get(calendarSelectedDate) ?? []).map((a) => (
                 <div
-                  key={i}
+                  key={`${a.date}-${a.groupSlug}-${a.roleName}`}
                   className="flex items-center justify-between text-sm"
                 >
                   <span className="text-muted-foreground text-xs uppercase tracking-wide">

@@ -1071,7 +1071,7 @@ export default function SchedulePreviewPage() {
                         {logDetailOpen === entry.id && (
                           <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                             {parsed.changes?.map((c, i) => (
-                              <div key={i} className="flex gap-2">
+                              <div key={`${c.date}-${c.role ?? ""}-${c.from ?? ""}-${c.to ?? ""}-${i}`} className="flex gap-2">
                                 <span className="shrink-0">{c.date}</span>
                                 <span className="shrink-0 uppercase tracking-wide">{c.role}</span>
                                 <span>
@@ -1085,7 +1085,7 @@ export default function SchedulePreviewPage() {
                                   <p>{parsed.removedCount} asignacion{parsed.removedCount === 1 ? "" : "es"} reemplazada{parsed.removedCount === 1 ? "" : "s"}</p>
                                 )}
                                 {parsed.added.map((a, i) => (
-                                  <div key={i} className="flex gap-2">
+                                  <div key={`${a.date}-${a.roleName}-${a.memberName}-${i}`} className="flex gap-2">
                                     <span className="shrink-0">{a.date}</span>
                                     <span className="shrink-0 uppercase tracking-wide">{a.roleName}</span>
                                     <span>{a.memberName}</span>
@@ -1177,8 +1177,8 @@ export default function SchedulePreviewPage() {
                           <div key={date} className="py-3 first:pt-0">
                             <p className="text-sm font-medium mb-1.5">{formatDate(date)}</p>
                             <div className="space-y-1">
-                              {entries.map((e, i) => (
-                                <div key={i} className="flex justify-between text-sm">
+                              {entries.map((e) => (
+                                <div key={`${e.date}-${e.roleId}-${e.memberId}`} className="flex justify-between text-sm">
                                   <span className="text-muted-foreground text-xs uppercase tracking-wide">{e.roleName}</span>
                                   <span>{e.memberName}</span>
                                 </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, useMemo, useCallback, ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { configContextQueryKeyPrefix } from "@/lib/config-queries";
@@ -96,23 +96,26 @@ export function GroupProvider({
   const groupId = initialGroup?.id ?? null;
   const groupName = initialGroup?.name ?? "";
 
-  const refetchContext = async () => {
+  const refetchContext = useCallback(async () => {
     if (!slug) return;
     await queryClient.invalidateQueries({ queryKey: configContextQueryKeyPrefix(slug) });
-  };
+  }, [slug, queryClient]);
+
+  const value = useMemo(
+    () => ({
+      groupId,
+      slug,
+      groupName,
+      loading: false,
+      error: false,
+      configContext: null,
+      refetchContext,
+    }),
+    [groupId, slug, groupName, refetchContext]
+  );
 
   return (
-    <GroupContext.Provider
-      value={{
-        groupId,
-        slug,
-        groupName,
-        loading: false,
-        error: false,
-        configContext: null,
-        refetchContext,
-      }}
-    >
+    <GroupContext.Provider value={value}>
       {children}
     </GroupContext.Provider>
   );

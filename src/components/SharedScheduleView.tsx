@@ -1453,7 +1453,7 @@ export default function SharedScheduleView({
                           {rolesSorted.map(({ roleId, name }) => {
                             const members = entriesOnDate
                               .filter((e) => e.roleId === roleId)
-                              .map((e) => ({ name: e.memberName, hasConflict: hasConflict(date, e.memberId) }));
+                              .map((e) => ({ memberId: e.memberId, name: e.memberName, hasConflict: hasConflict(date, e.memberId) }));
                             return (
                               <tr key={roleId} className="border-b border-border/40 last:border-b-0">
                                 <td className="px-3 py-2 font-medium text-muted-foreground align-top">
@@ -1472,7 +1472,7 @@ export default function SharedScheduleView({
                                       {[...members]
                                         .sort((a, b) => a.name.localeCompare(b.name, "es"))
                                         .map((m, i) => (
-                                          <span key={i} className="inline-flex items-center gap-0.5">
+                                          <span key={m.memberId} className="inline-flex items-center gap-0.5">
                                             {i > 0 && ", "}
                                             {m.name}
                                             {m.hasConflict && (
