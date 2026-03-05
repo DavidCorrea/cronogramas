@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { formatDateLong } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -14,18 +14,23 @@ interface Assignment {
   groupName: string;
   groupSlug: string;
   groupId: number;
+  groupCalendarExportEnabled?: boolean;
 }
 
 interface DashboardData {
   assignments: Assignment[];
   conflicts: { date: string; groups: string[] }[];
+  canExportCalendars?: boolean;
 }
 
 export default function MyAssignmentsPage() {
   const { status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const calendarResult = searchParams.get("calendar");
   const t = useTranslations("myAssignments");
   const tHome = useTranslations("home");
+  const tCronograma = useTranslations("cronograma");
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterGroupId, setFilterGroupId] = useState<string>("");
@@ -85,6 +90,19 @@ export default function MyAssignmentsPage() {
     return new Set(dashboard.conflicts?.map((c) => c.date) ?? []);
   }, [dashboard]);
 
+  const canExportToCalendar =
+    (dashboard?.canExportCalendars ?? false) &&
+    filtered.some((a) => a.groupCalendarExportEnabled === true);
+
+  const calendarExportHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (filterGroupId) params.set("groupId", filterGroupId);
+    if (filterYear) params.set("year", filterYear);
+    if (filterMonth) params.set("month", filterMonth);
+    const q = params.toString();
+    return `/api/user/assignments/google-calendar${q ? `?${q}` : ""}`;
+  }, [filterGroupId, filterYear, filterMonth]);
+
   if (status === "loading" || (status === "authenticated" && loading)) {
     return <LoadingScreen fullPage />;
   }
@@ -103,15 +121,27 @@ export default function MyAssignmentsPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <a
-            href="/api/user/assignments/ical"
-            download="mis-asignaciones.ics"
-            className="rounded-md border border-border px-4 py-2 text-sm hover:border-foreground transition-colors"
-          >
-            {t("exportIcal")}
-          </a>
-        </div>
+        {calendarResult === "success" && (
+          <p className="mb-4 text-sm text-green-600 dark:text-green-400" role="status">
+            {tCronograma("saveInCalendarSuccess")}
+          </p>
+        )}
+        {calendarResult === "error" && (
+          <p className="mb-4 text-sm text-destructive" role="alert">
+            {tCronograma("saveInCalendarError")}
+          </p>
+        )}
+
+        {canExportToCalendar && (
+          <div className="mb-6">
+            <a
+              href={calendarExportHref}
+              className="inline-block rounded-md border border-border px-4 py-2 text-sm hover:border-foreground transition-colors"
+            >
+              {tCronograma("saveInCalendar")}
+            </a>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
           <div>
@@ -150,14 +180,14 @@ export default function MyAssignmentsPage() {
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">
-              {t("filterMonth")}
+              {t("filterYear")}
             </label>
             <select
               value={filterYear}
               onChange={(e) => setFilterYear(e.target.value)}
               className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
             >
-              <option value="">{t("allMonths")}</option>
+              <option value="">{t("allYears")}</option>
               {years.map((y) => (
                 <option key={y} value={y}>
                   {y}
@@ -167,7 +197,7 @@ export default function MyAssignmentsPage() {
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">
-              Mes
+              {t("filterMonth")}
             </label>
             <select
               value={filterMonth}

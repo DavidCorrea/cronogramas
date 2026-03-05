@@ -14,12 +14,25 @@ interface UserRow {
   image: string | null;
   isAdmin: boolean;
   canCreateGroups: boolean;
+  canExportCalendars: boolean;
+}
+
+interface GroupRow {
+  id: number;
+  name: string;
+  slug: string;
+  ownerId: string;
+  calendarExportEnabled: boolean;
+  membersCount: number;
+  schedulesCount: number;
+  eventsCount: number;
 }
 
 export default function AdminPage() {
   const { status } = useSession();
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [groups, setGroups] = useState<GroupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [userIdToDelete, setUserIdToDelete] = useState<string | null>(null);
@@ -43,22 +56,42 @@ export default function AdminPage() {
     setLoading(false);
   }, [router, t]);
 
+  const fetchGroups = useCallback(async () => {
+    const res = await fetch("/api/admin/groups");
+    if (res.ok) setGroups(await res.json());
+  }, []);
+
+  const fetchAll = useCallback(async () => {
+    await fetchUsers();
+    const gRes = await fetch("/api/admin/groups");
+    if (gRes.ok) setGroups(await gRes.json());
+  }, [fetchUsers]);
+
   useEffect(() => {
     // Wait for session to load, then check access
     if (status === "loading") return;
 
     // If user has session but is not admin, or no session at all, try the API
     // The API itself handles bootstrap cookie check
-    queueMicrotask(() => fetchUsers());
-  }, [status, fetchUsers]);
+    queueMicrotask(() => fetchAll());
+  }, [status, fetchAll]);
 
-  const toggleFlag = async (userId: string, flag: "isAdmin" | "canCreateGroups", value: boolean) => {
+  const toggleFlag = async (userId: string, flag: "isAdmin" | "canCreateGroups" | "canExportCalendars", value: boolean) => {
     await fetch("/api/admin/users", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, [flag]: value }),
     });
     fetchUsers();
+  };
+
+  const toggleCalendarExport = async (groupId: number, value: boolean) => {
+    await fetch("/api/admin/groups", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groupId, calendarExportEnabled: value }),
+    });
+    fetchGroups();
   };
 
   const deleteUser = (userId: string, userName: string | null) => {
@@ -159,6 +192,16 @@ export default function AdminPage() {
                         <span className="text-sm">{t("createGroupsFlag")}</span>
                       </label>
 
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={user.canExportCalendars}
+                          onChange={(e) => toggleFlag(user.id, "canExportCalendars", e.target.checked)}
+                          className="h-4 w-4 rounded border-border accent-primary"
+                        />
+                        <span className="text-sm">{t("userCalendarExportFlag")}</span>
+                      </label>
+
                       <button
                         onClick={() => deleteUser(user.id, user.name)}
                         className="rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:border-destructive transition-colors"
@@ -173,12 +216,41 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* Legend */}
-        <div className="mt-8 border-t border-border pt-6">
-          <p className="text-xs text-muted-foreground">
-            <strong>{t("adminFlag")}</strong> — {t("legendAdmin")}{" "}
-            <strong>{t("createGroupsFlag")}</strong> — {t("legendCreateGroups")}
-          </p>
+        {/* Groups: Guardar en calendario */}
+        <div className="mt-12 border-t border-border pt-8">
+          <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-6">
+            {t("groupsCount", { n: groups.length })}
+          </h2>
+          {groups.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("noGroups")}</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {groups.map((group) => (
+                <div key={group.id} className="py-5 first:pt-0 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{group.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{group.slug}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t("summaryCounts", {
+                        members: group.membersCount,
+                        events: group.eventsCount,
+                        schedules: group.schedulesCount,
+                      })}
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={group.calendarExportEnabled}
+                      onChange={(e) => toggleCalendarExport(group.id, e.target.checked)}
+                      className="h-4 w-4 rounded border-border accent-primary"
+                    />
+                    <span className="text-sm">{t("calendarExportFlag")}</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <ConfirmDialog

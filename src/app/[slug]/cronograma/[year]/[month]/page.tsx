@@ -52,5 +52,5 @@ export default function SharedSchedulePage() {
     );
   }
 
-  return <SharedScheduleView schedule={schedule} basePath={`/${slug}/cronograma`} />;
+  return <SharedScheduleView schedule={schedule} basePath={`/${slug}/cronograma`} slug={slug} />;
 }

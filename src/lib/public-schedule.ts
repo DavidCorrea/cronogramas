@@ -24,7 +24,7 @@ export async function buildPublicScheduleResponse(schedule: {
   const { id, month, year, groupId } = schedule;
 
   const group = await db
-    .select({ name: groups.name })
+    .select({ name: groups.name, calendarExportEnabled: groups.calendarExportEnabled })
     .from(groups)
     .where(eq(groups.id, groupId))
     .then((rows) => rows[0]);
@@ -138,6 +138,7 @@ export async function buildPublicScheduleResponse(schedule: {
 
   return {
     groupName: group?.name ?? undefined,
+    calendarExportEnabled: group?.calendarExportEnabled ?? false,
     month,
     year,
     entries: enrichedEntries,

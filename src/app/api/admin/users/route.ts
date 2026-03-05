@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
       image: users.image,
       isAdmin: users.isAdmin,
       canCreateGroups: users.canCreateGroups,
+      canExportCalendars: users.canExportCalendars,
     })
     .from(users)
     .orderBy(users.name);
@@ -28,7 +29,7 @@ export async function PUT(request: NextRequest) {
   if (adminResult.error) return adminResult.error;
 
   const body = await request.json();
-  const { userId, isAdmin, canCreateGroups } = body;
+  const { userId, isAdmin, canCreateGroups, canExportCalendars } = body;
 
   if (!userId || typeof userId !== "string") {
     return NextResponse.json(
@@ -52,6 +53,7 @@ export async function PUT(request: NextRequest) {
   const updateFields: Record<string, unknown> = {};
   if (typeof isAdmin === "boolean") updateFields.isAdmin = isAdmin;
   if (typeof canCreateGroups === "boolean") updateFields.canCreateGroups = canCreateGroups;
+  if (typeof canExportCalendars === "boolean") updateFields.canExportCalendars = canExportCalendars;
 
   if (Object.keys(updateFields).length === 0) {
     return NextResponse.json(
@@ -72,6 +74,7 @@ export async function PUT(request: NextRequest) {
       image: users.image,
       isAdmin: users.isAdmin,
       canCreateGroups: users.canCreateGroups,
+      canExportCalendars: users.canExportCalendars,
     })
     .from(users)
     .where(eq(users.id, userId)))[0];

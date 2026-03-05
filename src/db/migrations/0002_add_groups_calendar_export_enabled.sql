@@ -1,0 +1,1 @@
+ALTER TABLE "groups" ADD COLUMN "calendar_export_enabled" boolean DEFAULT false NOT NULL;

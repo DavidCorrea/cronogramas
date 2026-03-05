@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -17,10 +17,18 @@ export default function ConfigLayoutInner() {
   const { slug, groupName, loading, error } = useGroup();
   const pathname = usePathname();
   const router = useRouter();
-  const { dirty: configDirty } = useUnsavedConfig();
+  const { dirty: configDirty, setDirty } = useUnsavedConfig();
   const [mobileOpen, setMobileOpen] = useState(false);
   const tNav = useTranslations("configNav");
   const tGlobal = useTranslations("nav");
+
+  // Clear dirty when navigating to a page that doesn't use the unsaved guard (e.g. events list, members list).
+  // Otherwise the banner would stay visible after leaving a form page.
+  useEffect(() => {
+    if (!isConfigFormPageWithUnsavedGuard(pathname ?? null)) {
+      setDirty(false);
+    }
+  }, [pathname, setDirty]);
 
   const navLinks: { href: string; label: string; exact?: boolean }[] = [
     { href: `/${slug}/config/members`, label: tNav("members") },

@@ -13,7 +13,7 @@ The app uses **Next.js App Router**, is **mobile-first**, and all user-facing co
 | Path | Purpose | Page file |
 |------|---------|-----------|
 | `/` | Home: dashboard, groups list, next assignment, calendar | `src/app/page.tsx` |
-| `/asignaciones` | My assignments: list and filters (group, month, role), iCal export link | `src/app/asignaciones/page.tsx` |
+| `/asignaciones` | My assignments: list and filters (group, month, role) | `src/app/asignaciones/page.tsx` |
 | `/login` | Google sign-in | `src/app/login/page.tsx` |
 | `/settings` | User profile, personal holidays, link to admin | `src/app/settings/page.tsx` |
 | `/admin` | Admin panel: users, flags (isAdmin, canCreateGroups) | `src/app/admin/page.tsx` |
@@ -49,7 +49,7 @@ The app uses **Next.js App Router**, is **mobile-first**, and all user-facing co
 | Path | Purpose | Page file |
 |------|---------|-----------|
 | `/[slug]/cronograma` | Redirects (302) to `/[slug]/cronograma/[year]/[month]` for current month | `src/app/[slug]/cronograma/page.tsx` |
-| `/[slug]/cronograma/[year]/[month]` | Schedule view for that month | `src/app/[slug]/cronograma/[year]/[month]/page.tsx` |
+| `/[slug]/cronograma/[year]/[month]` | Schedule view for that month; "Guardar en calendario" adds events to Google Calendar | `src/app/[slug]/cronograma/[year]/[month]/page.tsx` |
 
 **Loading UI:** `src/app/loading.tsx` (dashboard/generic skeleton), `src/app/[slug]/config/loading.tsx` (config list skeleton), `src/app/[slug]/cronograma/[year]/[month]/loading.tsx` (cronograma grid skeleton) show route-level skeletons during navigation.
 

@@ -41,6 +41,7 @@ All tables are defined there. Exported table names and purpose:
 
 - **Folder:** `src/db/migrations`. Journal and snapshots: `meta/_journal.json` and `meta/*.json` snapshots.
 - **Workflow:** Edit `src/db/schema.ts` → run `npm run db:generate` (use a descriptive name when prompted) → run `npm run db:migrate`.
+- **Do not edit** migration `.sql` files or `meta/_journal.json` or snapshot JSON by hand. Exception: migration `0004_rename_users_calendar_export_to_can_export_calendars` was added manually (rename column to match `can*` convention); its `when` in the journal is set after 0003. For any future column renames, run `db:generate` and when prompted choose **"rename column"** so Drizzle generates the correct SQL and snapshot.
 - **Applied migrations:** Stored in **`drizzle.__drizzle_migrations`** (schema `drizzle`). Query with schema: `SELECT * FROM drizzle.__drizzle_migrations ORDER BY created_at;` — do not query `__drizzle_migrations` without the schema.
 - Full migration rules (reset, amend, etc.) are in **AGENTS.md** (Database and migrations section).
 

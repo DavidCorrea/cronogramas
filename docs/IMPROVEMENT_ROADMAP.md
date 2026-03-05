@@ -17,7 +17,7 @@ This plan groups improvements into themes. Each theme can be implemented indepen
 | Modals / a11y       | **Radix UI** (e.g. `@radix-ui/react-dialog`) or **focus-trap-react** | Focus trap, aria, keyboard for dialogs                             |
 | Skeletons           | **Radix UI** `@radix-ui/react-skeleton` or Tailwind `animate-pulse`  | Loading placeholders that match final layout, reduce layout shift  |
 | E2E tests           | **Playwright**                                                       | Critical path: sign in → create group → … → view cronograma        |
-| Export iCal         | **ical-generator**                                                   | Generate .ics for “my assignments” export                          |
+| My assignments      | **Google Calendar API** (googleapis)                                 | Save assignments to user's Google Calendar                         |
 | Export PDF          | **@react-pdf/renderer**                                              | React → PDF for schedule or “my assignments” PDF                   |
 | Keyboard shortcuts  | **react-hotkeys-hook**                                               | Declarative shortcuts and “quick jump” in config                   |
 | In-app toasts       | **Sonner**                                                           | Success/error toasts after mutations                               |
@@ -31,36 +31,7 @@ Install only what you need for the phase you’re implementing. Dependencies: Zo
 
 ---
 
-## 2. Loading, errors, and empty states
-
-**Loading skeletons**  
-Prefer **skeletons** over a full-page spinner wherever the final layout is predictable: they reduce perceived wait and make the app feel faster. Use Next.js `loading.tsx` for route-level suspension (navigation shows the skeleton immediately), and optionally inline skeletons inside pages that fetch after mount (e.g. with TanStack Query’s `isLoading`).
-
-- **Reusable primitives:** Add a small set of shared components (e.g. `SkeletonCard`, `SkeletonRow`, `SkeletonText`, `SkeletonGrid`) in `src/components/` or under a `Skeletons` folder. Use **Radix UI** `@radix-ui/react-skeleton` or a simple div with Tailwind `animate-pulse` and `rounded bg-muted` so all skeletons share the same look and respect theme. Reuse across routes for consistency.
-- **Per route:**
-  - **Dashboard (/):** Skeleton cards for “next assignment” and group list (e.g. 3–4 card-shaped blocks); calendar area as a simple grid or placeholder so the page doesn’t jump when data loads.
-  - **Config layout / list pages:** Skeleton for the sub-nav (breadcrumb/group name) plus list skeletons—e.g. table rows for members/roles/schedules (one row = avatar/icon + 2–3 text lines) or card rows for events. Match approximate height/count (e.g. 5–6 rows) to avoid big layout shift.
-  - **Cronograma (public):** Skeleton that mirrors the schedule grid: month header + week rows with cell placeholders (same column/row structure as `SharedScheduleView`) so when data loads the transition is minimal.
-  - **Schedule detail:** Skeleton for the main grid plus sidebar/notes area if the layout has one; same idea—approximate final layout to avoid shift.
-- **When to use a spinner instead:** Full-page spinner (or existing `LoadingScreen`) is fine for auth redirects, first load of a heavy single-purpose page, or when the layout is truly unknown. Prefer skeletons for any route where you know the structure (lists, grids, dashboard).
-- **Accessibility:** Wrap skeleton regions in a container with `aria-busy="true"` and `aria-label` (e.g. “Cargando…”) so screen readers announce loading; remove or replace with the real content when data is ready. Keep skeleton markup minimal (decorative) so it’s not read as real content.
-
-**Route-level loading UI**  
-Add `loading.tsx` for key segments (e.g. `[slug]/config`, cronograma, and optionally dashboard) so navigation shows the skeleton (or spinner) immediately instead of a blank screen. Export a default component that renders the appropriate skeleton for that segment (e.g. config layout skeleton vs cronograma grid skeleton). Reuse or extend `LoadingScreen` only where a full-page spinner is still the right choice (e.g. login redirect).
-
-**Error boundaries**  
-There are no `error.tsx` boundaries. Add at least one at the root or layout level (e.g. `src/app/error.tsx` or under `[slug]/config` and cronograma) that catches runtime and fetch errors, shows a clear message and a “Reintentar” / “Volver” action, and optionally reports or logs.
-
-**Empty states**  
-For “no members,” “no roles,” “no schedules,” “no events,” add explicit empty-state components with short copy and a primary CTA (e.g. “Agregar miembro,” “Crear primer cronograma”). Use consistent placement and styling across config pages.
-
-
-**Unsaved changes UX**  
-Keep `UnsavedConfigProvider` and the nav guard. Add: (1) a visible banner when `dirty` is true (“Tienes cambios sin guardar”); (2) optional `beforeunload` when config is dirty so closing the tab warns the user. When you add **Sonner** (section 7), use it for “Guardado” / “Error al guardar” after form submit so feedback is consistent.
-
----
-
-## 3. Accessibility
+## 2. Accessibility
 
 **Skip link**  
 Add a “Saltar al contenido” link at the top of `src/app/layout.tsx` (or AppNavBar), visible on focus, that moves focus to the main content. Ensure the target is the `<main>` landmark (config layout and SharedScheduleView already use `<main>`).
@@ -82,7 +53,7 @@ Audit interactive elements for keyboard reachability and visible focus indicator
 
 ---
 
-## 4. Performance
+## 3. Performance
 
 **Cache public cronograma API**  
 Public cronograma GET endpoints are read-heavy and unauthenticated. Add caching (e.g. Next.js `revalidate` on a route that uses fetch, or `unstable_cache` in `src/lib/public-schedule.ts` keyed by slug + year + month) so repeated reads do not hit the DB every time. Consider a short TTL (e.g. 60–300 seconds) and document cache behavior.
@@ -96,7 +67,7 @@ If “Rebuild” or “Fill empty” can be slow for large groups, consider runn
 
 ---
 
-## 5. Client data and forms
+## 4. Client data and forms
 
 **Shared form and validation**  
 Use **React Hook Form** with **@hookform/resolvers** and **Zod** for validation. Create a shared `<FormField>` (or use RHF’s `Controller` + your inputs) and consistent error display. Validate on the server with the same Zod schemas from `src/lib/schemas/`. Use for new and refactored forms so dirty state and the unsaved guard can rely on `formState.isDirty`.
@@ -109,7 +80,7 @@ For non-destructive mutations (e.g. update note, reorder roles, toggle availabil
 
 ---
 
-## 6. Product and UX clarity
+## 5. Product and UX clarity
 
 **Guided first-time setup**  
 After creating a group, show a short wizard or checklist: “Agregar miembro” → “Definir roles” → “Configurar eventos” → “Generar primer mes,” with links to the right config pages. Reuse existing routes; only add the checklist component and optional progress state (e.g. in group context or a small config landing block).
@@ -125,7 +96,7 @@ Add optional tooltips or “?” icons next to config labels that need explanati
 
 ---
 
-## 7. Data and domain clarity
+## 6. Data and domain clarity
 
 **Explicit draft vs published**  
 If the intended flow is “edit schedule then publish,” make it explicit in the model or docs: e.g. `schedules.status` or `publishedAt`, and document that public cronograma reads only “published” or “latest committed.” If the current behavior is already “last saved = public,” document it in `docs/DATABASE.md` and AGENTS.md so future changes (e.g. version history) are easier.
@@ -141,7 +112,7 @@ Instead of hard-deleting members, add `deletedAt` and exclude deleted members fr
 
 ---
 
-## 8. Schedule and create-group flows
+## 7. Schedule and create-group flows
 
 **Schedule detail: single PUT or clear batching**  
 The schedule detail page (`src/app/[slug]/config/schedules/[id]/page.tsx`) issues many separate PUTs. Either: (1) support a single PUT with a structured body (e.g. `{ assignments?, notes?, ... }`) and “omit = leave unchanged,” or (2) keep multiple PUTs but introduce a small client abstraction and optional debounce so “save” is one logical action and partial failures are easier to handle.
@@ -163,7 +134,7 @@ Allow “Duplicar grupo” (or “Crear grupo desde plantilla”): copy the curr
 
 ---
 
-## 9. Operations, audit, and quality
+## 8. Operations, audit, and quality
 
 **Config audit log**  
 Extend the audit idea from `schedule_audit_log` in `src/db/schema.ts` to config changes: who changed members, roles, events, collaborators, or group settings. Add a table (e.g. `config_audit_log` or generic `audit_events`) and log mutations from the relevant API routes. Useful for accountability and debugging.
@@ -197,7 +168,7 @@ Keep all user-facing strings in `messages/es.json` and use next-intl plural and 
 
 ---
 
-## 10. Additional polish
+## 9. Additional polish
 
 **PWA / “add to home screen”**  
 Use **next-pwa** (Workbox-based) or add a manual `manifest.json` and a minimal service worker for the public cronograma so users can “add to home screen” on mobile. Document in CLIENT.md.
@@ -206,7 +177,7 @@ Use **next-pwa** (Workbox-based) or add a manual `manifest.json` and a minimal s
 Ensure the existing theme toggle and default theme respect `prefers-color-scheme` so first-time visitors get their system preference. Check layout and any theme provider.
 
 **Cache headers for public cronograma**  
-When adding caching (see section 5), consider `Cache-Control` or `ETag` / `Last-Modified` for the public cronograma response so browsers and CDNs can cache appropriately. Invalidate or shorten TTL when the schedule is updated (e.g. via `updatedAt` on the schedule row).
+When adding caching (see section 3), consider `Cache-Control` or `ETag` / `Last-Modified` for the public cronograma response so browsers and CDNs can cache appropriately. Invalidate or shorten TTL when the schedule is updated (e.g. via `updatedAt` on the schedule row).
 
 **Offline and resilience**  
 With the PWA service worker (above), cache the public cronograma response for the current month so returning visitors can view it offline. Rely on TanStack Query’s default retry for failed API calls; optionally add exponential backoff for config routes so temporary network issues don’t immediately show an error. Improves perceived reliability without changing features.
@@ -216,7 +187,7 @@ Audit tap targets: ensure buttons and links meet a minimum touch size (e.g. 44px
 
 ---
 
-## 11. More product and DX ideas
+## 10. More product and DX ideas
 
 **Component library / Storybook (optional)**  
 Add **Storybook** (or similar) for shared components: LoadingScreen, OptionToggleGroup, form fields, empty states, dialogs. Enables visual regression and safer refactors when splitting SharedScheduleView or changing design tokens. Optional; useful once the component set stabilizes.
@@ -234,12 +205,13 @@ When manually editing assignments in the schedule detail view, show a subtle hin
 
 ## Suggested order of implementation
 
-- **Phase 1 (UX and resilience):** loading.tsx + error.tsx, empty states, unsaved banner + beforeunload.
-- **Phase 2 (Server and data):** Server group resolution.
-- **Phase 3 (A11y and perf):** Skip link + landmarks, cronograma grid semantics, move hardcoded strings, cache public API, split SharedScheduleView.
-- **Phase 4 (Product and ops):** Glossary + draft/published docs, guided setup + My assignments, shared forms, audit log + export, E2E + seed.
+- **Phase 1 (Server and data):** Server group resolution.
+- **Phase 2 (A11y and perf):** Skip link + landmarks, cronograma grid semantics, move hardcoded strings, cache public API, split SharedScheduleView.
+- **Phase 3 (Product and ops):** Glossary + draft/published docs, guided setup + My assignments, shared forms, audit log + export, E2E + seed.
 
-You can implement individual items out of order (e.g. skip link and cache before server resolution) where there are no hard dependencies. When adding libraries, install only those needed for the phase (e.g. Phase 3: Radix or focus-trap-react; Phase 4: React Hook Form, @hookform/resolvers, Playwright, ical-generator, @react-pdf/renderer as needed).
+*Loading, errors, empty states, and unsaved banner (formerly Phase 1) are done; see AGENTS.md Features.*
+
+You can implement individual items out of order (e.g. skip link and cache before server resolution) where there are no hard dependencies. When adding libraries, install only those needed for the phase (e.g. Phase 2: Radix or focus-trap-react; Phase 3: React Hook Form, @hookform/resolvers, Playwright, googleapis, @react-pdf/renderer as needed).
 
 ---
 

@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   image: text("image"),
   isAdmin: boolean("is_admin").notNull().default(false),
   canCreateGroups: boolean("can_create_groups").notNull().default(false),
+  canExportCalendars: boolean("can_export_calendars").notNull().default(false),
 });
 
 export const accounts = pgTable("accounts", {
@@ -37,6 +38,7 @@ export const groups = pgTable("groups", {
   ownerId: text("owner_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  calendarExportEnabled: boolean("calendar_export_enabled").notNull().default(false),
 });
 
 export const groupCollaborators = pgTable("group_collaborators", {

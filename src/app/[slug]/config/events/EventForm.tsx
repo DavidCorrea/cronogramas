@@ -472,7 +472,9 @@ export default function EventForm({
 
   useEffect(() => {
     if (priorityOrder.length === 0 && assignableRoleIds.length > 0 && !editingPriorities) {
-      setPriorityOrder(defaultOrder);
+      const order = defaultOrder;
+      setPriorityOrder(order);
+      setAppliedPriorityOrder(order);
     }
   }, [defaultOrder, assignableRoleIds.length, editingPriorities, priorityOrder.length]);
 

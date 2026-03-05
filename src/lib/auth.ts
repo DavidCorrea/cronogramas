@@ -4,7 +4,6 @@ import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "./db";
 import { users, accounts, members } from "@/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
-
 declare module "next-auth" {
   interface User {
     isAdmin?: boolean;

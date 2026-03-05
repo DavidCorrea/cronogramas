@@ -3,6 +3,7 @@
 /* eslint-disable react-hooks/preserve-manual-memoization -- Dependencies are derived arrays (e.g. .filter()); compiler flags them as potentially mutable but they are not. */
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import {
   formatDateLong,
   formatDateWeekdayDay,
@@ -67,6 +68,8 @@ export interface HolidayConflict {
 
 export interface SharedScheduleData {
   groupName?: string;
+  /** When true, "Guardar en calendario" is allowed for this group (and only when one member is selected). */
+  calendarExportEnabled?: boolean;
   month: number;
   year: number;
   entries: ScheduleEntry[];
@@ -183,11 +186,15 @@ function getTodayISO(): string {
 export default function SharedScheduleView({
   schedule,
   basePath = "/shared",
+  slug: _slug,
 }: {
   schedule: SharedScheduleData;
   basePath?: string;
+  slug?: string;
 }) {
   const t = useTranslations("cronograma");
+  const searchParams = useSearchParams();
+  const calendarResult = searchParams.get("calendar");
   const [filteredMemberId, setFilteredMemberId] = useState<number | null>(null);
   const [filteredRoleId, setFilteredRoleId] = useState<number | null>(null);
   const [today, setToday] = useState("");
@@ -620,6 +627,7 @@ export default function SharedScheduleView({
             </div>
 
             {/* View mode toggle */}
+            <div className="flex items-center gap-2 shrink-0">
             <div className="flex w-fit rounded-lg border border-border p-0.5 shrink-0">
               <button
                 onClick={() => { setViewMode("list"); setDayFilter(""); setShowPastDates(false); }}
@@ -642,7 +650,19 @@ export default function SharedScheduleView({
                 {t("calendar")}
               </button>
             </div>
+            </div>
           </div>
+
+          {calendarResult === "success" && (
+            <p className="mt-2 text-sm text-green-600 dark:text-green-400" role="status">
+              {t("saveInCalendarSuccess")}
+            </p>
+          )}
+          {calendarResult === "error" && (
+            <p className="mt-2 text-sm text-destructive" role="alert">
+              {t("saveInCalendarError")}
+            </p>
+          )}
 
           {/* Mobile: collapsible filters */}
           {mobileFiltersOpen && (

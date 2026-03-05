@@ -22,8 +22,10 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 |-----------|------|---------|------|
 | POST | `/api/admin/auth` | Bootstrap admin auth (set cookie when no admin users); validates ADMIN_USERNAME/ADMIN_PASSWORD | `src/app/api/admin/auth/route.ts` |
 | GET | `/api/admin/users` | List all users (admin only) | `src/app/api/admin/users/route.ts` |
-| PUT | `/api/admin/users` | Update user (isAdmin, canCreateGroups) | `src/app/api/admin/users/route.ts` |
+| PUT | `/api/admin/users` | Update user (isAdmin, canCreateGroups, canExportCalendars) | `src/app/api/admin/users/route.ts` |
 | DELETE | `/api/admin/users` | Delete user by `id` query param | `src/app/api/admin/users/route.ts` |
+| GET | `/api/admin/groups` | List all groups (admin only); returns calendarExportEnabled per group | `src/app/api/admin/groups/route.ts` |
+| PATCH | `/api/admin/groups` | Update group (body: groupId, calendarExportEnabled) | `src/app/api/admin/groups/route.ts` |
 
 ### Groups
 | Method(s) | Path | Purpose | File |
@@ -85,12 +87,18 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 |-----------|------|---------|------|
 | GET | `/api/cronograma/[slug]` | Public schedule for group by slug (current or latest committed). Page `/[slug]/cronograma` redirects (302) to `/[slug]/cronograma/[year]/[month]` for current month. **Rate limited** by IP. | `src/app/api/cronograma/[slug]/route.ts` |
 | GET | `/api/cronograma/[slug]/[year]/[month]` | Public schedule for group by slug, year, month. **Rate limited** by IP. | `src/app/api/cronograma/[slug]/[year]/[month]/route.ts` |
+| GET | `/api/cronograma/[slug]/[year]/[month]/google-calendar` | Redirects to Google OAuth to add the **selected member's** assignments to the user's Google Calendar. Query **`?memberId=`** required. Group must have `calendarExportEnabled`. **Rate limited**. Callback: `/api/auth/callback/google-calendar`. | `src/app/api/cronograma/[slug]/[year]/[month]/google-calendar/route.ts` |
 
-### User (dashboard, assignments, search)
+### Auth callback (Google Calendar, one-off)
 | Method(s) | Path | Purpose | File |
 |-----------|------|---------|------|
-| GET | `/api/user/dashboard` | Dashboard data: user's assignments and conflicts | `src/app/api/user/dashboard/route.ts` |
-| GET | `/api/user/assignments/ical` | iCal export of user's assignments (`Content-Type: text/calendar`, attachment) | `src/app/api/user/assignments/ical/route.ts` |
+| GET | `/api/auth/callback/google-calendar` | OAuth callback: (1) **User assignments**: state `type: "user_assignments"` — insert current user's assignments (filtered by group/year/month, only groups with calendarExportEnabled) into primary Google Calendar, redirect to `/asignaciones?calendar=success|error`. (2) **Cronograma**: state slug/year/month/memberId — insert selected member's assignments for that month, redirect to cronograma page. Add this URI to Google Cloud Console. | `src/app/api/auth/callback/google-calendar/route.ts` |
+
+### User (dashboard, search)
+| Method(s) | Path | Purpose | File |
+|-----------|------|---------|------|
+| GET | `/api/user/dashboard` | Dashboard: assignments (with groupCalendarExportEnabled), conflicts, **canExportCalendars** (user flag, set by admin). | `src/app/api/user/dashboard/route.ts` |
+| GET | `/api/user/assignments/google-calendar` | Redirects to Google OAuth to add **current user's** assignments to Google Calendar. Auth required; user must have **canExportCalendars** (set by admin). Optional query: `groupId`, `year`, `month`. Callback redirects to `/asignaciones?calendar=success|error`. | `src/app/api/user/assignments/google-calendar/route.ts` |
 | GET | `/api/users/search` | Search users by name/email (`?q=`) for linking/invites | `src/app/api/users/search/route.ts` |
 
 ### Holidays (user-scoped)
@@ -106,7 +114,7 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 
 - **Auth** — NextAuth.js catch-all: `GET`/`POST` for sign-in, callback, session. Handlers from `src/lib/auth.ts`. Session required for all other authenticated routes.
 
-- **Admin** — Bootstrap and user management. **Auth**: `requireAdmin()` (session with `isAdmin`, or when no admin users: Basic Auth / `ADMIN_USERNAME`+`ADMIN_PASSWORD`, or cookie set by `POST /api/admin/auth`). No `groupId`; operates on global users.
+- **Admin** — Bootstrap and user management. **Auth**: `requireAdmin()`. **Users**: GET/PUT/DELETE; PUT body can include **canExportCalendars** (per-user "Guardar en calendario" flag, admin-only). **Groups**: GET (list with calendarExportEnabled), PATCH (body: groupId, calendarExportEnabled) to enable/disable "Guardar en calendario" per group.
 
 - **Groups** — List/create groups and manage collaborators. **Auth**: `requireAuth()` for list/create; `requireAuth()` + `hasGroupAccess(userId, groupId)` for `[id]/collaborators`. Path param `[id]` is group id. Helpers: `src/lib/api-helpers.ts`.
 
@@ -116,9 +124,9 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 
 - **Configuration** — Days (recurring events), roles, priorities, exclusive-groups, group-scoped holidays. **Auth**: All use `requireGroupAccess(request)` (accepts `?groupId=` or `?slug=`). DELETE by path: `DELETE /api/configuration/holidays/[id]` and `DELETE /api/configuration/exclusive-groups/[id]` with group in query. Request bodies validated with **Zod** schemas in `src/lib/schemas/` where applicable. Types/schema: `src/db/schema.ts`.
 
-- **Cronograma** — Public read-only schedule by group slug. **Auth**: None. **Rate limiting**: in-memory per IP (see `src/lib/rate-limit.ts`); 429 when exceeded. Group from path `[slug]` via `resolveGroupBySlug(slug)` in `src/lib/group.ts`. Response built with `src/lib/public-schedule.ts`.
+- **Cronograma** — Public read-only schedule by group slug. **Auth**: None. **Rate limiting**: in-memory per IP. Optional GET `.../google-calendar?memberId=` (group must have calendarExportEnabled) redirects to Google OAuth; callback can insert that member's assignment dates (description = roles). **Save in Calendar** is primarily on **Mis asignaciones** (see User below).
 
-- **User** — Dashboard, assignments iCal export, and user search. **Auth**: `requireAuth()`. Dashboard and iCal use the same assignment data (from current month onward, committed schedules). iCal returns `text/calendar` with `Content-Disposition: attachment; filename="mis-asignaciones.ics"`. Search queries `users` by name/email.
+- **User** — Dashboard (assignments with groupCalendarExportEnabled, conflicts, user's canExportCalendars), GET `/api/user/assignments/google-calendar` to start OAuth for "Guardar en calendario" (user must have canExportCalendars set by admin). Search: `GET /api/users/search`. **Auth**: `requireAuth()`.
 
 - **Holidays** — User-level holidays (unavailability). **Auth**: `requireAuth()`. Scoped by `userId` from session; DELETE checks `existing.userId === authResult.user.id`.
 

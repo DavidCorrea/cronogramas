@@ -15,6 +15,27 @@
       "when": 1772403022909,
       "tag": "0001_recurring_events_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772719262228,
+      "tag": "0002_add_groups_calendar_export_enabled",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772720299052,
+      "tag": "0003_add_users_calendar_export_enabled",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772720300000,
+      "tag": "0004_rename_users_calendar_export_to_can_export_calendars",
+      "breakpoints": true
     }
   ]
 }
