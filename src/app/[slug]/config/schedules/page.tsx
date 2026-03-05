@@ -11,8 +11,6 @@ import { buildColumnOrderPayload } from "@/lib/column-order";
 import { useUnsavedConfig } from "@/lib/unsaved-config-context";
 import LoadingScreen from "@/components/LoadingScreen";
 import { EmptyState } from "@/components/EmptyState";
-import { DangerZone } from "@/components/DangerZone";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Role {
   id: number;
@@ -252,7 +250,6 @@ export default function SchedulesPage() {
   const params = useParams();
   const slug = params?.slug as string;
   const t = useTranslations("schedules");
-  const tCommon = useTranslations("common");
   const { groupId, slug: groupSlug, refetchContext } = useGroup();
   const { schedules: schedulesFromContext, roles: rolesFromContext, isLoading } = useConfigContext(
     slug ?? groupSlug ?? "",
@@ -272,8 +269,6 @@ export default function SchedulesPage() {
   const [orderedRoles, setOrderedRoles] = useState<Role[]>([]);
   const [initialOrder, setInitialOrder] = useState<number[]>([]);
   const [generating, setGenerating] = useState(false);
-  const [scheduleIdToDelete, setScheduleIdToDelete] = useState<number | null>(null);
-  const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   const [selectedMonths, setSelectedMonths] = useState<
     { month: number; year: number }[]
@@ -352,22 +347,6 @@ export default function SchedulesPage() {
       await refetchContext();
     } finally {
       setGenerating(false);
-    }
-  };
-
-  const handleDelete = (id: number) => {
-    setScheduleIdToDelete(id);
-  };
-
-  const performDelete = async () => {
-    if (scheduleIdToDelete == null) return;
-    setDeleteInProgress(true);
-    try {
-      await fetch(`/api/schedules/${scheduleIdToDelete}`, { method: "DELETE" });
-      await refetchContext();
-      setScheduleIdToDelete(null);
-    } finally {
-      setDeleteInProgress(false);
     }
   };
 
@@ -495,12 +474,6 @@ export default function SchedulesPage() {
                           {t("view")}
                         </Link>
                       )}
-                      <button
-                        onClick={() => handleDelete(schedule.id)}
-                        className="flex-1 min-w-0 rounded-md border border-border px-3.5 py-2 text-sm text-destructive hover:border-destructive transition-colors"
-                      >
-                        {tCommon("delete")}
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -541,23 +514,6 @@ export default function SchedulesPage() {
         </section>
       </div>
 
-      {schedulesList.length > 0 && (
-        <DangerZone description={t("dangerZoneDescription")}>
-          <p className="text-sm text-muted-foreground">
-            {t("dangerZoneHint")}
-          </p>
-        </DangerZone>
-      )}
-
-      <ConfirmDialog
-        open={scheduleIdToDelete != null}
-        onOpenChange={(open) => !open && setScheduleIdToDelete(null)}
-        title={t("deleteScheduleTitle")}
-        message={t("confirmDelete")}
-        confirmLabel={tCommon("delete")}
-        onConfirm={performDelete}
-        loading={deleteInProgress}
-      />
     </div>
   );
 }

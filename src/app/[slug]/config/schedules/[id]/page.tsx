@@ -15,6 +15,7 @@ import {
 } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
 import BackLink from "@/components/BackLink";
+import { DangerZone } from "@/components/DangerZone";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface ScheduleEntry {
@@ -153,12 +154,15 @@ export default function SchedulePreviewPage() {
   const tCommon = useTranslations("common");
   const tSchedules = useTranslations("schedules");
   const monthNames = getRawArray(tSchedules, "months");
-  const { groupId, slug, loading: groupLoading } = useGroup();
+  const { groupId, slug, loading: groupLoading, refetchContext } = useGroup();
   const [schedule, setSchedule] = useState<ScheduleDetail | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [scheduleDays, setScheduleDays] = useState<ScheduleDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const [confirmDeleteScheduleOpen, setConfirmDeleteScheduleOpen] = useState(false);
+  const [deleteScheduleInProgress, setDeleteScheduleInProgress] = useState(false);
 
   const [showPastDates, setShowPastDates] = useState(false);
 
@@ -495,6 +499,22 @@ export default function SchedulePreviewPage() {
     setRebuildOpen(false);
     setRebuildPreview(null);
     setRebuildMode(null);
+  };
+
+  const performDeleteSchedule = async () => {
+    setDeleteScheduleInProgress(true);
+    try {
+      const res = await fetch(`/api/schedules/${params.id}`, { method: "DELETE" });
+      if (res.ok) {
+        await refetchContext();
+        router.push(`/${slug}/config/schedules`);
+      } else {
+        const data = await res.json();
+        alert(data.error ?? tSchedules("errorGenerate"));
+      }
+    } finally {
+      setDeleteScheduleInProgress(false);
+    }
   };
 
   // Check if there are future dates for the rebuild button
@@ -1110,6 +1130,17 @@ export default function SchedulePreviewPage() {
         </div>
       )}
 
+      <DangerZone description={tSchedules("dangerZoneDescription")}>
+        <button
+          type="button"
+          onClick={() => setConfirmDeleteScheduleOpen(true)}
+          disabled={deleteScheduleInProgress}
+          className="rounded-md border border-destructive px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+        >
+          {tCommon("delete")}
+        </button>
+      </DangerZone>
+
       {/* Rebuild modal */}
       {rebuildOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -1294,6 +1325,15 @@ export default function SchedulePreviewPage() {
         message={t("confirmDeleteDate")}
         confirmLabel={tCommon("delete")}
         onConfirm={performDeleteDate}
+      />
+      <ConfirmDialog
+        open={confirmDeleteScheduleOpen}
+        onOpenChange={setConfirmDeleteScheduleOpen}
+        title={tSchedules("deleteScheduleTitle")}
+        message={tSchedules("confirmDelete")}
+        confirmLabel={tCommon("delete")}
+        onConfirm={performDeleteSchedule}
+        loading={deleteScheduleInProgress}
       />
     </div>
   );
