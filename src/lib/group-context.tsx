@@ -1,9 +1,10 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, ReactNode } from "react";
 import { useParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
-/** BFF config context payload (members, roles, days, exclusiveGroups, schedules). */
+/** Group identity only. Config data is fetched per-view via useConfigContext(slug, include). */
 export interface ConfigContextData {
   members: Array<{
     id: number;
@@ -50,9 +51,9 @@ interface GroupContextValue {
   groupName: string;
   loading: boolean;
   error: boolean;
-  /** BFF config payload; set once context fetch succeeds, null until then or on error. */
+  /** @deprecated Use useConfigContext(slug, include) for view-scoped data. Kept for type compatibility. */
   configContext: ConfigContextData | null;
-  /** Refetch config context (e.g. after a mutation). No-op if no slug. */
+  /** Invalidates all config queries for this slug so active useConfigContext refetches. Call after mutations. */
   refetchContext: () => Promise<void>;
 }
 
@@ -61,7 +62,7 @@ const GroupContext = createContext<GroupContextValue>({
   groupId: null,
   slug: "",
   groupName: "",
-  loading: true,
+  loading: false,
   error: false,
   configContext: null,
   refetchContext: noop,
@@ -71,56 +72,32 @@ export function useGroup() {
   return useContext(GroupContext);
 }
 
-export function GroupProvider({ children }: { children: ReactNode }) {
+export interface InitialGroupData {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export function GroupProvider({
+  children,
+  initialGroup,
+}: {
+  children: ReactNode;
+  /** From server layout; provides group identity so client does not fetch. */
+  initialGroup?: InitialGroupData | null;
+  /** @deprecated Config is now loaded per-view via useConfigContext. Ignored. */
+  initialConfigContext?: ConfigContextData | null;
+}) {
   const params = useParams();
-  const slug = params.slug as string;
-  const [groupId, setGroupId] = useState<number | null>(null);
-  const [groupName, setGroupName] = useState("");
-  const [configContext, setConfigContext] = useState<ConfigContextData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const slug = (params?.slug as string) ?? initialGroup?.slug ?? "";
+  const queryClient = useQueryClient();
 
-  const fetchContext = useCallback(async () => {
-    if (!slug) return;
-    try {
-      const res = await fetch(
-        `/api/configuration/context?slug=${encodeURIComponent(slug)}`
-      );
-      if (!res.ok) {
-        setError(true);
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
-      setGroupId(data.group.id);
-      setGroupName(data.group.name);
-      setConfigContext({
-        members: data.members ?? [],
-        roles: data.roles ?? [],
-        days: data.days ?? [],
-        exclusiveGroups: data.exclusiveGroups ?? [],
-        schedules: data.schedules ?? [],
-      });
-      setError(false);
-    } catch {
-      setError(true);
-    }
-    setLoading(false);
-  }, [slug]);
-
-  useEffect(() => {
-    if (!slug) return;
-    const run = () => {
-      setLoading(true);
-      fetchContext();
-    };
-    const id = setTimeout(run, 0);
-    return () => clearTimeout(id);
-  }, [slug, fetchContext]);
+  const groupId = initialGroup?.id ?? null;
+  const groupName = initialGroup?.name ?? "";
 
   const refetchContext = async () => {
     if (!slug) return;
-    await fetchContext();
+    await queryClient.invalidateQueries({ queryKey: ["config", slug] });
   };
 
   return (
@@ -129,9 +106,9 @@ export function GroupProvider({ children }: { children: ReactNode }) {
         groupId,
         slug,
         groupName,
-        loading: slug ? loading : false,
-        error,
-        configContext,
+        loading: false,
+        error: false,
+        configContext: null,
         refetchContext,
       }}
     >

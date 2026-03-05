@@ -2,11 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
+import { useConfigContext } from "@/lib/config-queries";
 import { buildColumnOrderPayload } from "@/lib/column-order";
 import { useUnsavedConfig } from "@/lib/unsaved-config-context";
 import LoadingScreen from "@/components/LoadingScreen";
+import { DangerZone } from "@/components/DangerZone";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Role {
   id: number;
@@ -243,23 +247,31 @@ function getNextAvailableMonth(
 }
 
 export default function SchedulesPage() {
+  const params = useParams();
+  const slug = params?.slug as string;
   const t = useTranslations("schedules");
   const tCommon = useTranslations("common");
-  const { groupId, slug, loading: groupLoading, configContext, refetchContext } = useGroup();
+  const { groupId, slug: groupSlug, refetchContext } = useGroup();
+  const { schedules: schedulesFromContext, roles: rolesFromContext, isLoading } = useConfigContext(
+    slug ?? groupSlug ?? "",
+    ["schedules", "roles"]
+  );
   const monthNames = (t as unknown as { raw: (k: string) => string[] }).raw("months") ?? MONTH_NAMES;
   const { setDirty } = useUnsavedConfig();
 
   const schedulesList = useMemo<Schedule[]>(
-    () => configContext?.schedules ?? [],
-    [configContext?.schedules]
+    () => schedulesFromContext ?? [],
+    [schedulesFromContext]
   );
   const sortedRoles = useMemo(() => {
-    const rolesFromContext = configContext?.roles ?? [];
-    return [...rolesFromContext].sort((a, b) => a.displayOrder - b.displayOrder);
-  }, [configContext?.roles]);
+    const roles = rolesFromContext ?? [];
+    return [...roles].sort((a, b) => a.displayOrder - b.displayOrder);
+  }, [rolesFromContext]);
   const [orderedRoles, setOrderedRoles] = useState<Role[]>([]);
   const [initialOrder, setInitialOrder] = useState<number[]>([]);
   const [generating, setGenerating] = useState(false);
+  const [scheduleIdToDelete, setScheduleIdToDelete] = useState<number | null>(null);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   const [selectedMonths, setSelectedMonths] = useState<
     { month: number; year: number }[]
@@ -341,13 +353,23 @@ export default function SchedulesPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm(t("confirmDelete"))) return;
-    await fetch(`/api/schedules/${id}`, { method: "DELETE" });
-    await refetchContext();
+  const handleDelete = (id: number) => {
+    setScheduleIdToDelete(id);
   };
 
-  if (groupLoading) {
+  const performDelete = async () => {
+    if (scheduleIdToDelete == null) return;
+    setDeleteInProgress(true);
+    try {
+      await fetch(`/api/schedules/${scheduleIdToDelete}`, { method: "DELETE" });
+      await refetchContext();
+      setScheduleIdToDelete(null);
+    } finally {
+      setDeleteInProgress(false);
+    }
+  };
+
+  if (isLoading) {
     return <LoadingScreen fullPage={false} />;
   }
 
@@ -516,6 +538,24 @@ export default function SchedulesPage() {
           )}
         </section>
       </div>
+
+      {schedulesList.length > 0 && (
+        <DangerZone description={t("dangerZoneDescription")}>
+          <p className="text-sm text-muted-foreground">
+            {t("dangerZoneHint")}
+          </p>
+        </DangerZone>
+      )}
+
+      <ConfirmDialog
+        open={scheduleIdToDelete != null}
+        onOpenChange={(open) => !open && setScheduleIdToDelete(null)}
+        title={t("deleteScheduleTitle")}
+        message={t("confirmDelete")}
+        confirmLabel={tCommon("delete")}
+        onConfirm={performDelete}
+        loading={deleteInProgress}
+      />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
 } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
 import BackLink from "@/components/BackLink";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface ScheduleEntry {
   id: number;
@@ -187,6 +188,7 @@ export default function SchedulePreviewPage() {
 
   // Edit schedule date modal (time, note, delete)
   const [editDateModal, setEditDateModal] = useState<ScheduleDateInfo | null>(null);
+  const [confirmDeleteDateOpen, setConfirmDeleteDateOpen] = useState(false);
   const [editDateStartUtc, setEditDateStartUtc] = useState("00:00");
   const [editDateEndUtc, setEditDateEndUtc] = useState("23:59");
   const [editDateNote, setEditDateNote] = useState("");
@@ -433,8 +435,12 @@ export default function SchedulePreviewPage() {
     }
   };
 
-  const handleDeleteFromEditModal = async () => {
-    if (!editDateModal || !confirm(t("confirmDeleteDate"))) return;
+  const handleDeleteFromEditModal = () => {
+    setConfirmDeleteDateOpen(true);
+  };
+
+  const performDeleteDate = async () => {
+    if (!editDateModal) return;
     const res = await fetch(`/api/schedules/${params.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -443,6 +449,7 @@ export default function SchedulePreviewPage() {
     if (res.ok) {
       closeEditDateModal();
       fetchData();
+      setConfirmDeleteDateOpen(false);
     }
   };
 
@@ -1278,6 +1285,15 @@ export default function SchedulePreviewPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteDateOpen}
+        onOpenChange={setConfirmDeleteDateOpen}
+        title={t("deleteDate")}
+        message={t("confirmDeleteDate")}
+        confirmLabel={tCommon("delete")}
+        onConfirm={performDeleteDate}
+      />
     </div>
   );
 }

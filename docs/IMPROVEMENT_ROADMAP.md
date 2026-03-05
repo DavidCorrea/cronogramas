@@ -31,13 +31,6 @@ Install only what you need for the phase you’re implementing. Dependencies: Zo
 
 ---
 
-## 1. Server-side group resolution and fewer round-trips
-
-**Resolve group in config layout on the server**  
-Today the config layout is client-only: `GroupProvider` in `src/lib/group-context.tsx` fetches `GET /api/groups?slug=...` in `useEffect`, then all config pages depend on `groupId`. Move group resolution to the server: in the config layout (or a parent server component under `[slug]/config`), resolve slug to group and check access once, then pass `groupId` and group name into the client via props or a server-injected context. The client no longer needs to call “get group by slug” on mount. This may require splitting the config layout into a server wrapper and a client shell that receives group data.
-
----
-
 ## 2. Loading, errors, and empty states
 
 **Loading skeletons**  
@@ -61,11 +54,6 @@ There are no `error.tsx` boundaries. Add at least one at the root or layout leve
 **Empty states**  
 For “no members,” “no roles,” “no schedules,” “no events,” add explicit empty-state components with short copy and a primary CTA (e.g. “Agregar miembro,” “Crear primer cronograma”). Use consistent placement and styling across config pages.
 
-**Danger zone**  
-Add a **“Zona de peligro”** (Danger zone) section to every view where a resource can be deleted. Place it at the bottom of the page, visually distinct: e.g. bordered block, muted or destructive background, heading like “Zona de peligro” and a short explanation (e.g. “Esta acción no se puede deshacer” or impact text). Put the delete (or leave/remove) action inside this section—e.g. “Eliminar miembro,” “Eliminar rol,” “Eliminar cronograma.” Apply consistently to: member edit (`src/app/[slug]/config/members/[id]/page.tsx`), role edit (`src/app/[slug]/config/roles/[id]/page.tsx`), event edit (EventForm or events/[id]), schedule detail or list (`src/app/[slug]/config/schedules/page.tsx`), collaborators page (`src/app/[slug]/config/collaborators/page.tsx`), group holidays and user holidays (`src/app/settings/page.tsx`). If the app supports “delete group” or “leave group,” include it there too. Use the same layout and copy pattern everywhere; put the section title and description in `messages/es.json` (e.g. `common.dangerZone`, `common.dangerZoneDescription`) for i18n consistency.
-
-**Destructive action confirmations**  
-Ensure every destructive action (delete member, role, schedule, event, collaborator, holiday) uses a confirmation dialog with clear wording (e.g. impact on assignments). The trigger lives inside the Danger zone (above); the dialog is **Radix UI** `@radix-ui/react-dialog` (or **focus-trap-react** if keeping custom markup) for focus trap, `aria-modal`, and keyboard behavior—align with the pattern already used in EventForm.
 
 **Unsaved changes UX**  
 Keep `UnsavedConfigProvider` and the nav guard. Add: (1) a visible banner when `dirty` is true (“Tienes cambios sin guardar”); (2) optional `beforeunload` when config is dirty so closing the tab warns the user. When you add **Sonner** (section 7), use it for “Guardado” / “Error al guardar” after form submit so feedback is consistent.
@@ -105,12 +93,10 @@ Public cronograma GET endpoints are read-heavy and unauthenticated. Add caching 
 **Optional: background job for heavy rebuild**  
 If “Rebuild” or “Fill empty” can be slow for large groups, consider running the scheduler in a background job (e.g. queue + polling or server action with streaming) and show “Procesando…” until completion, so the request does not time out and the UI stays responsive.
 
+
 ---
 
 ## 5. Client data and forms
-
-**TanStack Query (React Query)**  
-Replace “useEffect + fetch + useState” patterns with **TanStack Query**: `useQuery` for reads and `useMutation` + `queryClient.invalidateQueries` for writes. Use cache keys that include `groupId` or `slug` so config pages share cache. Integrate with existing GroupProvider and unsaved-config so “pending mutations” vs “server state” are clear. Provides loading/error states, refetch on focus, and deduplication out of the box.
 
 **Shared form and validation**  
 Use **React Hook Form** with **@hookform/resolvers** and **Zod** for validation. Create a shared `<FormField>` (or use RHF’s `Controller` + your inputs) and consistent error display. Validate on the server with the same Zod schemas from `src/lib/schemas/`. Use for new and refactored forms so dirty state and the unsaved guard can rely on `formState.isDirty`.
@@ -248,12 +234,12 @@ When manually editing assignments in the schedule detail view, show a subtle hin
 
 ## Suggested order of implementation
 
-- **Phase 1 (UX and resilience):** loading.tsx + error.tsx, empty states + Danger zone + confirmations, unsaved banner + beforeunload.
+- **Phase 1 (UX and resilience):** loading.tsx + error.tsx, empty states, unsaved banner + beforeunload.
 - **Phase 2 (Server and data):** Server group resolution.
 - **Phase 3 (A11y and perf):** Skip link + landmarks, cronograma grid semantics, move hardcoded strings, cache public API, split SharedScheduleView.
-- **Phase 4 (Product and ops):** Glossary + draft/published docs, guided setup + My assignments, React Query + forms, audit log + export, E2E + seed.
+- **Phase 4 (Product and ops):** Glossary + draft/published docs, guided setup + My assignments, shared forms, audit log + export, E2E + seed.
 
-You can implement individual items out of order (e.g. skip link and cache before server resolution) where there are no hard dependencies. When adding libraries, install only those needed for the phase (e.g. Phase 3: Radix or focus-trap-react; Phase 4: TanStack Query, React Hook Form, @hookform/resolvers, Playwright, ical-generator, @react-pdf/renderer as needed).
+You can implement individual items out of order (e.g. skip link and cache before server resolution) where there are no hard dependencies. When adding libraries, install only those needed for the phase (e.g. Phase 3: Radix or focus-trap-react; Phase 4: React Hook Form, @hookform/resolvers, Playwright, ical-generator, @react-pdf/renderer as needed).
 
 ---
 

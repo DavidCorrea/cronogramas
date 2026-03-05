@@ -11,6 +11,8 @@ import { utcTimeToLocalDisplay, localTimeToUtc } from "@/lib/timezone-utils";
 import { DAY_ORDER } from "@/lib/constants";
 import LoadingScreen from "@/components/LoadingScreen";
 import BackLink from "@/components/BackLink";
+import { DangerZone } from "@/components/DangerZone";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 /** Canonical 7 weekdays for availability grid (id/weekdayId 1–7 match DB weekdays table). */
 const AVAILABILITY_WEEKDAYS: { id: number; weekdayId: number; dayOfWeek: string }[] = DAY_ORDER.map(
@@ -66,6 +68,8 @@ export default function EditMemberPage() {
   const [formError, setFormError] = useState("");
   const [linkCheck, setLinkCheck] = useState<{ canLink: true; user: { id: string; name: string | null; email: string } } | { canLink: false } | null>(null);
   const [linkLoading, setLinkLoading] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!groupId || !id) return;
@@ -191,15 +195,25 @@ export default function EditMemberPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm(t("confirmDelete"))) return;
-    const res = await fetch(`/api/members/${member!.id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const data = await res.json();
-      setFormError(data.error || t("errorDelete"));
-      return;
+    setConfirmDeleteOpen(true);
+  };
+
+  const performDelete = async () => {
+    if (!member) return;
+    setDeleteInProgress(true);
+    try {
+      const res = await fetch(`/api/members/${member.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        setFormError(data.error || t("errorDelete"));
+        setConfirmDeleteOpen(false);
+        return;
+      }
+      await refetchContext();
+      router.push(`/${slug}/config/members`);
+    } finally {
+      setDeleteInProgress(false);
     }
-    await refetchContext();
-    router.push(`/${slug}/config/members`);
   };
 
   if (groupLoading || loading) {
@@ -318,16 +332,29 @@ export default function EditMemberPage() {
             >
               {tCommon("cancel")}
             </Link>
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="rounded-md border border-border px-5 py-2.5 text-sm text-destructive hover:border-destructive hover:bg-destructive/10 transition-colors"
-            >
-              {tCommon("delete")}
-            </button>
           </div>
         </form>
       </section>
+
+      <DangerZone>
+        <button
+          type="button"
+          onClick={handleDelete}
+          className="rounded-md border border-destructive/50 bg-destructive/10 px-5 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/20 transition-colors"
+        >
+          {tCommon("delete")}
+        </button>
+      </DangerZone>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={t("deleteMemberTitle")}
+        message={t("confirmDelete")}
+        confirmLabel={tCommon("delete")}
+        onConfirm={performDelete}
+        loading={deleteInProgress}
+      />
     </div>
   );
 }

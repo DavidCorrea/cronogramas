@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
 import LoadingScreen from "@/components/LoadingScreen";
+import { DangerZone } from "@/components/DangerZone";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface UserSearchResult {
   id: string;
@@ -40,6 +42,8 @@ export default function CollaboratorsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [collabIdToRemove, setCollabIdToRemove] = useState<number | null>(null);
+  const [removeInProgress, setRemoveInProgress] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -107,13 +111,22 @@ export default function CollaboratorsPage() {
     fetchData();
   };
 
-  const removeCollaborator = async (collabId: number) => {
-    if (!groupId) return;
-    if (!confirm(t("confirmRemove"))) return;
-    await fetch(`/api/groups/${groupId}/collaborators?collabId=${collabId}`, {
-      method: "DELETE",
-    });
-    fetchData();
+  const removeCollaborator = (collabId: number) => {
+    setCollabIdToRemove(collabId);
+  };
+
+  const performRemove = async () => {
+    if (!groupId || collabIdToRemove == null) return;
+    setRemoveInProgress(true);
+    try {
+      await fetch(`/api/groups/${groupId}/collaborators?collabId=${collabIdToRemove}`, {
+        method: "DELETE",
+      });
+      fetchData();
+      setCollabIdToRemove(null);
+    } finally {
+      setRemoveInProgress(false);
+    }
   };
 
   if (groupLoading || loading) {
@@ -230,6 +243,24 @@ export default function CollaboratorsPage() {
           )}
         </div>
       </div>
+
+      {collaborators.length > 0 && (
+        <DangerZone description={t("dangerZoneDescription")}>
+          <p className="text-sm text-muted-foreground">
+            {t("confirmRemove")}
+          </p>
+        </DangerZone>
+      )}
+
+      <ConfirmDialog
+        open={collabIdToRemove != null}
+        onOpenChange={(open) => !open && setCollabIdToRemove(null)}
+        title={t("removeCollaboratorTitle")}
+        message={t("confirmRemove")}
+        confirmLabel={tCommon("delete")}
+        onConfirm={performRemove}
+        loading={removeInProgress}
+      />
     </div>
   );
 }

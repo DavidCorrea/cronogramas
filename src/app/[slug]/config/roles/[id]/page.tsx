@@ -8,6 +8,8 @@ import { useGroup } from "@/lib/group-context";
 import { useUnsavedConfig } from "@/lib/unsaved-config-context";
 import LoadingScreen from "@/components/LoadingScreen";
 import BackLink from "@/components/BackLink";
+import { DangerZone } from "@/components/DangerZone";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Role {
   id: number;
@@ -61,6 +63,8 @@ export default function EditRolePage() {
   const [exclusiveGroupId, setExclusiveGroupId] = useState<number | null>(null);
   const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
   const [formError, setFormError] = useState("");
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   const [initialSnapshot, setInitialSnapshot] = useState<{
     roleName: string;
@@ -218,22 +222,29 @@ export default function EditRolePage() {
   };
 
   const handleDelete = async () => {
-    if (
-      !role ||
-      !confirm(t("confirmDeleteRole", { name: role.name }))
-    )
-      return;
-    const res = await fetch(
-      `/api/configuration/roles?id=${role.id}&groupId=${groupId}`,
-      { method: "DELETE" }
-    );
-    if (!res.ok) {
-      const data = await res.json();
-      setFormError(data.error || t("errorDelete"));
-      return;
+    if (!role) return;
+    setConfirmDeleteOpen(true);
+  };
+
+  const performDelete = async () => {
+    if (!role || !groupId) return;
+    setDeleteInProgress(true);
+    try {
+      const res = await fetch(
+        `/api/configuration/roles?id=${role.id}&groupId=${groupId}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        setFormError(data.error || t("errorDelete"));
+        setConfirmDeleteOpen(false);
+        return;
+      }
+      await refetchContext();
+      router.push(`/${slug}/config/roles`);
+    } finally {
+      setDeleteInProgress(false);
     }
-    await refetchContext();
-    router.push(`/${slug}/config/roles`);
   };
 
   if (groupLoading || loading) {
@@ -453,15 +464,18 @@ export default function EditRolePage() {
             >
               {tCommon("cancel")}
             </Link>
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="rounded-md border border-border px-5 py-2.5 text-sm text-destructive hover:border-destructive hover:bg-destructive/10 transition-colors"
-            >
-              {tCommon("delete")}
-            </button>
           </div>
         </form>
+
+        <DangerZone>
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="rounded-md border border-destructive/50 bg-destructive/10 px-5 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/20 transition-colors"
+          >
+            {tCommon("delete")}
+          </button>
+        </DangerZone>
 
         <div className="border border-border rounded-md p-5 text-sm text-muted-foreground space-y-2 w-full mt-8">
           <p>
@@ -478,6 +492,16 @@ export default function EditRolePage() {
           </p>
         </div>
       </section>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={t("deleteRoleTitle")}
+        message={t("confirmDeleteRole", { name: role?.name ?? "" })}
+        confirmLabel={tCommon("delete")}
+        onConfirm={performDelete}
+        loading={deleteInProgress}
+      />
     </div>
   );
 }

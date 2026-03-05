@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
+import { useConfigContext } from "@/lib/config-queries";
 import LoadingScreen from "@/components/LoadingScreen";
+import { DangerZone } from "@/components/DangerZone";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface ExclusiveGroup {
   id: number;
@@ -17,19 +20,24 @@ export default function RolesPage() {
   const slug = params.slug as string;
   const t = useTranslations("roles");
   const tCommon = useTranslations("common");
-  const { groupId, loading: groupLoading, configContext, refetchContext } = useGroup();
+  const { groupId, slug: groupSlug, refetchContext } = useGroup();
+  const { roles, exclusiveGroups, members, isLoading } = useConfigContext(slug ?? groupSlug ?? "", [
+    "roles",
+    "exclusiveGroups",
+    "members",
+  ]);
   const [newGroupName, setNewGroupName] = useState("");
+  const [exclusiveGroupToDelete, setExclusiveGroupToDelete] = useState<ExclusiveGroup | null>(null);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
 
-  const roles = useMemo(() => configContext?.roles ?? [], [configContext?.roles]);
-  const groups = (configContext?.exclusiveGroups ?? []) as ExclusiveGroup[];
+  const groups = (exclusiveGroups ?? []) as ExclusiveGroup[];
   const memberCountByRole = useMemo(() => {
-    const members = configContext?.members ?? [];
     const counts: Record<number, number> = {};
     for (const r of roles) {
       counts[r.id] = members.filter((m) => m.roleIds.includes(r.id)).length;
     }
     return counts;
-  }, [configContext?.members, roles]);
+  }, [members, roles]);
 
   const addGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,16 +51,26 @@ export default function RolesPage() {
     await refetchContext();
   };
 
-  const deleteGroup = async (group: ExclusiveGroup) => {
-    if (!confirm(t("confirmDeleteExclusive"))) return;
-    const q = groupId != null ? `?groupId=${groupId}` : `?slug=${encodeURIComponent(slug)}`;
-    await fetch(`/api/configuration/exclusive-groups/${group.id}${q}`, {
-      method: "DELETE",
-    });
-    await refetchContext();
+  const deleteGroup = (group: ExclusiveGroup) => {
+    setExclusiveGroupToDelete(group);
   };
 
-  if (groupLoading) {
+  const performDeleteGroup = async () => {
+    if (!exclusiveGroupToDelete || !groupId) return;
+    setDeleteInProgress(true);
+    try {
+      const q = `?groupId=${groupId}`;
+      await fetch(`/api/configuration/exclusive-groups/${exclusiveGroupToDelete.id}${q}`, {
+        method: "DELETE",
+      });
+      await refetchContext();
+      setExclusiveGroupToDelete(null);
+    } finally {
+      setDeleteInProgress(false);
+    }
+  };
+
+  if (isLoading) {
     return <LoadingScreen fullPage={false} />;
   }
 
@@ -134,26 +152,38 @@ export default function RolesPage() {
               {t("noExclusiveGroups")}
             </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {groups.map((group) => (
-                <div
-                  key={group.id}
-                  className="rounded-lg border border-border bg-card p-4 flex items-center justify-between gap-3 min-h-[80px]"
-                >
-                  <span className="font-medium truncate">{group.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => deleteGroup(group)}
-                    className="rounded-md border border-border px-3 py-1.5 text-sm text-destructive hover:border-destructive transition-colors shrink-0"
+            <DangerZone description={t("confirmDeleteExclusive")}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {groups.map((group) => (
+                  <div
+                    key={group.id}
+                    className="rounded-lg border border-border bg-card p-4 flex items-center justify-between gap-3 min-h-[80px]"
                   >
-                    {tCommon("delete")}
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <span className="font-medium truncate">{group.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => deleteGroup(group)}
+                      className="rounded-md border border-border px-3 py-1.5 text-sm text-destructive hover:border-destructive transition-colors shrink-0"
+                    >
+                      {tCommon("delete")}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </DangerZone>
           )}
         </section>
       </div>
+
+      <ConfirmDialog
+        open={exclusiveGroupToDelete != null}
+        onOpenChange={(open) => !open && setExclusiveGroupToDelete(null)}
+        title={t("deleteExclusiveGroupTitle")}
+        message={t("confirmDeleteExclusive")}
+        confirmLabel={tCommon("delete")}
+        onConfirm={performDeleteGroup}
+        loading={deleteInProgress}
+      />
     </div>
   );
 }

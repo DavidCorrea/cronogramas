@@ -59,7 +59,7 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 ### Configuration (context, days, roles, priorities, exclusive-groups, holidays)
 | Method(s) | Path | Purpose | File |
 |-----------|------|---------|------|
-| GET | `/api/configuration/context` | BFF: group + members + roles + days + exclusiveGroups + schedules (`?slug=` or `?groupId=`) | `src/app/api/configuration/context/route.ts` |
+| GET | `/api/configuration/context` | BFF: group + config slices. Query: `?slug=` or `?groupId=`. Optional **`?include=members,roles,days,exclusiveGroups,schedules`** (comma-separated) to return only those slices (view-scoped). Omit `include` for full context. | `src/app/api/configuration/context/route.ts` |
 | GET | `/api/configuration/days` | List recurring days for group (`?groupId=`) | `src/app/api/configuration/days/route.ts` |
 | PUT | `/api/configuration/days` | Update existing day (active, type, label, times, notes) | `src/app/api/configuration/days/route.ts` |
 | POST | `/api/configuration/days` | Create new recurring day | `src/app/api/configuration/days/route.ts` |

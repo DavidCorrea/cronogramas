@@ -4,16 +4,17 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
+import { useConfigContext } from "@/lib/config-queries";
 import LoadingScreen from "@/components/LoadingScreen";
 
 export default function MembersPage() {
   const params = useParams();
   const slug = params.slug as string;
   const t = useTranslations("members");
-  const { loading: groupLoading, configContext } = useGroup();
-  const members = configContext?.members ?? [];
+  const { slug: groupSlug } = useGroup();
+  const { members, isLoading } = useConfigContext(slug ?? groupSlug ?? "", ["members"]);
 
-  if (groupLoading) {
+  if (isLoading) {
     return <LoadingScreen fullPage={false} />;
   }
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useGroup } from "@/lib/group-context";
+import { useConfigContext } from "@/lib/config-queries";
 
 const MONTH_NAMES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -19,7 +20,13 @@ interface GoToItem {
 }
 
 export default function ConfigGoTo() {
-  const { slug, configContext } = useGroup();
+  const { slug } = useGroup();
+  const { members, roles, days, schedules } = useConfigContext(slug, [
+    "members",
+    "roles",
+    "days",
+    "schedules",
+  ]);
   const router = useRouter();
   const tNav = useTranslations("configNav");
   const monthNames = (useTranslations("schedules") as unknown as { raw: (k: string) => string[] }).raw("months") ?? MONTH_NAMES;
@@ -36,24 +43,24 @@ export default function ConfigGoTo() {
   }, { enableOnFormTags: false });
 
   const items = useMemo<GoToItem[]>(() => {
-    if (!configContext || !slug) return [];
+    if (!slug) return [];
     const list: GoToItem[] = [];
-    for (const m of configContext.members) {
+    for (const m of members) {
       list.push({ id: `m-${m.id}`, label: m.name, href: `/${slug}/config/members/${m.id}`, type: "member" });
     }
-    for (const r of configContext.roles) {
+    for (const r of roles) {
       list.push({ id: `r-${r.id}`, label: r.name, href: `/${slug}/config/roles/${r.id}`, type: "role" });
     }
-    for (const d of configContext.days) {
+    for (const d of days) {
       const label = (d.label || d.dayOfWeek || "Evento").trim();
       list.push({ id: `e-${d.id}`, label, href: `/${slug}/config/events/${d.id}`, type: "event" });
     }
-    for (const s of configContext.schedules) {
+    for (const s of schedules) {
       const label = `${monthNames[s.month - 1] ?? s.month} ${s.year}`;
       list.push({ id: `s-${s.id}`, label, href: `/${slug}/config/schedules/${s.id}`, type: "schedule" });
     }
     return list.sort((a, b) => a.label.localeCompare(b.label));
-  }, [configContext, slug, monthNames]);
+  }, [slug, members, roles, days, schedules, monthNames]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return items.slice(0, 12);

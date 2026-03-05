@@ -1,11 +1,13 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-
 /**
  * Centered loading screen with a braille-inspired dot animation.
  * Braille uses a 2×4 dot cell; we render a small grid of dots that cycle opacity
  * in sequence, inspired by https://github.com/6/braille-pattern-cli-loading-indicator
+ *
+ * Uses a default "Cargando..." so the component never depends on the common
+ * messages namespace (avoids "Could not resolve common" when messages aren't
+ * available in some render contexts). Callers can pass a custom message.
  */
 export default function LoadingScreen({
   message,
@@ -17,8 +19,7 @@ export default function LoadingScreen({
   /** Inline variant for nav bars: no min-height, smaller dots, single line */
   compact?: boolean;
 }) {
-  const t = useTranslations("common");
-  const displayMessage = message ?? t("loading");
+  const displayMessage = message ?? "Cargando...";
   const cols = 2;
   const rows = 4;
   const dots = cols * rows;

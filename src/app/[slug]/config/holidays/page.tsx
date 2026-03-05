@@ -6,6 +6,8 @@ import { useGroup } from "@/lib/group-context";
 import { useTranslations } from "next-intl";
 import { formatDateRangeWithYear } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
+import { DangerZone } from "@/components/DangerZone";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface MemberOption {
   id: number;
@@ -42,6 +44,8 @@ export default function HolidaysPage() {
   const [endDate, setEndDate] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
+  const [holidayIdToDelete, setHolidayIdToDelete] = useState<number | null>(null);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!groupId) return;
@@ -102,12 +106,23 @@ export default function HolidaysPage() {
     fetchData();
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = (id: number) => {
+    setHolidayIdToDelete(id);
+  };
+
+  const performDelete = async () => {
+    if (holidayIdToDelete == null) return;
     const q = groupId != null ? `?groupId=${groupId}` : `?slug=${encodeURIComponent(slug)}`;
-    await fetch(`/api/configuration/holidays/${id}${q}`, {
-      method: "DELETE",
-    });
-    fetchData();
+    setDeleteInProgress(true);
+    try {
+      await fetch(`/api/configuration/holidays/${holidayIdToDelete}${q}`, {
+        method: "DELETE",
+      });
+      fetchData();
+      setHolidayIdToDelete(null);
+    } finally {
+      setDeleteInProgress(false);
+    }
   };
 
   const userHolidays = holidays.filter((h) => h.source === "user");
@@ -227,32 +242,34 @@ export default function HolidaysPage() {
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-border">
-                {memberHolidays.map((h) => (
-                  <div
-                    key={h.id}
-                    className="py-4 first:pt-0 flex items-center justify-between gap-3"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{h.memberName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDateRange(h.startDate, h.endDate)}
-                      </p>
-                      {h.description && (
-                        <p className="text-xs text-muted-foreground/60 mt-0.5">
-                          {h.description}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleDelete(h.id)}
-                      className="shrink-0 rounded-md border border-border px-3.5 py-2 text-sm text-destructive hover:border-destructive transition-colors"
+              <DangerZone description={t("dangerZoneDescription")}>
+                <div className="divide-y divide-border">
+                  {memberHolidays.map((h) => (
+                    <div
+                      key={h.id}
+                      className="py-4 first:pt-0 flex items-center justify-between gap-3"
                     >
-                      {tCommon("delete")}
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <div>
+                        <p className="text-sm font-medium">{h.memberName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDateRange(h.startDate, h.endDate)}
+                        </p>
+                        {h.description && (
+                          <p className="text-xs text-muted-foreground/60 mt-0.5">
+                            {h.description}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDelete(h.id)}
+                        className="shrink-0 rounded-md border border-border px-3.5 py-2 text-sm text-destructive hover:border-destructive transition-colors"
+                      >
+                        {tCommon("delete")}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </DangerZone>
             )}
           </div>
 
@@ -290,6 +307,16 @@ export default function HolidaysPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={holidayIdToDelete != null}
+        onOpenChange={(open) => !open && setHolidayIdToDelete(null)}
+        title={t("deleteHolidayTitle")}
+        message={t("confirmDelete")}
+        confirmLabel={tCommon("delete")}
+        onConfirm={performDelete}
+        loading={deleteInProgress}
+      />
     </div>
   );
 }

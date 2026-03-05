@@ -49,6 +49,11 @@ export default function KeyboardShortcuts() {
 
   useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
 
+  const closeHelp = useCallback(() => {
+    setShowHelp(false);
+    clearSequence();
+  }, [clearSequence]);
+
   if (!showHelp) return null;
 
   return (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useGroup } from "@/lib/group-context";
+import { useConfigContext } from "@/lib/config-queries";
 import { utcTimeToLocalDisplay } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
 
@@ -11,10 +12,10 @@ export default function EventsPage() {
   const params = useParams();
   const slug = params.slug as string;
   const t = useTranslations("events");
-  const { loading: groupLoading, configContext } = useGroup();
-  const days = configContext?.days ?? [];
+  const { slug: groupSlug } = useGroup();
+  const { days, isLoading } = useConfigContext(slug ?? groupSlug ?? "", ["days"]);
 
-  if (groupLoading) {
+  if (isLoading) {
     return <LoadingScreen fullPage={false} />;
   }
 

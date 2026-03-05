@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import LoadingScreen from "@/components/LoadingScreen";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface UserRow {
   id: string;
@@ -21,6 +22,9 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [userIdToDelete, setUserIdToDelete] = useState<string | null>(null);
+  const [userNameToDelete, setUserNameToDelete] = useState<string | null>(null);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
   const t = useTranslations("admin");
 
   const fetchUsers = useCallback(async () => {
@@ -57,10 +61,22 @@ export default function AdminPage() {
     fetchUsers();
   };
 
-  const deleteUser = async (userId: string, userName: string | null) => {
-    if (!confirm(t("confirmDeleteUser", { name: userName ?? "este usuario" }))) return;
-    await fetch(`/api/admin/users?id=${userId}`, { method: "DELETE" });
-    fetchUsers();
+  const deleteUser = (userId: string, userName: string | null) => {
+    setUserIdToDelete(userId);
+    setUserNameToDelete(userName);
+  };
+
+  const performDeleteUser = async () => {
+    if (!userIdToDelete) return;
+    setDeleteInProgress(true);
+    try {
+      await fetch(`/api/admin/users?id=${userIdToDelete}`, { method: "DELETE" });
+      fetchUsers();
+      setUserIdToDelete(null);
+      setUserNameToDelete(null);
+    } finally {
+      setDeleteInProgress(false);
+    }
   };
 
   if (loading) {
@@ -164,6 +180,16 @@ export default function AdminPage() {
             <strong>{t("createGroupsFlag")}</strong> — {t("legendCreateGroups")}
           </p>
         </div>
+
+        <ConfirmDialog
+          open={userIdToDelete != null}
+          onOpenChange={(open) => { if (!open) { setUserIdToDelete(null); setUserNameToDelete(null); } }}
+          title={t("deleteUserTitle")}
+          message={t("confirmDeleteUser", { name: userNameToDelete ?? "este usuario" })}
+          confirmLabel={t("delete")}
+          onConfirm={performDeleteUser}
+          loading={deleteInProgress}
+        />
       </div>
     </div>
   );

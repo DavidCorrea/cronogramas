@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { formatDateRangeWithYear } from "@/lib/timezone-utils";
 import LoadingScreen from "@/components/LoadingScreen";
+import { DangerZone } from "@/components/DangerZone";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Holiday {
   id: number;
@@ -26,6 +28,8 @@ export default function SettingsPage() {
   const [endDate, setEndDate] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
+  const [holidayIdToDelete, setHolidayIdToDelete] = useState<number | null>(null);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   const fetchHolidays = useCallback(async () => {
     const res = await fetch("/api/holidays");
@@ -70,9 +74,20 @@ export default function SettingsPage() {
     fetchHolidays();
   };
 
-  const handleDeleteHoliday = async (id: number) => {
-    await fetch(`/api/holidays?id=${id}`, { method: "DELETE" });
-    fetchHolidays();
+  const handleDeleteHoliday = (id: number) => {
+    setHolidayIdToDelete(id);
+  };
+
+  const performDeleteHoliday = async () => {
+    if (holidayIdToDelete == null) return;
+    setDeleteInProgress(true);
+    try {
+      await fetch(`/api/holidays?id=${holidayIdToDelete}`, { method: "DELETE" });
+      fetchHolidays();
+      setHolidayIdToDelete(null);
+    } finally {
+      setDeleteInProgress(false);
+    }
   };
 
   const formatDateRange = (start: string, end: string) => formatDateRangeWithYear(start, end);
@@ -185,30 +200,42 @@ export default function SettingsPage() {
           {loading ? (
             <LoadingScreen fullPage={false} />
           ) : holidays.length === 0 ? null : (
-            <div className="divide-y divide-border">
-              {holidays.map((h) => (
-                <div key={h.id} className="py-4 first:pt-0 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium">
-                      {formatDateRange(h.startDate, h.endDate)}
-                    </p>
-                    {h.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {h.description}
+            <DangerZone>
+              <div className="divide-y divide-border">
+                {holidays.map((h) => (
+                  <div key={h.id} className="py-4 first:pt-0 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {formatDateRange(h.startDate, h.endDate)}
                       </p>
-                    )}
+                      {h.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {h.description}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteHoliday(h.id)}
+                      className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:border-destructive transition-colors"
+                    >
+                      {t("delete")}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleDeleteHoliday(h.id)}
-                    className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:border-destructive transition-colors"
-                  >
-                    {t("delete")}
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </DangerZone>
           )}
         </div>
+
+        <ConfirmDialog
+          open={holidayIdToDelete != null}
+          onOpenChange={(open) => !open && setHolidayIdToDelete(null)}
+          title={t("absenceDates")}
+          message={t("confirmDeleteHoliday")}
+          confirmLabel={t("delete")}
+          onConfirm={performDeleteHoliday}
+          loading={deleteInProgress}
+        />
       </div>
     </div>
   );

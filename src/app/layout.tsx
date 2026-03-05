@@ -3,8 +3,8 @@ import { Geist, Geist_Mono, DM_Serif_Display } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
 import SessionProvider from "@/components/SessionProvider";
+import QueryProvider from "@/components/QueryProvider";
 import AppNavBar from "@/components/AppNavBar";
 import KeyboardShortcuts from "@/components/KeyboardShortcuts";
 import "./globals.css";
@@ -35,7 +35,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const messages = await getMessages();
+  const messages = (await import("../../messages/es.json")).default;
+  // Messages loaded directly so SSG has them; getMessages() can be undefined (e.g. _not-found).
 
   return (
     <html lang="es">
@@ -43,13 +44,15 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${dmSerif.variable} antialiased`}
       >
         <NextIntlClientProvider messages={messages}>
-          <SessionProvider>
-            <AppNavBar />
-            <KeyboardShortcuts />
-            {children}
-            <Analytics />
-            <SpeedInsights />
-          </SessionProvider>
+          <QueryProvider>
+            <SessionProvider>
+              <AppNavBar />
+              <KeyboardShortcuts />
+              {children}
+              <Analytics />
+              <SpeedInsights />
+            </SessionProvider>
+          </QueryProvider>
         </NextIntlClientProvider>
       </body>
     </html>

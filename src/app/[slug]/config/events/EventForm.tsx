@@ -8,6 +8,9 @@ import { useGroup } from "@/lib/group-context";
 import { useUnsavedConfig } from "@/lib/unsaved-config-context";
 import { DAY_ORDER } from "@/lib/constants";
 import { utcTimeToLocalDisplay, localTimeToUtc } from "@/lib/timezone-utils";
+import * as Dialog from "@radix-ui/react-dialog";
+import { DangerZone } from "@/components/DangerZone";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Role {
   id: number;
@@ -225,6 +228,7 @@ export default function EventForm({
 
   type AffectedInfo = { count: number; schedules: { scheduleId: number; month: number; year: number; dateCount: number }[] };
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showSimpleDeleteConfirm, setShowSimpleDeleteConfirm] = useState(false);
   const [affectedInfo, setAffectedInfo] = useState<AffectedInfo | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [showRecalcDialog, setShowRecalcDialog] = useState(false);
@@ -275,9 +279,7 @@ export default function EventForm({
       }
       const data: AffectedInfo = await res.json();
       if (data.count === 0) {
-        if (window.confirm(t("confirmDelete"))) {
-          await performDelete(false);
-        }
+        setShowSimpleDeleteConfirm(true);
         return;
       }
       setAffectedInfo(data);
@@ -700,11 +702,7 @@ export default function EventForm({
       </section>
 
       {!isNew && initialEvent && groupId && (
-        <section className="border-t border-border pt-8">
-          <h2 className="text-lg font-medium text-foreground mb-2">{t("dangerZone")}</h2>
-          <p className="text-sm text-muted-foreground mb-3">
-            {t("dangerZoneHelp")}
-          </p>
+        <DangerZone description={t("dangerZoneHelp")}>
           <button
             type="button"
             onClick={handleDeleteClick}
@@ -713,93 +711,109 @@ export default function EventForm({
           >
             {t("deleteEvent")}
           </button>
-        </section>
+        </DangerZone>
       )}
 
+      <ConfirmDialog
+        open={showSimpleDeleteConfirm}
+        onOpenChange={setShowSimpleDeleteConfirm}
+        title={t("deleteEventTitle")}
+        message={t("confirmDelete")}
+        confirmLabel={tCommon("delete")}
+        onConfirm={() => performDelete(false)}
+        loading={deleteInProgress}
+      />
+
       {showDeleteDialog && affectedInfo && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-dialog-title"
-        >
-          <div className="bg-background border border-border rounded-lg shadow-lg max-w-md w-full p-6 space-y-4">
-            <h2 id="delete-dialog-title" className="text-lg font-medium text-foreground">
-              {t("deleteDialogTitle")}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {t("deleteDialogMessage", {
-                count: affectedInfo.count,
-                schedules: affectedInfo.schedules.length,
-              })}
-            </p>
-            <div className="flex flex-col gap-2 pt-2">
-              <button
-                type="button"
-                disabled={deleteInProgress}
-                onClick={() => handleDeleteConfirm(false)}
-                className="rounded-md border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-              >
-                {t("deleteEventOnly")}
-              </button>
-              <button
-                type="button"
-                disabled={deleteInProgress}
-                onClick={() => handleDeleteConfirm(true)}
-                className="rounded-md bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {t("deleteEventAndDates")}
-              </button>
-              <button
-                type="button"
-                disabled={deleteInProgress}
-                onClick={() => { setShowDeleteDialog(false); setAffectedInfo(null); }}
-                className="rounded-md text-sm text-muted-foreground hover:text-foreground pt-2"
-              >
-                {tCommon("cancel")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <Dialog.Root open={showDeleteDialog} onOpenChange={(open) => { if (!open) { setShowDeleteDialog(false); setAffectedInfo(null); } }}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+            <Dialog.Content
+              className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-background p-6 shadow-lg focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+              aria-labelledby="delete-dialog-title"
+              aria-describedby="delete-dialog-description"
+              onEscapeKeyDown={() => { setShowDeleteDialog(false); setAffectedInfo(null); }}
+            >
+              <Dialog.Title id="delete-dialog-title" className="text-lg font-medium text-foreground">
+                {t("deleteDialogTitle")}
+              </Dialog.Title>
+              <p id="delete-dialog-description" className="mt-2 text-sm text-muted-foreground">
+                {t("deleteDialogMessage", {
+                  count: affectedInfo.count,
+                  schedules: affectedInfo.schedules.length,
+                })}
+              </p>
+              <div className="flex flex-col gap-2 pt-4">
+                <button
+                  type="button"
+                  disabled={deleteInProgress}
+                  onClick={() => handleDeleteConfirm(false)}
+                  className="rounded-md border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
+                >
+                  {t("deleteEventOnly")}
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteInProgress}
+                  onClick={() => handleDeleteConfirm(true)}
+                  className="rounded-md bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {t("deleteEventAndDates")}
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteInProgress}
+                  onClick={() => { setShowDeleteDialog(false); setAffectedInfo(null); }}
+                  className="rounded-md text-sm text-muted-foreground hover:text-foreground pt-2"
+                >
+                  {tCommon("cancel")}
+                </button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       )}
 
       {showRecalcDialog && affectedInfo && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="recalc-dialog-title"
-        >
-          <div className="bg-background border border-border rounded-lg shadow-lg max-w-md w-full p-6 space-y-4">
-            <h2 id="recalc-dialog-title" className="text-lg font-medium text-foreground">
-              {t("recalcDialogTitle")}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {t("recalcDialogMessage", {
-                count: affectedInfo.count,
-                schedules: affectedInfo.schedules.length,
-              })}
-            </p>
-            <div className="flex flex-col gap-2 pt-2">
-              <button
-                type="button"
-                disabled={recalcInProgress}
-                onClick={() => handleRecalcConfirm(true)}
-                className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-              >
-                {t("recalcYes")}
-              </button>
-              <button
-                type="button"
-                disabled={recalcInProgress}
-                onClick={() => handleRecalcConfirm(false)}
-                className="rounded-md border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-              >
-                {t("recalcNo")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <Dialog.Root open={showRecalcDialog} onOpenChange={(open) => { if (!open) setShowRecalcDialog(false); }}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+            <Dialog.Content
+              className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-background p-6 shadow-lg focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+              aria-labelledby="recalc-dialog-title"
+              aria-describedby="recalc-dialog-description"
+              onEscapeKeyDown={() => setShowRecalcDialog(false)}
+            >
+              <Dialog.Title id="recalc-dialog-title" className="text-lg font-medium text-foreground">
+                {t("recalcDialogTitle")}
+              </Dialog.Title>
+              <p id="recalc-dialog-description" className="mt-2 text-sm text-muted-foreground">
+                {t("recalcDialogMessage", {
+                  count: affectedInfo.count,
+                  schedules: affectedInfo.schedules.length,
+                })}
+              </p>
+              <div className="flex flex-col gap-2 pt-4">
+                <button
+                  type="button"
+                  disabled={recalcInProgress}
+                  onClick={() => handleRecalcConfirm(true)}
+                  className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {t("recalcYes")}
+                </button>
+                <button
+                  type="button"
+                  disabled={recalcInProgress}
+                  onClick={() => handleRecalcConfirm(false)}
+                  className="rounded-md border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
+                >
+                  {t("recalcNo")}
+                </button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       )}
     </div>
   );

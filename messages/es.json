@@ -116,7 +116,8 @@
     "delete": "Eliminar",
     "datesRequired": "Las fechas son obligatorias",
     "errorCreateDate": "Error al crear la fecha",
-    "loading": "Cargando..."
+    "loading": "Cargando...",
+    "confirmDeleteHoliday": "¿Eliminar esta fecha de ausencia?"
   },
   "newGroup": {
     "title": "Nuevo grupo",
@@ -176,7 +177,8 @@
     "backToMembers": "Volver a Miembros",
     "memberNotFound": "Miembro no encontrado.",
     "confirmDelete": "¿Estás seguro de que deseas eliminar este miembro?",
-    "errorDelete": "Error al eliminar el miembro"
+    "errorDelete": "Error al eliminar el miembro",
+    "deleteMemberTitle": "Eliminar miembro"
   },
   "roles": {
     "title": "Roles",
@@ -192,6 +194,7 @@
     "newExclusivePlaceholder": "ej. Instrumento",
     "noExclusiveGroups": "No hay grupos exclusivos configurados.",
     "confirmDeleteExclusive": "¿Eliminar este grupo exclusivo? Los roles asociados perderán su grupo.",
+    "deleteExclusiveGroupTitle": "Eliminar grupo exclusivo",
     "addRoleTitle": "Agregar rol",
     "addRoleSubtitle": "Crea un nuevo rol para el grupo y configura sus opciones.",
     "roleNameLabel": "Nombre del rol",
@@ -221,7 +224,8 @@
     "backToRoles": "Volver a Roles",
     "confirmDeleteRole": "¿Eliminar \"{name}\"? Esto también eliminará todas las entradas de cronograma para este rol.",
     "errorDelete": "Error al eliminar el rol",
-    "errorUpdateAssignments": "Error al actualizar asignaciones"
+    "errorUpdateAssignments": "Error al actualizar asignaciones",
+    "deleteRoleTitle": "Eliminar rol"
   },
   "events": {
     "title": "Eventos",
@@ -274,6 +278,7 @@
     "dangerZone": "Zona de riesgo",
     "dangerZoneHelp": "Eliminar este evento es permanente. Si el evento ya aparece en cronogramas, puedes elegir si quitar también esas fechas.",
     "deleteEvent": "Eliminar evento",
+    "deleteEventTitle": "Eliminar evento",
     "deleteDialogTitle": "Este evento ya aparece en cronogramas",
     "deleteDialogMessage": "El evento está en {count} fecha(s) en {schedules} cronograma(s). ¿Qué deseas hacer?",
     "deleteEventOnly": "Solo eliminar evento (mantener las fechas en los cronogramas)",
@@ -301,7 +306,10 @@
     "personal": "Personal",
     "allFieldsRequired": "Todos los campos son obligatorios",
     "startBeforeEnd": "La fecha de inicio debe ser anterior o igual a la fecha de fin",
-    "errorCreate": "Error al crear la fecha"
+    "errorCreate": "Error al crear la fecha",
+    "confirmDelete": "¿Eliminar esta fecha de ausencia?",
+    "dangerZoneDescription": "Eliminar una fecha de ausencia del grupo es permanente. Esta acción no se puede deshacer.",
+    "deleteHolidayTitle": "Eliminar fecha de ausencia"
   },
   "collaborators": {
     "title": "Colaboradores",
@@ -312,7 +320,9 @@
     "noName": "Sin nombre",
     "count": "Colaboradores ({n})",
     "noCollaborators": "No hay colaboradores aún.",
-    "confirmRemove": "¿Estás seguro de que deseas eliminar este colaborador?"
+    "confirmRemove": "¿Estás seguro de que deseas eliminar este colaborador?",
+    "dangerZoneDescription": "Quitar un colaborador revoca su acceso de administración al grupo. Esta acción no se puede deshacer.",
+    "removeCollaboratorTitle": "Quitar colaborador"
   },
   "schedules": {
     "title": "Cronograma",
@@ -326,6 +336,9 @@
     "view": "Ver cronograma",
     "errorGenerate": "Error al generar cronograma",
     "confirmDelete": "¿Estás seguro de que deseas eliminar este cronograma?",
+    "deleteScheduleTitle": "Eliminar mes del cronograma",
+    "dangerZoneDescription": "Eliminar un mes del cronograma borra ese mes y todas sus asignaciones. Esta acción no se puede deshacer.",
+    "dangerZoneHint": "Para eliminar un mes, usa el botón «Eliminar» en la tarjeta del mes.",
     "columnOrder": "Orden de columnas",
     "columnOrderHelp": "Configura el orden de visualización de las columnas de roles en todas las vistas de cronogramas.",
     "saveOrder": "Guardar orden",
@@ -466,6 +479,7 @@
     "createGroupsFlag": "Crear grupos",
     "delete": "Eliminar",
     "confirmDeleteUser": "¿Estás seguro de que deseas eliminar a {name}?",
+    "deleteUserTitle": "Eliminar usuario",
     "legendAdmin": "Acceso completo al panel de administración y gestión de usuarios.",
     "legendCreateGroups": "Permite al usuario crear nuevos grupos.",
     "errorLoadUsers": "Error al cargar usuarios"
@@ -492,7 +506,9 @@
     "note": "Nota",
     "member": "Miembro",
     "role": "Rol",
-    "event": "Evento"
+    "event": "Evento",
+    "dangerZone": "Zona de peligro",
+    "dangerZoneDescription": "Esta acción no se puede deshacer."
   },
   "weekdays": [
     "Lunes",

@@ -11,6 +11,10 @@ This file is the single source for product behaviour, scripts, migrations, and a
 - Lint: `eslint.config.mjs` — pre-commit: `.husky/pre-commit` (runs lint-staged).
 - Tests: `spec/` — Jest; describe real scenarios, no technical jargon.
 
+**Navigating the codebase**
+- **Read `context.md` first** when entering a folder: many directories have a `context.md` describing what belongs there and where to look next. Prefer reading these before running broad searches so navigation is more efficient.
+- **Create `context.md` in new folders**: When adding a new top-level or domain folder (e.g. under `src/app/api/` or `src/app/`), add a short `context.md` in that folder describing its purpose and main entry points (and point to docs/API.md or docs/CLIENT.md if relevant).
+
 **Scripts**
 - `npm run dev` — Dev server
 - `npm run lint` — ESLint on codebase; fix in changed files before committing
@@ -22,6 +26,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 - `npm run db:studio` — Drizzle Studio
 
 # Codebase context (where to look)
+- **Context files**: Before searching the codebase, check for a `context.md` in the relevant folder; it summarizes what lives there and points to the right docs or files. When creating new folders that represent a distinct area (e.g. a new API domain or feature area), add a `context.md` so future traversal stays easy.
 - **API** — **docs/API.md**: route index by domain, auth (requireAuth / requireGroupAccess / cronograma public), which file to edit. Update that doc when adding or changing routes.
 - **Client** — **docs/CLIENT.md**: route map (pages by path), layouts, key components, shared lib. Update when adding pages or nav.
 - **Database** — **docs/DATABASE.md**: tables and relations, migration workflow. Update when changing schema.
@@ -30,6 +35,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 # How to work
 - Split requests into units that can be done in parallel when possible; use subagents for parallel work.
 - Get explicit confirmation before making changes; explain what you will do.
+- **Consider work complete only when the linter passes and the build has no errors:** run `npm run lint` and `npm run build`; fix any lint or build failures before finishing (including in files you did not change, if they block the build).
 - After implementing a feature: add a new list item under **Features** in this file.
 
 # Before committing
@@ -42,8 +48,17 @@ This file is the single source for product behaviour, scripts, migrations, and a
 # Features
 *(Add new items here when you implement a feature.)*
 
+## Context files for navigation
+- **context.md** in key folders (`src/`, `src/app/`, `src/app/api/`, `src/app/api/configuration/`, `src/app/[slug]/config/`, `src/components/`, `src/db/`, `src/lib/`, `spec/`, `docs/`) describe what belongs there and point to docs. Agents should read these before broad searches. New domain or top-level folders should get a `context.md`. See AGENTS.md "Navigating the codebase" and "Codebase context".
+
+## View-scoped config data and TanStack Query
+- **View-scoped config:** Config list pages request only the slices they need via **useConfigContext(slug, include)** (`src/lib/config-queries.ts`). API **GET /api/configuration/context** accepts optional **`?include=members,roles,days,exclusiveGroups,schedules`**. TanStack Query caches by (slug, include); **refetchContext()** from `useGroup()` invalidates after mutations. Root layout: **QueryProvider** (`src/components/QueryProvider.tsx`). Server: `loadConfigContextForGroup(groupId, { include })` in `src/lib/load-config-context.ts`.
+
+## Server-side group resolution (config layout)
+- **Config layout** under `[slug]/config`: group is resolved on the server via `getGroupForConfigLayout(slug)` (auth + slug → group + access check); full config context is loaded with `loadConfigContextForGroup(groupId)`. Server layout passes `initialGroup` and `initialConfigContext` to the client; the client does not fetch “get group by slug” on mount. Fewer round-trips and immediate group/context availability. See **docs/CLIENT.md** (Config layout) and **Config BFF** above.
+
 ## Config BFF and cronograma URL
-- **Config context (BFF):** One fetch `GET /api/configuration/context?slug=` returns group, members, roles, days, exclusiveGroups, schedules. Config layout uses it; list pages (members, roles, events, schedules) read from `configContext`; mutations call `refetchContext()` before navigating.
+- **Config context (BFF):** Config layout resolves group on the server (`getGroupForConfigLayout(slug)` in `src/lib/config-server.ts`), loads full context via `loadConfigContextForGroup(groupId)` (`src/lib/load-config-context.ts`), and passes `initialGroup` and `initialConfigContext` to the client. The client does not call “get group by slug” on mount; one server-side resolution + one context load. API `GET /api/configuration/context?slug=` (or `?groupId=`) still used for `refetchContext()` after mutations. List pages request only the slices they need via **useConfigContext(slug, include)**; mutations call **refetchContext()** to invalidate. Optional **`?include=members,roles,days,exclusiveGroups,schedules`** for view-scoped payloads. TanStack Query + **QueryProvider**; server: `loadConfigContextForGroup(groupId, { include })`.
 - **Cronograma current month:** `/[slug]/cronograma` redirects (302) to `/[slug]/cronograma/[year]/[month]` for current month so bookmarks and links use a single URL shape.
 
 ## Schedule / recurring events (core model)
@@ -96,7 +111,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 - `/:slug/config/roles`. New role: name, optional member assignments on "Agregar rol". Edit: fields + "Personas con este rol"; "Actualizar" persists. Unsaved changes: UnsavedConfigProvider, config layout guards nav when configDirty. API: `/api/configuration/roles?groupId=N`, `/api/configuration/exclusive-groups?groupId=N`.
 
 ## Configuration
-- **Config context (BFF):** One fetch for the config shell: `GET /api/configuration/context?slug=xxx` (or `?groupId=N`) returns group, members, roles, days (recurring events), exclusiveGroups, schedules. `GroupProvider` uses it; config list pages (members, roles, events, schedules) read from `configContext`; mutations call `refetchContext()` before navigating. API: `src/app/api/configuration/context/route.ts`.
+- **Config context (BFF):** Config layout resolves group by slug and passes only `initialGroup` to `ConfigLayoutClient`. Config list pages use **useConfigContext(slug, include)** for view-scoped data; mutations call `refetchContext()` to invalidate. API: `GET /api/configuration/context?slug=xxx` (optional `?include=`). Server: `src/lib/config-server.ts`, `src/lib/load-config-context.ts`; client: `src/lib/config-queries.ts`, `src/lib/group-context.tsx`.
 - Recurring events: active, type, label per weekday; assignable can set start/end time UTC. Column order: role list reorder, "Guardar orden". Event role priorities: assignable events only. Member availability: 7 weekdays (member_id, weekday_id). API: `/api/configuration/days?groupId=N`, `/api/configuration/priorities?groupId=N`.
 
 ## Schedule generation & preview
@@ -112,6 +127,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 - **My assignments**: Page `/asignaciones` lists the user's assignments across groups with filters (group, month, role). Uses `GET /api/user/dashboard`. Link "Exportar iCal" downloads from `GET /api/user/assignments/ical` (Content-Type: text/calendar). Auth required.
 - **Consistent back/cancel**: Shared `BackLink` component (top of page) on member/role/event/schedule form and detail pages; "Cancelar" / "Volver" at bottom of forms returns to list. Keys: `common.back`, `members.backToMembers`, `roles.backToRoles`, `events.backToEvents`, `scheduleDetail.backToScheduleList`.
 - **Keyboard shortcuts**: `react-hotkeys-hook`. **?** opens help overlay (shortcuts list). **g** then **h** → Inicio, **g** then **a** → Mis asignaciones. In config: **⌘K** (or Ctrl+K) opens "Ir a…" search. Component: `src/components/KeyboardShortcuts.tsx`.
+- **Danger zones and destructive confirmations**: Views where a resource can be deleted have a **"Zona de peligro"** section at the bottom (bordered, destructive tint; title/description from `common.dangerZone` / `common.dangerZoneDescription` or page-specific keys). Delete (or remove) actions live inside that section or are clearly tied to it. Every destructive action uses **ConfirmDialog** (`src/components/ConfirmDialog.tsx`, **@radix-ui/react-dialog**) for focus trap, aria-modal, and keyboard; no `window.confirm()`. Applied to: member edit, role edit, event edit (EventForm), schedules list and schedule-detail delete date, collaborators, group holidays, user holidays (settings), exclusive groups (roles list), admin delete user. Shared **DangerZone** component: `src/components/DangerZone.tsx`.
 - **Quick jump (config)**: "Ir a…" in GroupSubNav + ⌘K: search by name over members, roles, events, schedule months; select to navigate. Data from `configContext`. Component: `src/components/ConfigGoTo.tsx`.
 
 ## Locale, seeds, env
