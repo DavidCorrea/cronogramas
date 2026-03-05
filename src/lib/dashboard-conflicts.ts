@@ -3,6 +3,7 @@
  * A conflict exists when the user has two or more assignments on the same date
  * in different groups whose time ranges overlap (HH:MM UTC, inclusive end).
  */
+export {};
 
 export type AssignmentWithTime = {
   date: string;
