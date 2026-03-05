@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
+import { getSnapshot, subscribe, setTheme, getMountedSnapshot, subscribeMounted } from "@/lib/theme";
 
 const HIDDEN_PATHS = ["/login"];
 
@@ -12,31 +13,15 @@ export default function AppNavBar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
+  const darkMode = useSyncExternalStore(subscribe, getSnapshot, () => true);
+  const mounted = useSyncExternalStore(subscribeMounted, getMountedSnapshot, () => false);
   const t = useTranslations("nav");
 
-  useEffect(() => {
-    queueMicrotask(() => {
-      const stored = localStorage.getItem("band-scheduler-theme");
-      if (stored) {
-        setDarkMode(stored === "dark");
-      } else {
-        setDarkMode(window.matchMedia("(prefers-color-scheme: dark)").matches);
-      }
-    });
-  }, []);
+  const toggleTheme = () => setTheme(!darkMode);
 
-  useEffect(() => {
-    const html = document.documentElement;
-    if (darkMode) {
-      html.classList.add("dark");
-      html.classList.remove("light");
-    } else {
-      html.classList.add("light");
-      html.classList.remove("dark");
-    }
-    localStorage.setItem("band-scheduler-theme", darkMode ? "dark" : "light");
-  }, [darkMode]);
+  // Avoid hydration mismatch: theme comes from DOM (inline script) which can differ from server.
+  // Show icon only after client has "mounted" so server and client first paint match.
+  const themeIcon = mounted ? (darkMode ? "☀️" : "🌙") : null;
 
   if (HIDDEN_PATHS.some((p) => pathname === p)) return null;
 
@@ -68,11 +53,13 @@ export default function AppNavBar() {
               </Link>
             )}
             <button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={toggleTheme}
               className="w-8 h-8 flex items-center justify-center rounded-full border border-border hover:border-foreground transition-colors"
               aria-label={t("toggleTheme")}
             >
-              <span className="text-sm leading-none">{darkMode ? "☀️" : "🌙"}</span>
+              <span className="text-sm leading-none min-w-[1.25rem] inline-block text-center" suppressHydrationWarning>
+                {themeIcon}
+              </span>
             </button>
             {status !== "loading" &&
               (session?.user ? (
@@ -113,11 +100,13 @@ export default function AppNavBar() {
           {/* Mobile: theme toggle + menu button */}
           <div className="flex md:hidden items-center gap-1">
             <button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={toggleTheme}
               className="w-8 h-8 flex items-center justify-center rounded-full border border-border hover:border-foreground transition-colors"
               aria-label={t("toggleTheme")}
             >
-              <span className="text-sm leading-none">{darkMode ? "☀️" : "🌙"}</span>
+              <span className="text-sm leading-none min-w-[1.25rem] inline-block text-center" suppressHydrationWarning>
+                {themeIcon}
+              </span>
             </button>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}

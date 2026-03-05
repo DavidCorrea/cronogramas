@@ -18,6 +18,7 @@ Shared code used by API routes, pages, and components. No route handlers or page
 | **schemas/** | Zod schemas for API validation (roles, exclusive-groups, holidays, schedule-notes, groups, members). Use `parseBody(schema, body)` in handlers. |
 | **rate-limit.ts** | In-memory rate limit for public cronograma GET. |
 | **timezone-utils.ts** | UTC/local conversion for schedule times. |
+| **theme.ts** | Theme store for AppNavBar: `getSnapshot`, `subscribe`, `setTheme`; syncs with inline script in root layout for prefers-color-scheme. |
 | **unsaved-config-context.tsx** | UnsavedConfigProvider for config forms. |
 | **config-nav-guard.ts** | Guard logic when leaving config with unsaved changes. |
 | **affected-schedule-dates.ts** | Dates affected by recurring-event change. |

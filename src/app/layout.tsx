@@ -31,6 +31,22 @@ export const metadata: Metadata = {
   description: "Genera cronogramas justos y rotacionales para tu banda",
 };
 
+const THEME_KEY = "band-scheduler-theme";
+
+/** Inline script runs before first paint so first-time visitors get prefers-color-scheme without flash. */
+const themeScript = `
+(function(){
+  try {
+    var stored = localStorage.getItem("${THEME_KEY}");
+    var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var doc = document.documentElement;
+    doc.classList.add(dark ? "dark" : "light");
+    doc.classList.remove(dark ? "light" : "dark");
+    doc.style.colorScheme = dark ? "dark" : "light";
+  } catch (e) {}
+})();
+`;
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -38,10 +54,14 @@ export default async function RootLayout({
 }>) {
   const messages = (await getMessages()) ?? (await import("../../messages/es.json")).default;
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${dmSerif.variable} antialiased`}
       >
+        <script
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+          suppressHydrationWarning
+        />
         <NextIntlClientProvider messages={messages}>
           <QueryProvider>
             <SessionProvider>

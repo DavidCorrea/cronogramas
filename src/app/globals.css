@@ -2,6 +2,7 @@
 
 /* Light mode defaults — warm monochrome editorial palette */
 :root {
+  color-scheme: light;
   --background: #f5f5f0;
   --foreground: #1a1a1a;
   --card: #f5f5f0;
@@ -44,6 +45,7 @@
 
 /* Class-based dark mode (used by the shared view toggle) */
 :root.dark {
+  color-scheme: dark;
   --background: #141414;
   --foreground: #e5e5e0;
   --card: #1a1a1a;
@@ -65,6 +67,7 @@
 /* Fallback: auto dark mode when no explicit class is set */
 @media (prefers-color-scheme: dark) {
   :root:not(.light):not(.dark) {
+    color-scheme: dark;
     --background: #141414;
     --foreground: #e5e5e0;
     --card: #1a1a1a;
