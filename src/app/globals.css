@@ -103,13 +103,3 @@ input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--foreground);
 }
-
-/* Braille-inspired loading dots: opacity wave */
-@keyframes loading-braille {
-  0%, 100% { opacity: 0.25; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1); }
-}
-
-.loading-braille-dot {
-  animation: loading-braille 0.9s ease-in-out infinite;
-}
