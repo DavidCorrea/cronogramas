@@ -25,8 +25,8 @@ description: Use when working on auth, session, login, Auth.js v5, or @auth/driz
 - **Session strategy**: JWT is appropriate when you don’t need instant server-side revocation; adapter is still used for user/account persistence (OAuth). Use database sessions only if you need “sign out everywhere” or strict revocation.
 - **Secret**: Set `AUTH_SECRET` (or `NEXTAUTH_SECRET`) with high entropy (e.g. `npm exec auth secret`). Required in production.
 - **Route protection**: Prefer server-side checks: `requireAuth()` / `requireGroupAccess(request)` in API handlers and `auth()` + redirect in server components. Middleware is a fast gate; always enforce in the handler/layout.
-- **Session data**: Keep JWT payload small; extend via `jwt`/`session` callbacks. For fresh server-only data (e.g. admin flags), fetch in callbacks or in the route (we fetch isAdmin/canCreateGroups in jwt callback and in requireAdmin from DB).
-- **Type augmentation**: Custom `User` and `Session` are declared in `src/lib/auth.ts`; use these types across the app.
+- **Session data**: Keep JWT payload small; extend via `jwt`/`session` callbacks. For fresh server-only data (e.g. admin flags), fetch in callbacks or in the route (we fetch isAdmin/canCreateGroups in jwt callback and in requireAdmin from DB). **Impersonation:** Admins can set `impersonatedUserId` via client `update({ impersonatedUserId })`; jwt callback (trigger `"update"`) stores it and `realId`; session callback then loads impersonated user from DB and sets `session.realUserId`. Use `session.realUserId ?? session.user.id` for admin checks (requireAdmin); everywhere else uses effective `session.user.id`.
+- **Type augmentation**: Custom `User` and `Session` are declared in `src/lib/auth.ts`; use these types across the app. `Session` includes optional `realUserId` (set when an admin is impersonating; real admin id).
 - **Secure cookies**: In production (HTTPS), Auth.js uses `__Secure-`-prefixed cookies; middleware already checks both names for dev/prod.
 
 ## Reference

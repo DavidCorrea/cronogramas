@@ -28,8 +28,8 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 | DELETE | `/api/admin/users` | Delete user by `id` query param | `src/app/api/admin/users/route.ts` |
 | GET | `/api/admin/groups` | List all groups (admin only); returns calendarExportEnabled per group | `src/app/api/admin/groups/route.ts` |
 | PATCH | `/api/admin/groups` | Update group (body: groupId, calendarExportEnabled) | `src/app/api/admin/groups/route.ts` |
-
-### Groups
+| DELETE | `/api/admin/groups` | Delete group by `groupId` query param (admin only). Cascades to members, schedules, config, etc. | `src/app/api/admin/groups/route.ts` |
+| POST | `/api/admin/impersonate` | Start impersonating a user (session-based admin only; body: `userId`). Returns `{ userId }` for client to call `update({ impersonatedUserId })`. Bootstrap admins get 403. | `src/app/api/admin/impersonate/route.ts` |
 | Method(s) | Path | Purpose | File |
 |-----------|------|---------|------|
 | GET | `/api/groups` | List groups for current user, or get one by `?slug=` (requires group access when slug provided) | `src/app/api/groups/route.ts` |
@@ -116,7 +116,7 @@ All API routes are **Next.js App Router route handlers** under `src/app/api`. Ro
 
 - **Auth** — NextAuth.js catch-all: `GET`/`POST` for sign-in, callback, session. Handlers from `src/lib/auth.ts`. Session required for all other authenticated routes.
 
-- **Admin** — Bootstrap and user management. **Auth**: `requireAdmin()`. **Users**: GET/PUT/DELETE; PUT body can include **canExportCalendars** (per-user "Guardar en calendario" flag, admin-only). **Groups**: GET (list with calendarExportEnabled), PATCH (body: groupId, calendarExportEnabled) to enable/disable "Guardar en calendario" per group.
+- **Admin** — Bootstrap and user management. **Auth**: `requireAdmin()`. **Users**: GET/PUT/DELETE; PUT body can include **canExportCalendars** (per-user "Guardar en calendario" flag, admin-only). **Groups**: GET (list with calendarExportEnabled), PATCH (body: groupId, calendarExportEnabled) to enable/disable "Guardar en calendario" per group, **DELETE** (`?groupId=`) to remove a group and all its data (cascades). **Impersonation**: POST `/api/admin/impersonate` (body: userId) for session-based admins only; returns `{ userId }` so client can call `update({ impersonatedUserId })`; bootstrap admins receive 403.
 
 - **Groups** — List/create groups and manage collaborators. **Auth**: `requireAuth()` for list/create; `requireAuth()` + `hasGroupAccess(userId, groupId)` for `[id]/collaborators`. Path param `[id]` is group id. Helpers: `src/lib/api-helpers.ts`.
 

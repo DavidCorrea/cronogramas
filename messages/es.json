@@ -21,7 +21,9 @@
     "signOut": "Salir",
     "toggleTheme": "Cambiar modo",
     "menu": "Menú",
-    "sectionMenu": "Menú de sección"
+    "sectionMenu": "Menú de sección",
+    "actingAs": "Actuando como {name}",
+    "stopImpersonating": "Dejar de suplantar"
   },
   "configNav": {
     "members": "Miembros",
@@ -495,7 +497,9 @@
     "deleteUserTitle": "Eliminar usuario",
     "legendAdmin": "Acceso completo al panel de administración y gestión de usuarios.",
     "legendCreateGroups": "Permite al usuario crear nuevos grupos.",
-    "errorLoadUsers": "Error al cargar usuarios"
+    "errorLoadUsers": "Error al cargar usuarios",
+    "impersonate": "Ver como",
+    "stopImpersonating": "Dejar de suplantar"
   },
   "common": {
     "loading": "Cargando...",

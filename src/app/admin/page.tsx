@@ -29,7 +29,7 @@ interface GroupRow {
 }
 
 export default function AdminPage() {
-  const { status } = useSession();
+  const { status, update: updateSession } = useSession();
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
@@ -37,7 +37,9 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [userIdToDelete, setUserIdToDelete] = useState<string | null>(null);
   const [userNameToDelete, setUserNameToDelete] = useState<string | null>(null);
+  const [groupToDelete, setGroupToDelete] = useState<{ id: number; name: string } | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
+  const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(null);
   const t = useTranslations("admin");
 
   const fetchUsers = useCallback(async () => {
@@ -112,6 +114,45 @@ export default function AdminPage() {
     }
   };
 
+  const deleteGroup = (group: GroupRow) => {
+    setGroupToDelete({ id: group.id, name: group.name });
+  };
+
+  const performDeleteGroup = async () => {
+    if (!groupToDelete) return;
+    setDeleteInProgress(true);
+    try {
+      const res = await fetch(`/api/admin/groups?groupId=${groupToDelete.id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchGroups();
+        setGroupToDelete(null);
+      }
+    } finally {
+      setDeleteInProgress(false);
+    }
+  };
+
+  const startImpersonating = async (userId: string) => {
+    setImpersonatingUserId(userId);
+    try {
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError((data as { error?: string }).error ?? t("errorLoadUsers"));
+        return;
+      }
+      const data = (await res.json()) as { userId: string };
+      await updateSession({ impersonatedUserId: data.userId });
+      router.push("/");
+    } finally {
+      setImpersonatingUserId(null);
+    }
+  };
+
   if (loading) {
     return <LoadingScreen fullPage />;
   }
@@ -129,7 +170,7 @@ export default function AdminPage() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-12">
-          <h1 className="font-[family-name:var(--font-display)] text-4xl sm:text-5xl uppercase">
+          <h1 className="font-[family-name:var(--font-display)] font-semibold text-4xl sm:text-5xl uppercase">
             {t("title")}
           </h1>
           <p className="mt-3 text-muted-foreground">
@@ -203,6 +244,15 @@ export default function AdminPage() {
                       </label>
 
                       <button
+                        type="button"
+                        onClick={() => startImpersonating(user.id)}
+                        disabled={impersonatingUserId === user.id}
+                        className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors disabled:opacity-50"
+                      >
+                        {impersonatingUserId === user.id ? "…" : t("impersonate")}
+                      </button>
+
+                      <button
                         onClick={() => deleteUser(user.id, user.name)}
                         className="rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:border-destructive transition-colors"
                       >
@@ -247,6 +297,13 @@ export default function AdminPage() {
                     />
                     <span className="text-sm">{t("calendarExportFlag")}</span>
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => deleteGroup(group)}
+                    className="rounded-md border border-border px-3 py-1.5 text-xs text-destructive hover:border-destructive transition-colors shrink-0"
+                  >
+                    {t("delete")}
+                  </button>
                 </div>
               ))}
             </div>
@@ -260,6 +317,15 @@ export default function AdminPage() {
           message={t("confirmDeleteUser", { name: userNameToDelete ?? "este usuario" })}
           confirmLabel={t("delete")}
           onConfirm={performDeleteUser}
+          loading={deleteInProgress}
+        />
+        <ConfirmDialog
+          open={groupToDelete != null}
+          onOpenChange={(open) => { if (!open) setGroupToDelete(null); }}
+          title={t("deleteGroupTitle")}
+          message={t("confirmDeleteGroup", { name: groupToDelete?.name ?? "este grupo" })}
+          confirmLabel={t("delete")}
+          onConfirm={performDeleteGroup}
           loading={deleteInProgress}
         />
       </div>

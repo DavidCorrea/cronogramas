@@ -175,14 +175,15 @@ export async function requireAdmin(request: NextRequest): Promise<
   { isBootstrap: boolean; error?: never } |
   { isBootstrap?: never; error: NextResponse }
 > {
-  // 1. Check session-based admin
+  // 1. Check session-based admin (use real user id when impersonating)
   const session = await auth();
-  if (session?.user?.id) {
+  const adminUserId = session?.realUserId ?? session?.user?.id;
+  if (adminUserId) {
     // Verify isAdmin from DB (not just session, for freshness)
     const dbUser = (await db
       .select({ isAdmin: users.isAdmin })
       .from(users)
-      .where(eq(users.id, session.user.id)))[0];
+      .where(eq(users.id, adminUserId)))[0];
     if (dbUser?.isAdmin) {
       return { isBootstrap: false };
     }
