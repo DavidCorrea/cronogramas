@@ -6,7 +6,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 
 # When you begin
 
-- **In a specific folder?** Read its `context.md` first (what lives there, where to look next). Prefer that over broad searches.
+- **In a specific folder?** Read its `CONTEXT.md` first (what lives there, where to look next). Prefer that over broad searches.
 - **Touching a library we use?** Read the matching skill in **`.cursor/skills/`** before changing or adding usage: `next-auth`, `next-intl`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`.
 - **Adding or changing API routes?** See **docs/API.md** (route index, auth, which file to edit).
 - **Adding or changing pages or nav?** See **docs/CLIENT.md** (route map, layouts, components).
@@ -63,7 +63,7 @@ Skills: `next-auth`, `next-intl`, `tanstack-react-query`, `drizzle-orm`, `zod`, 
 
 # Codebase context
 
-- **Context files:** Many directories have a `context.md` describing what belongs there and where to look next. When creating a new top-level or domain folder (e.g. under `src/app/api/` or `src/app/`), add a short `context.md` with purpose and main entry points (and point to docs/API.md or docs/CLIENT.md if relevant).
+- **Context files:** Many directories have a `CONTEXT.md` describing what belongs there and where to look next. When creating a new top-level or domain folder (e.g. under `src/app/api/` or `src/app/`), add a short `CONTEXT.md` with purpose and main entry points (and point to docs/API.md or docs/CLIENT.md if relevant).
 - **Keep docs in sync:** When you add or change API routes, pages, or schema, update **docs/API.md**, **docs/CLIENT.md**, or **docs/DATABASE.md** so the next agent has accurate context.
 
 ---
@@ -78,7 +78,7 @@ Skills: `next-auth`, `next-intl`, `tanstack-react-query`, `drizzle-orm`, `zod`, 
 - **Project skills** in `.cursor/skills/` document how each major library is used and how it should be used: next-auth, next-intl, tanstack-react-query, drizzle-orm, zod, radix-ui-dialog, react-hotkeys-hook, googleapis. Read the relevant skill before changing or adding usage of that library. See "Library skills" above.
 
 ## Context files for navigation
-- **context.md** in key folders (`src/`, `src/app/`, `src/app/api/`, `src/app/api/configuration/`, `src/app/[slug]/config/`, `src/components/`, `src/db/`, `src/lib/`, `spec/`, `docs/`) describe what belongs there and point to docs. Read these before broad searches. New domain or top-level folders get a `context.md`. See "Codebase context" above.
+- **CONTEXT.md** in key folders (`src/`, `src/app/`, `src/app/api/`, `src/app/api/configuration/`, `src/app/[slug]/config/`, `src/components/`, `src/db/`, `src/lib/`, `spec/`, `docs/`) describe what belongs there and point to docs. Read these before broad searches. New domain or top-level folders get a `CONTEXT.md`. See "Codebase context" above.
 
 ## Save in Calendar (Mis asignaciones)
 - **Guardar en calendario**: On **Mis asignaciones** (`/asignaciones`). Button shown only when (1) user has **canExportCalendars** (set by **admin** in Admin → Usuarios; user cannot change it) and (2) current filter includes at least one assignment from a group with **calendarExportEnabled** (Admin → Grupos). GET `/api/user/assignments/google-calendar` (optional `?groupId=&year=&month=`) → Google OAuth → callback inserts current user's assignment dates into primary Google Calendar (one all-day event per date, description = "Roles: Role1, Role2"). Only assignments from groups with calendarExportEnabled are included. Redirect to `/asignaciones?calendar=success|error`. Routes: `src/app/api/user/assignments/google-calendar/route.ts`, `src/app/api/auth/callback/google-calendar/route.ts`. Optional legacy flow: public cronograma `.../google-calendar?memberId=` still supported for one member's month (same callback, different state shape).

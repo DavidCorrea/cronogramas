@@ -4,7 +4,7 @@ All routes here are **group-scoped**; use `requireGroupAccess(request)` and pass
 
 | Segment | Purpose |
 |---------|---------|
-| **context/** | BFF: single GET returns group, members, roles, days (recurring events), exclusiveGroups, schedules. Used by config layout and list pages. |
+| **context/** | BFF: single GET returns group, members, roles, days (recurring events), exclusiveGroups, schedules. Optional **`?include=members,roles,days,exclusiveGroups,schedules`** for view-scoped payloads. Used by config layout and list pages. |
 | **days/** | Recurring events (weekday, type, label, times). GET list, POST/PUT/DELETE; `[id]/affected-schedule-dates`, `[id]/recalculate-assignments`. |
 | **roles/** | Roles CRUD + PATCH for display order. |
 | **priorities/** | Event–role priorities (fill order per assignable event). |

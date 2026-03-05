@@ -6,7 +6,7 @@ All pages under `/[slug]/config/*` share this layout and group context.
 
 **List pages** (use `useConfigContext(slug, include)` with view-scoped slices; mutations call `refetchContext()` then navigate):
 - **members/** — List, **members/new**, **members/[id]** (edit + availability).
-- **roles/** — List, **roles/new**, **roles/[id]** (edit + “Personas con este rol”).
+- **roles/** — List, **roles/new**, **roles/[id]** (edit + "Personas con este rol").
 - **events/** — Recurring events (days); **events/new**, **events/[id]** (type, label, times, priorities). Uses **EventForm** in events folder.
 - **holidays/** — Group holidays (member-scoped).
 - **collaborators/** — Group collaborators.
@@ -14,4 +14,4 @@ All pages under `/[slug]/config/*` share this layout and group context.
 
 **Config landing** — `page.tsx` at `config/`: cards to members, roles, events, holidays, collaborators, schedules.
 
-**Nav:** GroupSubNav links + “Ir a…” quick jump (⌘K) via **ConfigGoTo** (**src/components/ConfigGoTo.tsx**). Route map: **docs/CLIENT.md**.
+**Nav:** GroupSubNav links + "Ir a…" quick jump (⌘K) via **ConfigGoTo** (**src/components/ConfigGoTo.tsx**). Route map: **docs/CLIENT.md**.

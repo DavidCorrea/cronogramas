@@ -12,7 +12,7 @@ All API routes are Next.js App Router handlers (`route.ts` per segment). **Use d
 **Domains (top-level under api/):**
 - **auth/** — Auth.js (Google OAuth, session).
 - **admin/** — Users (list, update, delete), bootstrap auth.
-- **configuration/** — Config BFF (context), days, roles, priorities, exclusive-groups, holidays. All require group access. See **api/configuration/context.md**.
+- **configuration/** — Config BFF (context), days, roles, priorities, exclusive-groups, holidays. All require group access. See **api/configuration/CONTEXT.md**.
 - **cronograma/** — Public schedule by slug (GET; rate limited).
 - **groups/** — List/create groups, collaborators.
 - **members/** — CRUD members, link-check.

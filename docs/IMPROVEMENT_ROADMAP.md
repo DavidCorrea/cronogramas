@@ -7,7 +7,7 @@ This plan groups improvements into themes. Each theme can be implemented indepen
 **How to use this roadmap when implementing**
 
 1. **Pick one item** from a section (or from "Suggested order").
-2. **Where to look** — Open the listed files/modules; read `context.md` in relevant folders if present (see AGENTS.md).
+2. **Where to look** — Open the listed files/modules; read `CONTEXT.md` in relevant folders if present (see AGENTS.md).
 3. **Implementation notes** — Follow the steps or checklist; add Zod schemas in `src/lib/schemas/`, APIs under `src/app/api/`, copy in `messages/es.json`.
 4. **Done when** — Satisfy the acceptance criterion; run `npm run lint` and `npm run build`; update **Docs to update as you go** (API.md, CLIENT.md, DATABASE.md, AGENTS.md as needed).
 5. **Dependencies** — If an item says "Requires §X" or "After Y", implement or assume Y first.

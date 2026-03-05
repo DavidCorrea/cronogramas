@@ -5,7 +5,7 @@ Reusable React components used across the app. All user-facing text should use *
 | Component | Purpose |
 |-----------|---------|
 | **AppNavBar** | Global top nav: logo, Inicio, Mis asignaciones, theme toggle, session (avatar/settings/sign out). Used in root layout. |
-| **GroupSubNav** | Rendered inside config layout: group name, links to members, roles, events, holidays, collaborators, schedules; “Ir a…” trigger. |
+| **GroupSubNav** | Rendered inside config layout: group name, links to members, roles, events, holidays, collaborators, schedules; "Ir a…" trigger. |
 | **ConfigGoTo** | Quick jump modal: search members, roles, events, schedule months by name; ⌘K shortcut. Used in config layout. |
 | **SharedScheduleView** | Public cronograma: month grid, entries, notes, nav. Used by cronograma pages. |
 | **AvailabilityWeekGrid** | Weekday grid for member availability (blocks per day). Used in member new/edit. |
