@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, DM_Serif_Display } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
 import SessionProvider from "@/components/SessionProvider";
 import QueryProvider from "@/components/QueryProvider";
 import AppNavBar from "@/components/AppNavBar";
@@ -35,9 +36,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const messages = (await import("../../messages/es.json")).default;
-  // Messages loaded directly so SSG has them; getMessages() can be undefined (e.g. _not-found).
-
+  const messages = (await getMessages()) ?? (await import("../../messages/es.json")).default;
   return (
     <html lang="es">
       <body

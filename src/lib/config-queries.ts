@@ -10,6 +10,11 @@ export function configContextQueryKey(slug: string, include?: ConfigContextSlice
   return ["config", slug, includeKey] as const;
 }
 
+/** Prefix for invalidating all config queries for a slug. Use in refetchContext. */
+export function configContextQueryKeyPrefix(slug: string) {
+  return ["config", slug] as const;
+}
+
 export interface ConfigContextApiResponse {
   group: { id: number; name: string; slug: string };
   members?: ConfigContextData["members"];

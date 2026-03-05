@@ -115,7 +115,7 @@ Findings from auditing current dependencies against recommended or standard usag
 **next-intl**  
 Root layout loads messages via direct import (`import("../../messages/es.json")`) instead of `getMessages()` from `next-intl/server`. The project already uses `getRequestConfig` in `src/i18n/request.ts` and the next-intl plugin. For a single source of truth, prefer `getMessages()` in the root layout (with a fallback for edge cases where it can be undefined, e.g. `_not-found`), so server and client both use the same config. See [next-intl configuration](https://next-intl.dev/docs/usage/configuration).
 
-- **Where to look:** `src/app/layout.tsx` (message loading); `src/i18n/request.ts`. **Done when:** Root layout uses `getMessages()`; fallback for undefined where needed (e.g. not-found).
+- **Where to look:** `src/app/layout.tsx` (message loading); `src/i18n/request.ts`. **Done when:** Root layout uses `getMessages()`; fallback for undefined where needed (e.g. not-found). **Done:** Layout now uses `getMessages() ?? (await import("../../messages/es.json")).default`.
 
 **TanStack Query**  
 Config flows use `useConfigContext` (useQuery) and `refetchContext` (invalidation) correctly. The **home page** (`src/app/page.tsx`) and **admin page** (`src/app/admin/page.tsx`) still use manual `fetch` + `useState` + `useEffect` for groups and dashboard data. Recommended approach: use **useQuery** (and **useMutation** where appropriate) for all server state so the app benefits from caching, request deduplication, loading/error states, and refetch on focus. Align home and admin with the same pattern as config (e.g. `useQuery({ queryKey: ['groups'], queryFn: ... })`).

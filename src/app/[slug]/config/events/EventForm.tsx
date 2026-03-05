@@ -739,12 +739,12 @@ export default function EventForm({
               <Dialog.Title id="delete-dialog-title" className="text-lg font-medium text-foreground">
                 {t("deleteDialogTitle")}
               </Dialog.Title>
-              <p id="delete-dialog-description" className="mt-2 text-sm text-muted-foreground">
+              <Dialog.Description id="delete-dialog-description" className="mt-2 text-sm text-muted-foreground">
                 {t("deleteDialogMessage", {
                   count: affectedInfo.count,
                   schedules: affectedInfo.schedules.length,
                 })}
-              </p>
+              </Dialog.Description>
               <div className="flex flex-col gap-2 pt-4">
                 <button
                   type="button"
@@ -762,14 +762,16 @@ export default function EventForm({
                 >
                   {t("deleteEventAndDates")}
                 </button>
-                <button
-                  type="button"
-                  disabled={deleteInProgress}
-                  onClick={() => { setShowDeleteDialog(false); setAffectedInfo(null); }}
-                  className="rounded-md text-sm text-muted-foreground hover:text-foreground pt-2"
-                >
-                  {tCommon("cancel")}
-                </button>
+                <Dialog.Close asChild>
+                  <button
+                    type="button"
+                    disabled={deleteInProgress}
+                    onClick={() => { setShowDeleteDialog(false); setAffectedInfo(null); }}
+                    className="rounded-md text-sm text-muted-foreground hover:text-foreground pt-2"
+                  >
+                    {tCommon("cancel")}
+                  </button>
+                </Dialog.Close>
               </div>
             </Dialog.Content>
           </Dialog.Portal>
@@ -789,12 +791,12 @@ export default function EventForm({
               <Dialog.Title id="recalc-dialog-title" className="text-lg font-medium text-foreground">
                 {t("recalcDialogTitle")}
               </Dialog.Title>
-              <p id="recalc-dialog-description" className="mt-2 text-sm text-muted-foreground">
+              <Dialog.Description id="recalc-dialog-description" className="mt-2 text-sm text-muted-foreground">
                 {t("recalcDialogMessage", {
                   count: affectedInfo.count,
                   schedules: affectedInfo.schedules.length,
                 })}
-              </p>
+              </Dialog.Description>
               <div className="flex flex-col gap-2 pt-4">
                 <button
                   type="button"

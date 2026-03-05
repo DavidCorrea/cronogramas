@@ -40,7 +40,7 @@ export default function ConfigGoTo() {
       if (!prev) setQuery("");
       return !prev;
     });
-  }, { enableOnFormTags: false });
+  }, { enableOnFormTags: false, preventDefault: true });
 
   const items = useMemo<GoToItem[]>(() => {
     if (!slug) return [];

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { roles, scheduleDateAssignments, eventRolePriorities } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, max } from "drizzle-orm";
 import { requireGroupAccess, apiError, parseBody } from "@/lib/api-helpers";
-import { roleCreateSchema } from "@/lib/schemas";
+import { roleCreateSchema, roleUpdateSchema, roleReorderSchema } from "@/lib/schemas";
 
 export async function GET(request: NextRequest) {
   const accessResult = await requireGroupAccess(request);
@@ -29,11 +29,11 @@ export async function POST(request: NextRequest) {
   const { name, requiredCount = 1, dependsOnRoleId, exclusiveGroupId, isRelevant = false } = parsed.data;
 
   // Assign displayOrder = max(existing) + 1 so new roles appear at the end
-  const maxResult = (await db
-    .select({ maxOrder: sql<number>`COALESCE(MAX(${roles.displayOrder}), -1)` })
+  const [maxRow] = await db
+    .select({ maxOrder: max(roles.displayOrder) })
     .from(roles)
-    .where(eq(roles.groupId, groupId)))[0];
-  const nextOrder = (maxResult?.maxOrder ?? -1) + 1;
+    .where(eq(roles.groupId, groupId));
+  const nextOrder = (maxRow?.maxOrder ?? -1) + 1;
 
   const insertValues: Record<string, unknown> = {
     name,
@@ -58,15 +58,10 @@ export async function PUT(request: NextRequest) {
   if (accessResult.error) return accessResult.error;
   const { groupId } = accessResult;
 
-  const body = await request.json();
-  const { id, name, requiredCount, dependsOnRoleId, exclusiveGroupId, isRelevant } = body;
-
-  if (!id) {
-    return NextResponse.json(
-      { error: "Role id is required" },
-      { status: 400 }
-    );
-  }
+  const raw = await request.json();
+  const parsed = parseBody(roleUpdateSchema, raw);
+  if (parsed.error) return parsed.error;
+  const { id, name, requiredCount, dependsOnRoleId, exclusiveGroupId, isRelevant } = parsed.data;
 
   const existing = (await db.select().from(roles).where(eq(roles.id, id)))[0];
   if (!existing) {
@@ -97,23 +92,12 @@ export async function PATCH(request: NextRequest) {
   if (accessResult.error) return accessResult.error;
   const { groupId } = accessResult;
 
-  const body = await request.json();
-  const { order } = body;
-
-  if (!Array.isArray(order)) {
-    return NextResponse.json(
-      { error: "order array is required" },
-      { status: 400 }
-    );
-  }
+  const raw = await request.json();
+  const parsed = parseBody(roleReorderSchema, raw);
+  if (parsed.error) return parsed.error;
+  const { order } = parsed.data;
 
   for (const item of order) {
-    if (typeof item.id !== "number" || typeof item.displayOrder !== "number") {
-      return NextResponse.json(
-        { error: "Each item must have id and displayOrder as numbers" },
-        { status: 400 }
-      );
-    }
     await db.update(roles)
       .set({ displayOrder: item.displayOrder })
       .where(eq(roles.id, item.id));
@@ -136,10 +120,7 @@ export async function DELETE(request: NextRequest) {
   const id = searchParams.get("id");
 
   if (!id) {
-    return NextResponse.json(
-      { error: "Role id is required" },
-      { status: 400 }
-    );
+    return apiError("Role id is required", 400, "MISSING_ID");
   }
 
   const roleId = parseInt(id, 10);

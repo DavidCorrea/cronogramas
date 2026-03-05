@@ -3,6 +3,7 @@
 import { createContext, useContext, ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { configContextQueryKeyPrefix } from "@/lib/config-queries";
 
 /** Group identity only. Config data is fetched per-view via useConfigContext(slug, include). */
 export interface ConfigContextData {
@@ -97,7 +98,7 @@ export function GroupProvider({
 
   const refetchContext = async () => {
     if (!slug) return;
-    await queryClient.invalidateQueries({ queryKey: ["config", slug] });
+    await queryClient.invalidateQueries({ queryKey: configContextQueryKeyPrefix(slug) });
   };
 
   return (
