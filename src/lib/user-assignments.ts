@@ -32,7 +32,17 @@ export async function getAssignments(userId: string): Promise<UserAssignment[]> 
 
   const now = new Date();
   const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  const allAssignments: UserAssignment[] = [];
+
+  type EntryWithGroup = {
+    date: string;
+    roleId: number;
+    groupName: string;
+    groupSlug: string;
+    groupId: number;
+    groupCalendarExportEnabled: boolean;
+  };
+
+  const entriesWithGroup: EntryWithGroup[] = [];
 
   for (const membership of userMembers) {
     const group = (await db
@@ -76,13 +86,9 @@ export async function getAssignments(userId: string): Promise<UserAssignment[]> 
       for (const entry of entries) {
         const date = dateByScheduleDateId.get(entry.scheduleDateId);
         if (!date) continue;
-        const role = (await db
-          .select()
-          .from(roles)
-          .where(eq(roles.id, entry.roleId)))[0];
-        allAssignments.push({
+        entriesWithGroup.push({
           date,
-          roleName: role?.name ?? "Desconocido",
+          roleId: entry.roleId,
           groupName: group.name,
           groupSlug: group.slug,
           groupId: group.id,
@@ -91,6 +97,25 @@ export async function getAssignments(userId: string): Promise<UserAssignment[]> 
       }
     }
   }
+
+  if (entriesWithGroup.length === 0) return [];
+
+  const roleIds = [...new Set(entriesWithGroup.map((e) => e.roleId))];
+  const rolesRows = await db
+    .select({ id: roles.id, name: roles.name })
+    .from(roles)
+    .where(inArray(roles.id, roleIds));
+
+  const roleNameById = new Map(rolesRows.map((r) => [r.id, r.name]));
+
+  const allAssignments: UserAssignment[] = entriesWithGroup.map((e) => ({
+    date: e.date,
+    roleName: roleNameById.get(e.roleId) ?? "Desconocido",
+    groupName: e.groupName,
+    groupSlug: e.groupSlug,
+    groupId: e.groupId,
+    groupCalendarExportEnabled: e.groupCalendarExportEnabled,
+  }));
 
   allAssignments.sort((a, b) => a.date.localeCompare(b.date));
   return allAssignments;

@@ -11,7 +11,7 @@ import {
   exclusiveGroups,
   schedules,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { dayIndex } from "@/lib/constants";
 
 export const CONFIG_CONTEXT_SLICES = [
@@ -150,38 +150,66 @@ async function loadMembers(groupId: number) {
     .where(eq(members.groupId, groupId))
     .orderBy(members.name);
 
-  return Promise.all(
-    rows.map(async (member) => {
-      const memberRolesList = await db
-        .select()
-        .from(memberRoles)
-        .where(eq(memberRoles.memberId, member.id));
-      const availability = await db
-        .select({
-          weekdayId: memberAvailability.weekdayId,
-          startTimeUtc: memberAvailability.startTimeUtc,
-          endTimeUtc: memberAvailability.endTimeUtc,
-        })
-        .from(memberAvailability)
-        .where(eq(memberAvailability.memberId, member.id));
+  if (rows.length === 0) return [];
 
-      return {
-        id: member.id,
-        name: member.name,
-        memberEmail: member.memberEmail,
-        userId: member.userId,
-        groupId: member.groupId,
-        email: member.userEmail,
-        image: member.userImage,
-        userName: member.userName,
-        roleIds: memberRolesList.map((r) => r.roleId),
-        availability: availability.map((a) => ({
-          weekdayId: a.weekdayId,
-          startTimeUtc: a.startTimeUtc ?? "00:00",
-          endTimeUtc: a.endTimeUtc ?? "23:59",
-        })),
-        availableDayIds: [...new Set(availability.map((a) => a.weekdayId))],
-      };
-    })
-  );
+  const memberIds = rows.map((r) => r.id);
+
+  const [memberRolesList, availabilityRows] = await Promise.all([
+    db
+      .select()
+      .from(memberRoles)
+      .where(inArray(memberRoles.memberId, memberIds)),
+    db
+      .select({
+        memberId: memberAvailability.memberId,
+        weekdayId: memberAvailability.weekdayId,
+        startTimeUtc: memberAvailability.startTimeUtc,
+        endTimeUtc: memberAvailability.endTimeUtc,
+      })
+      .from(memberAvailability)
+      .where(inArray(memberAvailability.memberId, memberIds)),
+  ]);
+
+  const rolesByMemberId = new Map<number, { roleId: number }[]>();
+  for (const r of memberRolesList) {
+    const list = rolesByMemberId.get(r.memberId) ?? [];
+    list.push({ roleId: r.roleId });
+    rolesByMemberId.set(r.memberId, list);
+  }
+
+  const availabilityByMemberId = new Map<
+    number,
+    { weekdayId: number; startTimeUtc: string | null; endTimeUtc: string | null }[]
+  >();
+  for (const a of availabilityRows) {
+    const list = availabilityByMemberId.get(a.memberId) ?? [];
+    list.push({
+      weekdayId: a.weekdayId,
+      startTimeUtc: a.startTimeUtc,
+      endTimeUtc: a.endTimeUtc,
+    });
+    availabilityByMemberId.set(a.memberId, list);
+  }
+
+  return rows.map((member) => {
+    const memberRolesForMember = rolesByMemberId.get(member.id) ?? [];
+    const availability = availabilityByMemberId.get(member.id) ?? [];
+    return {
+      id: member.id,
+      name: member.name,
+      memberEmail: member.memberEmail,
+      userId: member.userId,
+      groupId: member.groupId,
+      email: member.userEmail,
+      image: member.userImage,
+      userName: member.userName,
+      roleIds: memberRolesForMember.map((r) => r.roleId),
+      availability: availability.map((a) => ({
+        weekdayId: a.weekdayId,
+        startTimeUtc: a.startTimeUtc ?? "00:00",
+        endTimeUtc: a.endTimeUtc ?? "23:59",
+      })),
+      availableDayIds: [...new Set(availability.map((a) => a.weekdayId))],
+    };
+  });
 }

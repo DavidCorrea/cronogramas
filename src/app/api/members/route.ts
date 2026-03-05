@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { members, memberRoles, memberAvailability, users } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireGroupAccess, parseBody, apiError } from "@/lib/api-helpers";
 import { memberCreateSchema } from "@/lib/schemas";
 
@@ -26,21 +26,47 @@ export async function GET(request: NextRequest) {
     .where(eq(members.groupId, groupId))
     .orderBy(members.name);
 
-  const result = await Promise.all(allMembers.map(async (member) => {
-    const roles = await db
-      .select()
-      .from(memberRoles)
-      .where(eq(memberRoles.memberId, member.id));
+  if (allMembers.length === 0) return NextResponse.json([]);
 
-    const availability = await db
+  const memberIds = allMembers.map((m) => m.id);
+
+  const [memberRolesRows, availabilityRows] = await Promise.all([
+    db.select().from(memberRoles).where(inArray(memberRoles.memberId, memberIds)),
+    db
       .select({
+        memberId: memberAvailability.memberId,
         weekdayId: memberAvailability.weekdayId,
         startTimeUtc: memberAvailability.startTimeUtc,
         endTimeUtc: memberAvailability.endTimeUtc,
       })
       .from(memberAvailability)
-      .where(eq(memberAvailability.memberId, member.id));
+      .where(inArray(memberAvailability.memberId, memberIds)),
+  ]);
 
+  const rolesByMemberId = new Map<number, { roleId: number }[]>();
+  for (const r of memberRolesRows) {
+    const list = rolesByMemberId.get(r.memberId) ?? [];
+    list.push({ roleId: r.roleId });
+    rolesByMemberId.set(r.memberId, list);
+  }
+
+  const availabilityByMemberId = new Map<
+    number,
+    { weekdayId: number; startTimeUtc: string | null; endTimeUtc: string | null }[]
+  >();
+  for (const a of availabilityRows) {
+    const list = availabilityByMemberId.get(a.memberId) ?? [];
+    list.push({
+      weekdayId: a.weekdayId,
+      startTimeUtc: a.startTimeUtc,
+      endTimeUtc: a.endTimeUtc,
+    });
+    availabilityByMemberId.set(a.memberId, list);
+  }
+
+  const result = allMembers.map((member) => {
+    const rolesList = rolesByMemberId.get(member.id) ?? [];
+    const availability = availabilityByMemberId.get(member.id) ?? [];
     return {
       id: member.id,
       name: member.name,
@@ -50,7 +76,7 @@ export async function GET(request: NextRequest) {
       email: member.userEmail,
       image: member.userImage,
       userName: member.userName,
-      roleIds: roles.map((r) => r.roleId),
+      roleIds: rolesList.map((r) => r.roleId),
       availability: availability.map((a) => ({
         weekdayId: a.weekdayId,
         startTimeUtc: a.startTimeUtc ?? "00:00",
@@ -58,7 +84,7 @@ export async function GET(request: NextRequest) {
       })),
       availableDayIds: [...new Set(availability.map((a) => a.weekdayId))],
     };
-  }));
+  });
 
   return NextResponse.json(result);
 }
