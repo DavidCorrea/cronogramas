@@ -51,13 +51,15 @@ The app uses **Next.js App Router**, is **mobile-first**, and all user-facing co
 | `/[slug]/cronograma` | Redirects (302) to `/[slug]/cronograma/[year]/[month]` for current month | `src/app/[slug]/cronograma/page.tsx` |
 | `/[slug]/cronograma/[year]/[month]` | Schedule view for that month | `src/app/[slug]/cronograma/[year]/[month]/page.tsx` |
 
+**Loading UI:** `src/app/loading.tsx` (dashboard/generic skeleton), `src/app/[slug]/config/loading.tsx` (config list skeleton), `src/app/[slug]/cronograma/[year]/[month]/loading.tsx` (cronograma grid skeleton) show route-level skeletons during navigation.
+
 ## 3. Layouts and nav
 
 - **Root layout** — `src/app/layout.tsx`  
   Wraps the app with `SessionProvider`, global fonts, and **AppNavBar**. Renders nav + `children`; no group-specific context.
 
 - **Config layout** — `src/app/[slug]/config/layout.tsx`  
-  **Server component**: resolves group by slug and checks access once (`getGroupForConfigLayout`), then passes **only** `initialGroup` to the client (no server-side config context load). **Client shell** (`ConfigLayoutClient.tsx`): **GroupProvider** (group identity only), **UnsavedConfigProvider**, and **ConfigLayoutInner** (sub-nav). Config **list pages** load their data via **view-scoped** `useConfigContext(slug, include)` from `src/lib/config-queries.ts` (TanStack Query); each page requests only the slices it needs (e.g. members list: `['members']`, roles: `['roles','exclusiveGroups','members']`). **ConfigGoTo** requests `['members','roles','days','schedules']`. After mutations, call `refetchContext()` from `useGroup()` to invalidate config queries so active views refetch.
+  **Server component**: resolves group by slug and checks access once (`getGroupForConfigLayout`), then passes **only** `initialGroup` to the client (no server-side config context load). **Client shell** (`ConfigLayoutClient.tsx`): **GroupProvider** (group identity only), **UnsavedConfigProvider**, **ConfigLayoutInner** (sub-nav). Config **list pages** load their data via **view-scoped** `useConfigContext(slug, include)` from `src/lib/config-queries.ts` (TanStack Query); each list page requests only the slices it needs. **ConfigGoTo** requests `['members','roles','days','schedules']`. After mutations, call `refetchContext()` from `useGroup()` to invalidate config queries so active views refetch. **Route-level loading:** `src/app/[slug]/config/loading.tsx` shows a skeleton (sub-nav + list cards) during navigation.
 
 - **AppNavBar** — `src/components/AppNavBar.tsx`  
   Top bar: logo link to `/`, links to Inicio and Mis asignaciones (when signed in), theme toggle, session (avatar + settings link + sign out) or "Iniciar sesión". Hidden on `/login`. Mobile: hamburger + dropdown with same links.
