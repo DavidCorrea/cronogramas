@@ -1,0 +1,10 @@
+---
+description: Create skills for new libraries and update existing skills when adopting new best practices
+alwaysApply: true
+---
+
+# Skills creation and usage
+
+- **New library:** Whenever the project starts using a **new** library (new dependency, new integration, or new API), create a **project skill** for it in **`.cursor/skills/<name>/`** and document how this project uses it and best practices. Use the **create-skill** skill (structure, SKILL.md format, description, progressive disclosure). Add the skill name to the "When you begin" / Library skills list in **AGENTS.md** and in **`.cursor/rules/when-you-begin-context.mdc`** so future agents read it before changing that library.
+- **Existing library, new usage or best practice:** When using an **existing** library (one that already has a skill in `.cursor/skills/`) in a new way, or when you adopt a pattern or best practice not yet in the skill, **update** that library’s skill file (e.g. `.cursor/skills/<name>/SKILL.md`) with the new pattern, gotchas, and "how it should be used" so future work stays consistent. Do not create a second skill for the same library.
+- **Before using a library:** Read the matching skill in `.cursor/skills/` before changing or adding usage; follow the patterns and best practices documented there. If no skill exists, create one (new library) or update the existing one (new usage/best practice) as above.

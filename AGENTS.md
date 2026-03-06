@@ -7,7 +7,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 # When you begin
 
 - **In a specific folder?** Read its `CONTEXT.md` first (what lives there, where to look next). Prefer that over broad searches.
-- **Touching a library we use?** Read the matching skill in **`.cursor/skills/<name>/SKILL.md`** before changing or adding usage. Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`.
+- **Touching a library we use?** Read the matching skill in **`.cursor/skills/<name>/SKILL.md`** before changing or adding usage. Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`.
 - **Adding or changing API routes?** See **docs/API.md** (route index, auth, which file to edit).
 - **Adding or changing pages or nav?** See **docs/CLIENT.md** (route map, layouts, components).
 - **Changing schema or migrations?** See **docs/DATABASE.md** and the "Database and migrations" section below.
@@ -78,9 +78,11 @@ Use these terms consistently in schema, API, UI labels, and docs. When the user 
 
 Project skills in **`.cursor/skills/`** document how each major library is used and how it should be used. **Read the relevant skill before changing or adding usage** of that library so you follow existing patterns and best practices.
 
+**Skills creation and usage (rule `skills-creation-usage`):** When using a **new** library, create a project skill for it in `.cursor/skills/<name>/` and document best practices; add the skill to the list below and in the "When you begin" rule. When using an **existing** library in a new way or adopting a new best practice, **update** that library's skill with the new pattern so future work stays consistent.
+
 **Before using any library in a new use case:** Investigate the proper way to do it (official docs, best practices) and document the approach in that library’s skill file. Update the skill with patterns, gotchas, and “how it should be used” so future work stays consistent.
 
-Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`.
+Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`.
 
 ---
 
@@ -104,13 +106,13 @@ Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`
 - **Domain glossary** in AGENTS.md defines **event** (recurring weekday config), **schedule date** (concrete date in a schedule), **assignment** (member–role on a date). Use this vocabulary in schema, API, and UI labels. See also docs/DATABASE.md (glossary reference).
 
 ## Library skills
-- **Project skills** in `.cursor/skills/` document how each major library is used and how it should be used: next-auth, next-intl, react, tanstack-react-query, drizzle-orm, zod, radix-ui-dialog, react-hotkeys-hook, googleapis. Read the relevant skill before changing or adding usage of that library. See "Library skills" above.
+- **Skills creation and usage:** Rule `.cursor/rules/skills-creation-usage.mdc`: create a project skill for each **new** library (best practices in `.cursor/skills/<name>/`); **update** existing skills when using a documented library in a new way or adopting a new best practice. Use create-skill skill for structure. Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`.
 - **React:** **`.cursor/skills/react/SKILL.md`** — when to use client vs server components, list keys (stable id or composite key; no index for dynamic lists), hooks (useEffect deps and cleanup, useCallback/useMemo), and patterns we use. Use when adding or changing components or hooks.
-
-## Context files for navigation
+- **Tailwind:** **`.cursor/skills/tailwind/SKILL.md`** — Tailwind v4 CSS-first config, semantic tokens in `globals.css`, utility-first in components, when to use `@theme` or a shared class. Use when adding or changing styles, layout, or theme.
+- **TypeScript:** **`.cursor/skills/typescript/SKILL.md`** — strict mode, interface vs type, path alias `@/*`, avoid `any`, Zod-inferred types. Use when adding or changing types or tsconfig.
 - **CONTEXT.md** in key folders (`src/`, `src/app/`, `src/app/api/`, `src/app/api/configuration/`, `src/app/[slug]/config/`, `src/components/`, `src/db/`, `src/lib/`, `spec/`, `docs/`) describe what belongs there and point to docs. Read these before broad searches. New domain or top-level folders get a `CONTEXT.md`. See "Codebase context" above.
 ## Cursor rules (project conventions)
-- **`.cursor/rules/`** contains `.mdc` rules that encode project conventions for the AI: workflow and done criteria, when-you-begin/context, domain-glossary-ask, database and migrations, API conventions, UI/copy/i18n, destructive actions and ConfirmDialog, lint and Git, testing, security (passwords). Always-applied rules: workflow, when-you-begin, lint-and-git, domain-glossary-ask. File-scoped rules apply when matching files are open (see each rule's `globs`). See "Conventions" and "Workflow" in this file for the full text.
+- **`.cursor/rules/`** contains `.mdc` rules that encode project conventions for the AI: workflow and done criteria, when-you-begin/context, domain-glossary-ask, skills-creation-usage, database and migrations, API conventions, UI/copy/i18n, destructive actions and ConfirmDialog, lint and Git, testing, security (passwords). Always-applied rules: workflow, when-you-begin, lint-and-git, domain-glossary-ask, skills-creation-usage. File-scoped rules apply when matching files are open (see each rule's `globs`). See "Conventions" and "Workflow" in this file for the full text.
 
 - **Guardar en calendario**: On **Mis asignaciones** (`/asignaciones`). Button shown only when (1) user has **canExportCalendars** (set by **admin** in Admin → Usuarios; user cannot change it) and (2) current filter includes at least one assignment from a group with **calendarExportEnabled** (Admin → Grupos). GET `/api/user/assignments/google-calendar` (optional `?groupId=&year=&month=`) → Google OAuth → callback inserts **session user's** assignment dates (never state.userId) into primary Google Calendar. (one all-day event per date, description = "Roles: Role1, Role2"). Only assignments from groups with calendarExportEnabled are included. Redirect to `/asignaciones?calendar=success|error`. Routes: `src/app/api/user/assignments/google-calendar/route.ts`, `src/app/api/auth/callback/google-calendar/route.ts`. Optional legacy flow: public cronograma `.../google-calendar?memberId=` still supported for one member's month (same callback, different state shape).
 
