@@ -7,7 +7,7 @@ This file is the single source for product behaviour, scripts, migrations, and a
 # When you begin
 
 - **In a specific folder?** Read its `CONTEXT.md` first (what lives there, where to look next). Prefer that over broad searches.
-- **Touching a library we use?** Read the matching skill in **`.cursor/skills/<name>/SKILL.md`** before changing or adding usage. Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`.
+- **Touching a library we use?** Read the matching skill in **`.cursor/skills/<name>/SKILL.md`** before changing or adding usage. Skills: `nextjs`, `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`.
 - **Adding or changing API routes?** See **docs/API.md** (route index, auth, which file to edit).
 - **Adding or changing pages or nav?** See **docs/CLIENT.md** (route map, layouts, components).
 - **Changing schema or migrations?** See **docs/DATABASE.md** and the "Database and migrations" section below.
@@ -82,7 +82,9 @@ Project skills in **`.cursor/skills/`** document how each major library is used 
 
 **Before using any library in a new use case:** Investigate the proper way to do it (official docs, best practices) and document the approach in that library’s skill file. Update the skill with patterns, gotchas, and “how it should be used” so future work stays consistent.
 
-Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`.
+Skills: `nextjs`, `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`.
+
+- **Next.js:** **`.cursor/skills/nextjs/SKILL.md`** — App Router rendering model (Server vs Client Components, interleaving, context providers), routing (file conventions, dynamic routes, route groups), layouts, data fetching (server-side direct, client-side with TanStack Query), route handlers, middleware, loading/error/streaming, redirects, and configuration. Use when adding or changing pages, layouts, route handlers, middleware, data fetching, or routing patterns.
 
 ---
 
@@ -106,7 +108,7 @@ Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`
 - **Domain glossary** in AGENTS.md defines **event** (recurring weekday config), **schedule date** (concrete date in a schedule), **assignment** (member–role on a date). Use this vocabulary in schema, API, and UI labels. See also docs/DATABASE.md (glossary reference).
 
 ## Library skills
-- **Skills creation and usage:** Rule `.cursor/rules/skills-creation-usage.mdc`: create a project skill for each **new** library (best practices in `.cursor/skills/<name>/`); **update** existing skills when using a documented library in a new way or adopting a new best practice. Use create-skill skill for structure. Skills: `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`.
+- **Skills creation and usage:** Rule `.cursor/rules/skills-creation-usage.mdc`: create a project skill for each **new** library (best practices in `.cursor/skills/<name>/`); **update** existing skills when using a documented library in a new way or adopting a new best practice. Use create-skill skill for structure. Skills: `nextjs`, `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`.
 - **React:** **`.cursor/skills/react/SKILL.md`** — when to use client vs server components, list keys (stable id or composite key; no index for dynamic lists), hooks (useEffect deps and cleanup, useCallback/useMemo), and patterns we use. Use when adding or changing components or hooks.
 - **Tailwind:** **`.cursor/skills/tailwind/SKILL.md`** — Tailwind v4 CSS-first config, semantic tokens in `globals.css`, utility-first in components, when to use `@theme` or a shared class. Use when adding or changing styles, layout, or theme.
 - **TypeScript:** **`.cursor/skills/typescript/SKILL.md`** — strict mode, interface vs type, path alias `@/*`, avoid `any`, Zod-inferred types. Use when adding or changing types or tsconfig.

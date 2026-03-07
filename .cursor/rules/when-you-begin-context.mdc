@@ -6,7 +6,7 @@ alwaysApply: true
 # When you begin
 
 - **In a specific folder?** Read its **CONTEXT.md** first (what lives there, where to look next). Prefer that over broad searches.
-- **Touching a library we use?** Read the matching skill in **`.cursor/skills/`** before changing or adding usage: next-auth, next-intl, tanstack-react-query, drizzle-orm, zod, radix-ui-dialog, react-hotkeys-hook, googleapis, tailwind, typescript.
+- **Touching a library we use?** Read the matching skill in **`.cursor/skills/`** before changing or adding usage: nextjs, next-auth, next-intl, react, tanstack-react-query, drizzle-orm, zod, radix-ui-dialog, react-hotkeys-hook, googleapis, tailwind, typescript.
 - **Adding or changing API routes?** See **docs/API.md** (route index, auth, which file to edit).
 - **Adding or changing pages or nav?** See **docs/CLIENT.md** (route map, layouts, components).
 - **Changing schema or migrations?** See **docs/DATABASE.md** and the "Database and migrations" section in AGENTS.md.
