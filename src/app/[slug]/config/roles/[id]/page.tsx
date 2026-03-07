@@ -10,6 +10,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import BackLink from "@/components/BackLink";
 import { DangerZone } from "@/components/DangerZone";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { TogglePill } from "@/components/TogglePill";
 
 interface Role {
   id: number;
@@ -310,20 +311,22 @@ export default function EditRolePage() {
             </select>
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
+          <div>
+            <span className="block text-sm text-muted-foreground mb-1">{t("highlight")}</span>
+            <p className="text-xs text-muted-foreground/70 mb-2">{t("helpHighlight")}</p>
+            <TogglePill
               checked={isRelevant}
-              onChange={(e) => setIsRelevant(e.target.checked)}
-              className="rounded border-border w-4 h-4"
+              onChange={setIsRelevant}
+              label={t("highlight")}
+              id="role-highlight"
             />
-            <span className="text-sm text-muted-foreground">{t("highlight")}</span>
-          </label>
+          </div>
 
           <div>
-            <label className="block text-sm text-muted-foreground mb-1.5">
+            <label className="block text-sm text-muted-foreground mb-1">
               {t("dependsOn")}
             </label>
+            <p className="text-xs text-muted-foreground/70 mb-2">{t("helpDependsOn")}</p>
             <select
               value={dependsOnRoleId ?? ""}
               onChange={(e) =>
@@ -345,9 +348,10 @@ export default function EditRolePage() {
           </div>
 
           <div>
-            <label className="block text-sm text-muted-foreground mb-1.5">
+            <label className="block text-sm text-muted-foreground mb-1">
               {t("exclusiveGroup")}
             </label>
+            <p className="text-xs text-muted-foreground/70 mb-2">{t("helpExclusiveGroup")}</p>
             <select
               value={exclusiveGroupId ?? ""}
               onChange={(e) =>
@@ -477,20 +481,6 @@ export default function EditRolePage() {
           </button>
         </DangerZone>
 
-        <div className="border border-border rounded-md p-5 text-sm text-muted-foreground space-y-2 w-full mt-8">
-          <p>
-            <span className="font-medium text-foreground">{t("dependsOn")}:</span>{" "}
-            {t("helpDependsOn")}
-          </p>
-          <p>
-            <span className="font-medium text-foreground">{t("exclusiveGroup")}:</span>{" "}
-            {t("helpExclusiveGroup")}
-          </p>
-          <p>
-            <span className="font-medium text-foreground">{t("highlight")}:</span>{" "}
-            {t("helpHighlight")}
-          </p>
-        </div>
       </section>
 
       <ConfirmDialog

@@ -18,6 +18,7 @@ export interface DateDetailModalProps {
   getDateDisplayTimeRange: (sd: ScheduleDateInfo) => string | null;
   getNoteForScheduleDate: (sd: ScheduleDateInfo) => string | undefined;
   hasConflict: (date: string, memberId: number) => boolean;
+  filteredMemberId?: number | null;
   t: (key: string) => string;
 }
 
@@ -32,6 +33,7 @@ export function DateDetailModal({
   getDateDisplayTimeRange,
   getNoteForScheduleDate,
   hasConflict,
+  filteredMemberId,
   t,
 }: DateDetailModalProps) {
   if (!selectedDate) return null;
@@ -112,17 +114,18 @@ export function DateDetailModal({
                             name: e.memberName,
                             hasConflict: hasConflict(selectedDate, e.memberId),
                           }));
+                        const hasFiltered = filteredMemberId != null && members.some((m) => m.memberId === filteredMemberId);
                         return (
                           <tr
                             key={roleId}
-                            className="border-b border-border/40 last:border-b-0"
+                            className={`border-b border-border/40 last:border-b-0 ${hasFiltered ? "bg-primary/10" : ""}`}
                           >
                             <td className="px-3 py-2 font-medium text-muted-foreground align-top">
                               {name}
                             </td>
                             <td className="px-3 py-2 align-top">
                               {members.length === 1 ? (
-                                <span className="flex items-center gap-1">
+                                <span className={`flex items-center gap-1 ${filteredMemberId === members[0].memberId ? "font-bold text-foreground" : ""}`}>
                                   {members[0].name}
                                   {members[0].hasConflict && (
                                     <span
@@ -142,7 +145,7 @@ export function DateDetailModal({
                                     .map((m) => (
                                       <span
                                         key={m.memberId}
-                                        className="inline-flex items-center gap-0.5"
+                                        className={`inline-flex items-center gap-0.5 ${filteredMemberId === m.memberId ? "font-bold text-foreground" : ""}`}
                                       >
                                         {m.name}
                                         {m.hasConflict && (

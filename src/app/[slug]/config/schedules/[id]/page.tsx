@@ -17,6 +17,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import BackLink from "@/components/BackLink";
 import { DangerZone } from "@/components/DangerZone";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { TogglePill } from "@/components/TogglePill";
 
 interface ScheduleEntry {
   id: number;
@@ -727,15 +728,12 @@ export default function SchedulePreviewPage() {
           {showAddDate ? tCommon("cancel") : t("addDate")}
         </button>
         {hasPastDates && (
-          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showPastDates}
-              onChange={(e) => setShowPastDates(e.target.checked)}
-              className="rounded border-border"
-            />
-            {t("showPastDates")}
-          </label>
+          <TogglePill
+            checked={showPastDates}
+            onChange={setShowPastDates}
+            label={t("showPastDates")}
+            id="show-past-dates"
+          />
         )}
       </div>
       {showAddDate && (

@@ -39,7 +39,7 @@ export function OptionToggleGroup<T>({
             onClick={() => onToggle(item)}
             className={`w-full lg:w-auto rounded-none px-4 py-3 text-sm transition-colors text-left border-r border-b border-border first:border-l-0 last:border-r-0 last:border-b-0 lg:border-b-0 ${
               isSelected(item)
-                ? "bg-primary/5 text-foreground font-medium"
+                ? "bg-primary/10 text-foreground font-medium"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >

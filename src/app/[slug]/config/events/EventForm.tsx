@@ -11,6 +11,7 @@ import { utcTimeToLocalDisplay, localTimeToUtc } from "@/lib/timezone-utils";
 import * as Dialog from "@radix-ui/react-dialog";
 import { DangerZone } from "@/components/DangerZone";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { TogglePill } from "@/components/TogglePill";
 
 interface Role {
   id: number;
@@ -561,19 +562,13 @@ export default function EventForm({
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="event-active"
-              checked={active}
-              onChange={(e) => setActive(e.target.checked)}
-              disabled={isForEveryone}
-              className="rounded border-border w-4 h-4"
-            />
-            <label htmlFor="event-active" className="text-sm cursor-pointer select-none">
-              {t("includeInSchedule")}
-            </label>
-          </div>
+          <TogglePill
+            checked={active}
+            onChange={setActive}
+            label={t("includeInSchedule")}
+            id="event-active"
+            disabled={isForEveryone}
+          />
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">

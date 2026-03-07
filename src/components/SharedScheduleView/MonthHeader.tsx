@@ -2,6 +2,7 @@
 
 import { MONTH_NAMES } from "./types";
 import type { SharedScheduleData } from "./types";
+import { TogglePill } from "@/components/TogglePill";
 
 export interface MonthHeaderProps {
   schedule: Pick<
@@ -177,17 +178,12 @@ export function MonthHeader({
                     </option>
                   ))}
                 </select>
-                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={showPastDates}
-                    onChange={(e) => setShowPastDates(e.target.checked)}
-                    className="rounded border-border"
-                  />
-                  <span className="text-muted-foreground">
-                    {t("showPastDates")}
-                  </span>
-                </label>
+                <TogglePill
+                  checked={showPastDates}
+                  onChange={setShowPastDates}
+                  label={t("showPastDates")}
+                  id="show-past-desktop"
+                />
               </>
             )}
           </div>
@@ -288,17 +284,12 @@ export function MonthHeader({
                     </option>
                   ))}
                 </select>
-                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={showPastDates}
-                    onChange={(e) => setShowPastDates(e.target.checked)}
-                    className="rounded border-border"
-                  />
-                  <span className="text-muted-foreground">
-                    {t("showPastDates")}
-                  </span>
-                </label>
+                <TogglePill
+                  checked={showPastDates}
+                  onChange={setShowPastDates}
+                  label={t("showPastDates")}
+                  id="show-past-mobile"
+                />
               </>
             )}
           </div>

@@ -327,6 +327,18 @@ export default function SharedScheduleView({
 
   const [collapsedWeeks, setCollapsedWeeks] = useState<Set<number>>(new Set());
   const initialCollapseKeyRef = useRef<string | null>(null);
+
+  const desktopTableRef = useRef<HTMLDivElement>(null);
+  const [desktopContainerWidth, setDesktopContainerWidth] = useState(0);
+  useEffect(() => {
+    const el = desktopTableRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setDesktopContainerWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const toggleWeek = useCallback((weekNumber: number) => {
     setCollapsedWeeks((prev) => {
       const next = new Set(prev);
@@ -759,151 +771,34 @@ export default function SharedScheduleView({
         )}
 
         <div
-          className={`hidden lg:block overflow-x-auto space-y-8 ${viewMode !== "list" ? "!hidden" : ""}`}
+          ref={desktopTableRef}
+          className={`hidden lg:block space-y-8 ${viewMode !== "list" ? "!hidden" : ""}`}
         >
-          {filteredMemberId
-            ? displayDatesByWeek.map(({ weekNumber, dates }) => {
-                const isCollapsed = collapsedWeeks.has(weekNumber);
-                return (
-                  <section
-                    key={weekNumber}
-                    className="border border-border rounded-lg overflow-hidden bg-muted/5"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleWeek(weekNumber)}
-                      className="w-full px-4 py-2.5 border-b border-border bg-muted/20 flex items-center justify-between gap-2 text-left hover:bg-muted/30 transition-colors"
-                      aria-expanded={!isCollapsed}
-                    >
-                      <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-                        {t("week")} {weekNumber}
-                        <span className="normal-case font-normal tracking-normal text-muted-foreground/90">
-                          {" · "}
-                          {weekDateRangeLabel(weekNumber)}
-                        </span>
-                      </h2>
-                      <span
-                        className="text-muted-foreground shrink-0"
-                        aria-hidden
-                      >
-                        {isCollapsed ? "▶" : "▼"}
-                      </span>
-                    </button>
-                    {!isCollapsed && (
-                      <table className="w-full border-collapse">
-                        <thead>
-                          <tr className="border-b border-border">
-                            <th className="px-4 py-4 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                              {t("date")}
-                            </th>
-                            <th className="px-4 py-4 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                              {t("role")}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {dates.map((date) => {
-                            const sd =
-                              scheduleDateByDateMap.get(date) ?? {
-                                date,
-                                type: "assignable" as const,
-                              };
-                            const isRehearsal = rehearsalSet.has(date);
-                            const note = getNoteForScheduleDate(sd);
-                            const depRoleDate = hasDependentRoleOnDate(date);
-                            const relevantRoleDate = hasRelevantRoleOnDate(date);
-                            const highlighted = depRoleDate || relevantRoleDate;
-                            return (
-                              <tr
-                                key={date}
-                                className={[
-                                  "border-b border-border",
-                                  isRehearsal ? "bg-muted/20" : highlighted ? "bg-muted/30" : "",
-                                  isPast(date) ? "opacity-50" : "",
-                                  "hover:bg-muted/20 transition-colors",
-                                ]
-                                  .filter(Boolean)
-                                  .join(" ")}
-                              >
-                                <td
-                                  className={`px-4 py-4 text-sm align-middle ${highlighted ? "border-l-2 border-l-foreground" : ""}`}
-                                >
-                                  <div>
-                                    <div className="font-medium">
-                                      {formatDateWeekdayDay(date)}
-                                    </div>
-                                    {!isRehearsal &&
-                                      getDateDisplayLabel(sd) && (
-                                        <div className="text-xs text-muted-foreground italic mt-0.5">
-                                          {getDateDisplayLabel(sd)}
-                                        </div>
-                                      )}
-                                    {!isRehearsal &&
-                                      getDateDisplayTimeRange(sd) && (
-                                        <div className="text-xs text-muted-foreground mt-0.5">
-                                          {getDateDisplayTimeRange(sd)}
-                                        </div>
-                                      )}
-                                    {depRoleDate && (
-                                      <span className="text-xs font-medium block mt-0.5">
-                                        ★{" "}
-                                        {getDependentRoleNamesOnDate(date).join(
-                                          ", "
-                                        )}
-                                      </span>
-                                    )}
-                                  </div>
-                                  {note && (
-                                    <div className="text-xs text-accent font-normal mt-0.5">
-                                      {note}
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="px-4 py-4 text-sm align-middle">
-                                  {isRehearsal ? (
-                                    <span className="text-muted-foreground/40">
-                                      —
-                                    </span>
-                                  ) : (() => {
-                                    const dateEntries = filteredEntries.filter(
-                                      (e) => e.date === date
-                                    );
-                                    const roleNames = [
-                                      ...new Set(
-                                        dateEntries.map((e) => e.roleName)
-                                      ),
-                                    ];
-                                    if (roleNames.length === 0)
-                                      return (
-                                        <span className="text-muted-foreground/40">
-                                          —
-                                        </span>
-                                      );
-                                    return (
-                                      <ul className="list-disc list-inside text-xs font-medium space-y-0.5">
-                                        {roleNames.map((name) => (
-                                          <li key={name}>{name}</li>
-                                        ))}
-                                      </ul>
-                                    );
-                                  })()}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    )}
-                  </section>
-                );
-              })
-            : (() => {
+          {(() => {
                 const visibleRoles = filteredRoleId
                   ? roleOrder.filter((r) => r.id === filteredRoleId)
                   : roleOrder;
+                const desktopDatesByWeek = filteredMemberId ? displayDatesByWeek : tableDatesByWeek;
+                const COL_MIN_WIDTH = 130;
+                const DATE_COL_WIDTH = 170;
+                const estimatedTableWidth = visibleRoles.length * COL_MIN_WIDTH + DATE_COL_WIDTH;
+                const useCardLayout = desktopContainerWidth > 0 && estimatedTableWidth > desktopContainerWidth;
+
+                const renderMemberName = (memberId: number, memberName: string, date: string) => (
+                  <span className={`inline-flex items-center gap-0.5 text-xs ${filteredMemberId === memberId ? "font-bold text-foreground" : "font-medium"}`}>
+                    {memberName}
+                    {hasConflict(date, memberId) && (
+                      <span className="text-amber-500 shrink-0" title={t("conflictWithHolidays")}>⚠</span>
+                    )}
+                  </span>
+                );
+
+                const hasFilteredMember = (entries: typeof schedule.entries) =>
+                  filteredMemberId != null && entries.some((e) => e.memberId === filteredMemberId);
+
                 return (
                   <>
-                    {tableDatesByWeek.map(({ weekNumber, dates }) => {
+                    {desktopDatesByWeek.map(({ weekNumber, dates }) => {
                       const isCollapsed = collapsedWeeks.has(weekNumber);
                       return (
                         <section
@@ -930,159 +825,201 @@ export default function SharedScheduleView({
                               {isCollapsed ? "▶" : "▼"}
                             </span>
                           </button>
-                          {!isCollapsed && (
-                            <table className="w-full border-collapse">
-                              <thead>
-                                <tr className="border-b border-border">
-                                  <th className="px-4 py-4 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                                    {t("date")}
-                                  </th>
-                                  {visibleRoles.map((role) => (
-                                    <th
-                                      key={role.id}
-                                      className="px-4 py-4 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground"
-                                    >
-                                      {role.name}
+                          {!isCollapsed && useCardLayout && (
+                            <div className="divide-y divide-border">
+                              {dates.map((date) => {
+                                const sd = scheduleDateByDateMap.get(date) ?? { date, type: "assignable" as const };
+                                const isRehearsal = rehearsalSet.has(date);
+                                const entriesOnDate = schedule.entries.filter(
+                                  (e) => e.date === date && (!filteredRoleId || e.roleId === filteredRoleId)
+                                );
+                                const note = getNoteForScheduleDate(sd);
+                                const label = !isRehearsal ? getDateDisplayLabel(sd) : null;
+                                const timeRange = getDateDisplayTimeRange(sd);
+                                return (
+                                  <div
+                                    key={date}
+                                    className={`px-4 py-3.5 ${isPast(date) ? "opacity-50" : ""} ${isRehearsal ? "bg-muted/20" : ""}`}
+                                  >
+                                    <div className="flex items-baseline justify-between gap-2">
+                                      <span className="font-medium text-sm">{formatDateWeekdayDay(date)}</span>
+                                      {label && (
+                                        <span className="text-xs text-muted-foreground italic shrink-0">{label}</span>
+                                      )}
+                                    </div>
+                                    {timeRange && (
+                                      <p className="text-xs text-muted-foreground mt-0.5">{timeRange}</p>
+                                    )}
+                                    {isRehearsal ? (
+                                      <p className="text-sm text-muted-foreground italic mt-1">
+                                        {getDateDisplayLabel(sd) || "Ensayo"}
+                                      </p>
+                                    ) : entriesOnDate.length > 0 ? (
+                                      <div className="mt-2 rounded-md border border-border/40 overflow-hidden">
+                                        <table className="w-full text-sm border-collapse">
+                                          <tbody>
+                                            {visibleRoles.map((role) => {
+                                              const roleEntries = entriesOnDate.filter((e) => e.roleId === role.id);
+                                              if (roleEntries.length === 0) return null;
+                                              return (
+                                                <tr key={role.id} className={`border-b border-border/40 last:border-b-0 ${hasFilteredMember(roleEntries) ? "bg-primary/10" : ""}`}>
+                                                  <td className="px-3 py-1.5 text-xs font-medium text-muted-foreground align-top w-1/3">
+                                                    {role.name}
+                                                  </td>
+                                                  <td className="px-3 py-1.5 align-top">
+                                                    {roleEntries.length === 1 ? (
+                                                      renderMemberName(roleEntries[0].memberId, roleEntries[0].memberName, date)
+                                                    ) : (
+                                                      <span className="flex flex-col gap-0.5">
+                                                        {[...roleEntries]
+                                                          .sort((a, b) => a.memberName.localeCompare(b.memberName, "es"))
+                                                          .map((e) => (
+                                                            <React.Fragment key={e.id}>
+                                                              {renderMemberName(e.memberId, e.memberName, date)}
+                                                            </React.Fragment>
+                                                          ))}
+                                                      </span>
+                                                    )}
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    ) : null}
+                                    {note && (
+                                      <p className="text-xs text-accent mt-1.5">{note}</p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {!isCollapsed && !useCardLayout && (
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse">
+                                <thead>
+                                  <tr className="border-b border-border">
+                                    <th className="px-4 py-4 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                                      {t("date")}
                                     </th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {dates.map((date) => {
-                                  const sd =
-                                    scheduleDateByDateMap.get(date) ?? {
-                                      date,
-                                      type: "assignable" as const,
-                                    };
-                                  const isRehearsal = rehearsalSet.has(date);
-                                  const entriesOnDate = filteredEntries.filter(
-                                    (e) => e.date === date
-                                  );
-                                  const note = getNoteForScheduleDate(sd);
-                                  return (
-                                    <tr
-                                      key={date}
-                                      className={[
-                                        "border-b border-border",
-                                        isRehearsal ? "bg-muted/20" : "",
-                                        isPast(date) ? "opacity-50" : "",
-                                        "hover:bg-muted/20 transition-colors",
-                                      ]
-                                        .filter(Boolean)
-                                        .join(" ")}
-                                    >
-                                      <td className="px-4 py-4 text-sm font-medium whitespace-nowrap align-middle">
-                                        <div>
-                                          {formatDateWeekdayDay(date)}
-                                        </div>
-                                        {!isRehearsal &&
-                                          getDateDisplayLabel(sd) && (
-                                            <div className="text-xs text-muted-foreground italic font-normal mt-0.5">
-                                              {getDateDisplayLabel(sd)}
-                                            </div>
-                                          )}
-                                        {!isRehearsal &&
-                                          getDateDisplayTimeRange(sd) && (
-                                            <div className="text-xs text-muted-foreground font-normal mt-0.5">
-                                              {getDateDisplayTimeRange(sd)}
-                                            </div>
-                                          )}
-                                        {note && (
-                                          <div className="text-xs text-accent font-normal mt-0.5">
-                                            {note}
+                                    {visibleRoles.map((role) => (
+                                      <th
+                                        key={role.id}
+                                        className="px-4 py-4 text-left text-xs font-medium uppercase tracking-widest text-muted-foreground"
+                                      >
+                                        {role.name}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {dates.map((date) => {
+                                    const sd =
+                                      scheduleDateByDateMap.get(date) ?? {
+                                        date,
+                                        type: "assignable" as const,
+                                      };
+                                    const isRehearsal = rehearsalSet.has(date);
+                                    const entriesOnDate = schedule.entries.filter(
+                                      (e) => e.date === date && (!filteredRoleId || e.roleId === filteredRoleId)
+                                    );
+                                    const note = getNoteForScheduleDate(sd);
+                                    return (
+                                      <tr
+                                        key={date}
+                                        className={[
+                                          "border-b border-border",
+                                          isRehearsal ? "bg-muted/20" : "",
+                                          isPast(date) ? "opacity-50" : "",
+                                          "hover:bg-muted/20 transition-colors",
+                                        ]
+                                          .filter(Boolean)
+                                          .join(" ")}
+                                      >
+                                        <td className="px-4 py-4 text-sm font-medium whitespace-nowrap align-middle">
+                                          <div>
+                                            {formatDateWeekdayDay(date)}
                                           </div>
-                                        )}
-                                      </td>
-                                      {isRehearsal ? (
-                                        <td
-                                          colSpan={visibleRoles.length}
-                                          className="px-4 py-4 text-sm text-muted-foreground italic text-center"
-                                        >
-                                          {getDateDisplayLabel(sd) || "Ensayo"}
-                                          {getDateDisplayTimeRange(sd) && (
-                                            <div className="text-xs mt-0.5 font-normal">
-                                              {getDateDisplayTimeRange(sd)}
+                                          {!isRehearsal &&
+                                            getDateDisplayLabel(sd) && (
+                                              <div className="text-xs text-muted-foreground italic font-normal mt-0.5">
+                                                {getDateDisplayLabel(sd)}
+                                              </div>
+                                            )}
+                                          {!isRehearsal &&
+                                            getDateDisplayTimeRange(sd) && (
+                                              <div className="text-xs text-muted-foreground font-normal mt-0.5">
+                                                {getDateDisplayTimeRange(sd)}
+                                              </div>
+                                            )}
+                                          {note && (
+                                            <div className="text-xs text-accent font-normal mt-0.5">
+                                              {note}
                                             </div>
                                           )}
                                         </td>
-                                      ) : (
-                                        visibleRoles.map((role) => {
-                                          const roleEntries =
-                                            entriesOnDate.filter(
-                                              (e) => e.roleId === role.id
-                                            );
-                                          return (
-                                            <td
-                                              key={role.id}
-                                              className="px-4 py-4 text-sm align-middle"
-                                            >
-                                              {roleEntries.length === 0 ? (
-                                                <span className="text-muted-foreground/40">
-                                                  —
-                                                </span>
-                                              ) : roleEntries.length === 1 ? (
-                                                <span className="font-medium text-xs">
-                                                  {roleEntries[0].memberName}
-                                                  {hasConflict(
-                                                    date,
-                                                    roleEntries[0].memberId
-                                                  ) && (
-                                                    <span
-                                                      className="text-amber-500 ml-0.5"
-                                                      title={t(
-                                                        "conflictWithHolidays"
-                                                      )}
-                                                    >
-                                                      ⚠
-                                                    </span>
-                                                  )}
-                                                </span>
-                                              ) : (
-                                                <span className="text-xs font-medium">
-                                                  {[...roleEntries]
-                                                    .sort((a, b) =>
-                                                      a.memberName.localeCompare(
-                                                        b.memberName,
-                                                        "es"
+                                        {isRehearsal ? (
+                                          <td
+                                            colSpan={visibleRoles.length}
+                                            className="px-4 py-4 text-sm text-muted-foreground italic text-center"
+                                          >
+                                            {getDateDisplayLabel(sd) || "Ensayo"}
+                                            {getDateDisplayTimeRange(sd) && (
+                                              <div className="text-xs mt-0.5 font-normal">
+                                                {getDateDisplayTimeRange(sd)}
+                                              </div>
+                                            )}
+                                          </td>
+                                        ) : (
+                                          visibleRoles.map((role) => {
+                                            const roleEntries =
+                                              entriesOnDate.filter(
+                                                (e) => e.roleId === role.id
+                                              );
+                                            return (
+                                              <td
+                                                key={role.id}
+                                                className={`px-4 py-4 text-sm align-middle ${hasFilteredMember(roleEntries) ? "bg-primary/10" : ""}`}
+                                              >
+                                                {roleEntries.length === 0 ? (
+                                                  <span className="text-muted-foreground/40">
+                                                    —
+                                                  </span>
+                                                ) : roleEntries.length === 1 ? (
+                                                  renderMemberName(roleEntries[0].memberId, roleEntries[0].memberName, date)
+                                                ) : (
+                                                  <span className="text-xs">
+                                                    {[...roleEntries]
+                                                      .sort((a, b) =>
+                                                        a.memberName.localeCompare(
+                                                          b.memberName,
+                                                          "es"
+                                                        )
                                                       )
-                                                    )
-                                                    .map((e, i) => (
-                                                      <span
-                                                        key={e.id}
-                                                        className="inline-flex items-center gap-0.5"
-                                                      >
-                                                        {i > 0 && (
-                                                          <span className="text-muted-foreground">
-                                                            ,{" "}
-                                                          </span>
-                                                        )}
-                                                        {e.memberName}
-                                                        {hasConflict(
-                                                          date,
-                                                          e.memberId
-                                                        ) && (
-                                                          <span
-                                                            className="text-amber-500 shrink-0"
-                                                            title={t(
-                                                              "conflictWithHolidays"
-                                                            )}
-                                                          >
-                                                            ⚠
-                                                          </span>
-                                                        )}
-                                                      </span>
-                                                    ))}
-                                                </span>
-                                              )}
-                                            </td>
-                                          );
-                                        })
-                                      )}
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
+                                                      .map((e, i) => (
+                                                        <React.Fragment key={e.id}>
+                                                          {i > 0 && (
+                                                            <span className="text-muted-foreground">
+                                                              ,{" "}
+                                                            </span>
+                                                          )}
+                                                          {renderMemberName(e.memberId, e.memberName, date)}
+                                                        </React.Fragment>
+                                                      ))}
+                                                  </span>
+                                                )}
+                                              </td>
+                                            );
+                                          })
+                                        )}
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
                           )}
                         </section>
                       );
@@ -1116,6 +1053,7 @@ export default function SharedScheduleView({
         getDateDisplayTimeRange={getDateDisplayTimeRange}
         getNoteForScheduleDate={getNoteForScheduleDate}
         hasConflict={hasConflict}
+        filteredMemberId={filteredMemberId}
         t={t}
       />
     </div>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import LoadingScreen from "@/components/LoadingScreen";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { TogglePill } from "@/components/TogglePill";
 
 interface UserRow {
   id: string;
@@ -191,78 +192,67 @@ export default function AdminPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4 sm:space-y-0 sm:divide-y sm:divide-border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {users.map((user) => (
                 <div
                   key={user.id}
-                  className="rounded-xl border border-border bg-card p-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:pt-5 sm:pb-5 sm:first:pt-0"
+                  className="rounded-xl border border-border bg-card p-4 flex flex-col gap-4"
                 >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-0">
-                    {/* User info */}
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {user.image && (
-                        // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL; next/image would need explicit dimensions
-                        <img
-                          src={user.image}
-                          alt=""
-                          className="h-9 w-9 rounded-full shrink-0"
-                        />
-                      )}
-                      <div className="min-w-0">
-                        <p className="font-medium truncate text-foreground">{user.name ?? t("noName")}</p>
-                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                      </div>
+                  {/* User info */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    {user.image && (
+                      // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL; next/image would need explicit dimensions
+                      <img
+                        src={user.image}
+                        alt=""
+                        className="h-9 w-9 rounded-full shrink-0"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-medium truncate text-foreground">{user.name ?? t("noName")}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     </div>
+                  </div>
 
-                    {/* Toggles: stacked on mobile with space, horizontal on desktop with generous gap */}
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-8 sm:shrink-0">
-                      <label className="flex items-center gap-2.5 cursor-pointer py-1">
-                        <input
-                          type="checkbox"
-                          checked={user.isAdmin}
-                          onChange={(e) => toggleFlag(user.id, "isAdmin", e.target.checked)}
-                          className="h-4 w-4 rounded border-border accent-primary"
-                        />
-                        <span className="text-sm">{t("adminFlag")}</span>
-                      </label>
-                      <label className="flex items-center gap-2.5 cursor-pointer py-1">
-                        <input
-                          type="checkbox"
-                          checked={user.canCreateGroups}
-                          onChange={(e) => toggleFlag(user.id, "canCreateGroups", e.target.checked)}
-                          className="h-4 w-4 rounded border-border accent-primary"
-                        />
-                        <span className="text-sm">{t("createGroupsFlag")}</span>
-                      </label>
-                      <label className="flex items-center gap-2.5 cursor-pointer py-1">
-                        <input
-                          type="checkbox"
-                          checked={user.canExportCalendars}
-                          onChange={(e) => toggleFlag(user.id, "canExportCalendars", e.target.checked)}
-                          className="h-4 w-4 rounded border-border accent-primary"
-                        />
-                        <span className="text-sm">{t("userCalendarExportFlag")}</span>
-                      </label>
-                    </div>
+                  {/* Toggles */}
+                  <div className="flex flex-col gap-1">
+                    <TogglePill
+                      checked={user.isAdmin}
+                      onChange={(v) => toggleFlag(user.id, "isAdmin", v)}
+                      label={t("adminFlag")}
+                      id={`admin-${user.id}`}
+                    />
+                    <TogglePill
+                      checked={user.canCreateGroups}
+                      onChange={(v) => toggleFlag(user.id, "canCreateGroups", v)}
+                      label={t("createGroupsFlag")}
+                      id={`create-groups-${user.id}`}
+                    />
+                    <TogglePill
+                      checked={user.canExportCalendars}
+                      onChange={(v) => toggleFlag(user.id, "canExportCalendars", v)}
+                      label={t("userCalendarExportFlag")}
+                      id={`export-cal-${user.id}`}
+                    />
+                  </div>
 
-                    {/* Actions: same row on both, extra padding on mobile for touch */}
-                    <div className="flex items-center gap-2 pt-1 border-t border-border sm:border-t-0 sm:pt-0 sm:pl-6">
-                      <button
-                        type="button"
-                        onClick={() => startImpersonating(user.id)}
-                        disabled={impersonatingUserId === user.id}
-                        className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors disabled:opacity-50 sm:py-1.5"
-                      >
-                        {impersonatingUserId === user.id ? "…" : t("impersonate")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteUser(user.id, user.name)}
-                        className="rounded-lg border border-border px-3 py-2 text-xs text-destructive hover:border-destructive transition-colors sm:py-1.5"
-                      >
-                        {t("delete")}
-                      </button>
-                    </div>
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 mt-auto">
+                    <button
+                      type="button"
+                      onClick={() => startImpersonating(user.id)}
+                      disabled={impersonatingUserId === user.id}
+                      className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-foreground/50 transition-colors disabled:opacity-50"
+                    >
+                      {impersonatingUserId === user.id ? "…" : t("impersonate")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteUser(user.id, user.name)}
+                      className="rounded-lg border border-border px-3 py-2 text-xs text-destructive hover:border-destructive transition-colors"
+                    >
+                      {t("delete")}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -278,42 +268,37 @@ export default function AdminPage() {
           {groups.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noGroups")}</p>
           ) : (
-            <div className="space-y-4 sm:space-y-0 sm:divide-y sm:divide-border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {groups.map((group) => (
                 <div
                   key={group.id}
-                  className="rounded-xl border border-border bg-card p-4 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-0 sm:pt-5 sm:pb-5 sm:first:pt-0"
+                  className="rounded-xl border border-border bg-card p-4 flex flex-col gap-4"
                 >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-0">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate text-foreground">{group.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{group.slug}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {t("summaryCounts", {
-                          members: group.membersCount,
-                          events: group.eventsCount,
-                          schedules: group.schedulesCount,
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 sm:gap-6 sm:shrink-0">
-                      <label className="flex items-center gap-2.5 cursor-pointer py-1">
-                        <input
-                          type="checkbox"
-                          checked={group.calendarExportEnabled}
-                          onChange={(e) => toggleCalendarExport(group.id, e.target.checked)}
-                          className="h-4 w-4 rounded border-border accent-primary"
-                        />
-                        <span className="text-sm">{t("calendarExportFlag")}</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => deleteGroup(group)}
-                        className="rounded-lg border border-border px-3 py-2 text-xs text-destructive hover:border-destructive transition-colors sm:py-1.5"
-                      >
-                        {t("delete")}
-                      </button>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="font-medium truncate text-foreground">{group.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{group.slug}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t("summaryCounts", {
+                        members: group.membersCount,
+                        events: group.eventsCount,
+                        schedules: group.schedulesCount,
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-auto">
+                    <TogglePill
+                      checked={group.calendarExportEnabled}
+                      onChange={(v) => toggleCalendarExport(group.id, v)}
+                      label={t("calendarExportFlag")}
+                      id={`cal-export-${group.id}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => deleteGroup(group)}
+                      className="rounded-lg border border-border px-3 py-2 text-xs text-destructive hover:border-destructive transition-colors shrink-0"
+                    >
+                      {t("delete")}
+                    </button>
                   </div>
                 </div>
               ))}
