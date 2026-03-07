@@ -24,6 +24,7 @@ import {
   validateDateInScheduleMonth,
 } from "@/lib/schedule-model";
 import { logScheduleAction } from "@/lib/audit-log";
+import { revalidateCronograma } from "@/lib/public-schedule";
 
 export async function GET(
   _request: NextRequest,
@@ -212,6 +213,7 @@ export async function PUT(
       .where(eq(schedules.id, scheduleId));
 
     await logScheduleAction(scheduleId, authResult.user.id, "published", "Cronograma publicado");
+    await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
 
     return NextResponse.json({
       ...schedule,
@@ -237,6 +239,7 @@ export async function PUT(
       .set({ memberId: body.newMemberId })
       .where(eq(scheduleDateAssignments.id, body.entryId));
 
+    await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
     return NextResponse.json({ success: true });
   }
 
@@ -257,6 +260,7 @@ export async function PUT(
     await db.delete(scheduleDateAssignments)
       .where(eq(scheduleDateAssignments.id, body.entryId));
 
+    await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
     return NextResponse.json({ success: true });
   }
 
@@ -328,6 +332,7 @@ export async function PUT(
       memberId: body.memberId,
     });
 
+    await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
     return NextResponse.json({ success: true });
   }
 
@@ -360,6 +365,7 @@ export async function PUT(
     await db.delete(scheduleDateAssignments)
       .where(eq(scheduleDateAssignments.id, body.entryId));
 
+    await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
     return NextResponse.json({ success: true });
   }
 
@@ -486,6 +492,7 @@ export async function PUT(
       });
     }
 
+    await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
     return NextResponse.json({ success: true });
   }
 
@@ -624,6 +631,7 @@ export async function PUT(
       added: preview,
     });
 
+    await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
     return NextResponse.json({ success: true });
   }
 
@@ -660,6 +668,7 @@ export async function PUT(
     const typeLabel = type === "assignable" ? "Asignación" : (label ?? "Actividad");
     await logScheduleAction(scheduleId, authResult.user.id, "add_date", `Fecha agregada: ${dateStr} (${typeLabel})`);
 
+    await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
     return NextResponse.json({ success: true });
   }
 
@@ -722,6 +731,7 @@ export async function PUT(
       await logScheduleAction(scheduleId, authResult.user.id, "date_updated", `Fecha actualizada: ${sd.date}`);
     }
 
+    await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
     return NextResponse.json({ success: true });
   }
 
@@ -745,6 +755,7 @@ export async function PUT(
         );
       }
       await logScheduleAction(scheduleId, authResult.user.id, "remove_date", `Evento eliminado: ${deleted[0].date}`);
+      await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
     } else if (body.date) {
       const dateStr = body.date as string;
       const deleted = await db
@@ -764,6 +775,7 @@ export async function PUT(
         );
       }
       await logScheduleAction(scheduleId, authResult.user.id, "remove_date", `Fecha eliminada: ${dateStr}`);
+      await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
     } else {
       return apiError("Indica scheduleDateId o date", 400, "VALIDATION");
     }
@@ -798,5 +810,6 @@ export async function DELETE(
   }
 
   await db.delete(schedules).where(eq(schedules.id, scheduleId));
+  await revalidateCronograma(existing.groupId, existing.month, existing.year);
   return NextResponse.json({ success: true });
 }

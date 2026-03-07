@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { db } from "./db";
 import {
   schedules,
@@ -10,6 +11,22 @@ import {
 } from "@/db/schema";
 import { eq, and, or, lt, gt, asc, desc } from "drizzle-orm";
 import { getHolidayConflicts } from "./holiday-conflicts";
+
+/**
+ * Revalidate the public cronograma page for a schedule's month.
+ * Call after any mutation that changes the public view (commit, assignment
+ * edit, date add/remove, note change, schedule delete).
+ */
+export async function revalidateCronograma(groupId: number, month: number, year: number) {
+  const group = await db
+    .select({ slug: groups.slug })
+    .from(groups)
+    .where(eq(groups.id, groupId))
+    .then((rows) => rows[0]);
+  if (group) {
+    revalidatePath(`/${group.slug}/cronograma/${year}/${month}`);
+  }
+}
 
 /**
  * Build the full public schedule response for a committed schedule.
@@ -147,7 +164,7 @@ export async function buildPublicScheduleResponse(schedule: {
     scheduleDates: scheduleDates.map((sd) => ({
       id: sd.id,
       date: sd.date,
-      type: String(sd.type).toLowerCase() === "for_everyone" ? "for_everyone" : "assignable",
+      type: (String(sd.type).toLowerCase() === "for_everyone" ? "for_everyone" : "assignable") as "assignable" | "for_everyone",
       label: sd.label,
       note: sd.note,
       startTimeUtc: sd.startTimeUtc ?? "00:00",

@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { requireAuth, hasGroupAccess, apiError, parseBody } from "@/lib/api-helpers";
 import { logScheduleAction } from "@/lib/audit-log";
 import { scheduleNoteSchema } from "@/lib/schemas";
+import { revalidateCronograma } from "@/lib/public-schedule";
 
 export async function GET(
   _request: NextRequest,
@@ -46,7 +47,7 @@ export async function POST(
 
   const { id } = await params;
   const scheduleId = parseInt(id, 10);
-  const schedule = (await db.select({ groupId: schedules.groupId }).from(schedules).where(eq(schedules.id, scheduleId)))[0];
+  const schedule = (await db.select({ groupId: schedules.groupId, month: schedules.month, year: schedules.year }).from(schedules).where(eq(schedules.id, scheduleId)))[0];
   if (!schedule) {
     return apiError("Cronograma no encontrado", 404, "NOT_FOUND");
   }
@@ -79,6 +80,7 @@ export async function POST(
     .where(eq(scheduleDate.id, existing.id));
 
   await logScheduleAction(scheduleId, authResult.user.id, "note_saved", `Nota guardada para ${date}`);
+  await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
   return NextResponse.json({ date: existing.date, description });
 }
 
@@ -91,7 +93,7 @@ export async function DELETE(
 
   const { id } = await params;
   const scheduleId = parseInt(id, 10);
-  const schedule = (await db.select({ groupId: schedules.groupId }).from(schedules).where(eq(schedules.id, scheduleId)))[0];
+  const schedule = (await db.select({ groupId: schedules.groupId, month: schedules.month, year: schedules.year }).from(schedules).where(eq(schedules.id, scheduleId)))[0];
   if (!schedule) {
     return apiError("Cronograma no encontrado", 404, "NOT_FOUND");
   }
@@ -132,5 +134,6 @@ export async function DELETE(
     .where(eq(scheduleDate.id, existing.id));
 
   await logScheduleAction(scheduleId, authResult.user.id, "note_deleted", `Nota eliminada para ${date}`);
+  await revalidateCronograma(schedule.groupId, schedule.month, schedule.year);
   return NextResponse.json({ success: true });
 }

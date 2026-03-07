@@ -51,6 +51,8 @@ The app uses **Next.js App Router**, is **mobile-first**, and all user-facing co
 | `/[slug]/cronograma` | Redirects (302) to `/[slug]/cronograma/[year]/[month]` for current month | `src/app/[slug]/cronograma/page.tsx` |
 | `/[slug]/cronograma/[year]/[month]` | Schedule view for that month; "Guardar en calendario" adds events to Google Calendar | `src/app/[slug]/cronograma/[year]/[month]/page.tsx` |
 
+**Server-rendered cronograma:** The `[year]/[month]` page is an **async Server Component** that fetches schedule data directly via `buildPublicScheduleResponse` (no client-side fetch waterfall). ISR caching with `revalidate = 300` (5-minute fallback); on-demand revalidation via `revalidateCronograma()` from `src/lib/public-schedule.ts` is called in all schedule mutation routes so changes are reflected immediately. The existing `loading.tsx` skeleton shows via Suspense while the server fetches data.
+
 **Loading UI:** `src/app/loading.tsx` (dashboard/generic skeleton), `src/app/[slug]/config/loading.tsx` (config list skeleton), `src/app/[slug]/cronograma/[year]/[month]/loading.tsx` (cronograma grid skeleton) show route-level skeletons during navigation.
 
 **Error boundaries:** `src/app/error.tsx` (root), `src/app/[slug]/config/error.tsx`, `src/app/[slug]/cronograma/error.tsx` catch runtime/fetch errors and show a message with "Reintentar" and "Volver".

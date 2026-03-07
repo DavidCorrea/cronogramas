@@ -1,45 +1,48 @@
-"use client";
+import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
+import { db } from "@/lib/db";
+import { schedules } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
+import { resolveGroupBySlug } from "@/lib/group";
+import { buildPublicScheduleResponse } from "@/lib/public-schedule";
+import SharedScheduleView from "@/components/SharedScheduleView";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
-import { useTranslations } from "next-intl";
-import SharedScheduleView, {
-  SharedScheduleData,
-} from "@/components/SharedScheduleView";
-import LoadingScreen from "@/components/LoadingScreen";
+export const revalidate = 300;
 
-export default function SharedSchedulePage() {
-  const params = useParams();
-  const slug = params.slug as string;
-  const t = useTranslations("cronograma");
-  const [schedule, setSchedule] = useState<SharedScheduleData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+export default async function SharedSchedulePage({
+  params,
+}: {
+  params: Promise<{ slug: string; year: string; month: string }>;
+}) {
+  const { slug, year: yearStr, month: monthStr } = await params;
 
-  const fetchSchedule = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/cronograma/${slug}/${params.year}/${params.month}`);
-      if (!res.ok) {
-        setError(true);
-        setLoading(false);
-        return;
-      }
-      setSchedule(await res.json());
-    } catch {
-      setError(true);
-    }
-    setLoading(false);
-  }, [slug, params.year, params.month]);
-
-  useEffect(() => {
-    queueMicrotask(() => fetchSchedule());
-  }, [fetchSchedule]);
-
-  if (loading) {
-    return <LoadingScreen fullPage />;
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+    notFound();
   }
 
-  if (error || !schedule) {
+  const group = await resolveGroupBySlug(slug);
+  if (!group) {
+    notFound();
+  }
+
+  const schedule = (
+    await db
+      .select()
+      .from(schedules)
+      .where(
+        and(
+          eq(schedules.groupId, group.id),
+          eq(schedules.month, month),
+          eq(schedules.year, year),
+          eq(schedules.status, "committed"),
+        ),
+      )
+  )[0];
+
+  if (!schedule) {
+    const t = await getTranslations("cronograma");
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
         <div className="text-center">
@@ -52,5 +55,18 @@ export default function SharedSchedulePage() {
     );
   }
 
-  return <SharedScheduleView schedule={schedule} basePath={`/${slug}/cronograma`} slug={slug} />;
+  const data = await buildPublicScheduleResponse({
+    id: schedule.id,
+    month: schedule.month,
+    year: schedule.year,
+    groupId: group.id,
+  });
+
+  return (
+    <SharedScheduleView
+      schedule={data}
+      basePath={`/${slug}/cronograma`}
+      slug={slug}
+    />
+  );
 }

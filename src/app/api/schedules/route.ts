@@ -11,6 +11,7 @@ import { loadScheduleConfig, getPreviousAssignments } from "@/lib/schedule-helpe
 import { generateGroupSchedule } from "@/lib/schedule-model";
 import { requireGroupAccess } from "@/lib/api-helpers";
 import { logScheduleAction } from "@/lib/audit-log";
+import { revalidateCronograma } from "@/lib/public-schedule";
 
 const MONTH_NAMES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -130,6 +131,8 @@ export async function POST(request: NextRequest) {
       assignments: result.assignments,
       unfilledSlots: result.unfilledSlots,
     });
+
+    await revalidateCronograma(groupId, month, year);
   }
 
   return NextResponse.json(createdSchedules, { status: 201 });
