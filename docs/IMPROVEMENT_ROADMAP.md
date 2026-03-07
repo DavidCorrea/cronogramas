@@ -16,8 +16,8 @@ This plan groups improvements into themes. Each theme can be implemented indepen
 
 | Section | Key files / modules |
 |--------|----------------------|
-| Security | `src/app/api/schedules/[id]/notes/route.ts`, `src/app/api/groups/route.ts`, `src/app/api/auth/callback/google-calendar/route.ts`, `src/lib/api-helpers.ts`, `src/lib/rate-limit.ts`, `src/lib/schemas/` |
-| §1 Library usage | `src/app/layout.tsx`, `src/i18n/request.ts`, `src/app/page.tsx`, `src/app/admin/page.tsx`, `package.json` |
+| Security | `src/lib/schemas/`, `src/lib/api-helpers.ts`, routes under `src/app/api/` |
+| §1 Library usage | `src/app/layout.tsx`, `src/i18n/request.ts`, `src/app/page.tsx`, `src/app/admin/page.tsx`, `src/app/settings/page.tsx`, `src/app/asignaciones/page.tsx`, `src/app/[slug]/config/holidays/page.tsx`, `src/app/[slug]/config/collaborators/page.tsx`, `src/app/[slug]/cronograma/[year]/[month]/page.tsx`, `src/lib/group-context.tsx`, `src/lib/config-queries.ts`, `src/components/SharedScheduleView/index.tsx`, `package.json` |
 | §2 Accessibility | `src/app/layout.tsx`, `src/components/AppNavBar.tsx`, `src/components/SharedScheduleView/`, `messages/es.json` |
 | §3 Performance | `src/lib/public-schedule.ts`, `src/components/SharedScheduleView/` |
 | §4 Client data/forms | `src/lib/schemas/`, `src/lib/api-helpers.ts`, forms under `src/app/[slug]/config/` |
@@ -32,48 +32,6 @@ This plan groups improvements into themes. Each theme can be implemented indepen
 ---
 
 ## Security
-
-**Schedule notes GET unauthenticated**  
-`GET /api/schedules/[id]/notes` returns date notes for any schedule ID without requiring authentication. Schedule IDs are exposed in the config UI (and in public cronograma API responses as `id`). Anyone who knows or guesses a schedule ID can enumerate and read all notes (date + description) for that schedule. **Recommendation:** Require authentication and group access (e.g. `requireAuth()` then `hasGroupAccess(userId, schedule.groupId)`) for GET notes, consistent with POST/DELETE on the same route.
-
-- **Where to look:** `src/app/api/schedules/[id]/notes/route.ts` (GET handler); `src/lib/api-helpers.ts` for `requireAuth`, `hasGroupAccess`; load schedule to get `groupId` (e.g. from `schedule_date` or schedules table).
-- **Done when:** GET notes returns 401 without session and 403 when user lacks group access; POST/DELETE unchanged. Update docs/API.md (auth for GET notes).
-
-**Group metadata by slug without access check**  
-`GET /api/groups?slug=xxx` returns the full group row (id, name, slug, ownerId, calendarExportEnabled, etc.) for any slug without verifying that the requester owns, collaborates on, or is a member of that group. Any authenticated user can probe for group existence and read group metadata by guessing or enumerating slugs. **Recommendation:** When `slug` is provided, resolve the group then check `hasGroupAccess(user.id, group.id)` (or membership); return 403 if the user has no access, and 404 only when the group does not exist (to avoid slug enumeration if desired), or 403 for both to simplify.
-
-- **Where to look:** `src/app/api/groups/route.ts` (GET with `slug` query); `src/lib/api-helpers.ts` for `hasGroupAccess`; resolve group by slug (existing or new helper).
-- **Done when:** GET with `?slug=xxx` returns 403 when requester has no access; 404 only when group does not exist (or 403 for both). Update docs/API.md.
-
-**Google Calendar callback uses state.userId for user-assignments flow**  
-In `/api/auth/callback/google-calendar`, the "user assignments" (Mis asignaciones) flow uses `state.userId` from the OAuth callback URL to decide whose assignments to export. The state parameter is client-controllable (it is sent to Google and back in the URL). An attacker can start the export flow, then when redirected back from Google replace the `state` parameter with a forged payload that has the same `nonce` (visible in the original redirect URL) and a victim's `userId`. The callback would then add the victim's assignments to the attacker's Google Calendar (the OAuth token belongs to the attacker). **Recommendation:** In the user_assignments branch of the callback, ignore `state.userId` and use the current session's user id (e.g. from `auth()`) to load assignments and enforce `canExportCalendars`. Keep `state` only for nonce verification and optional filters (groupId, year, month).
-
-- **Where to look:** `src/app/api/auth/callback/google-calendar/route.ts`; locate the `user_assignments` / Mis asignaciones branch and replace use of `state.userId` with session user id from `auth()` (next-auth).
-- **Done when:** Callback for user_assignments always uses session user; no assignment export for another user even if state is forged. No doc change required if behavior is internal.
-
-**Admin bootstrap cookie stores raw password**  
-Bootstrap admin auth sets a cookie `admin-bootstrap-token` with the value of `ADMIN_PASSWORD`. The cookie is httpOnly and short-lived (1 hour), but the secret stored in the cookie is the same as the env credential. If the cookie is ever captured (e.g. via a bug or logging), the admin password is compromised. **Recommendation:** Use a one-time or short-lived random token (e.g. stored in memory or a small server-side store keyed by token) and set that in the cookie instead; validate the token server-side without reusing `ADMIN_PASSWORD` as the cookie value. Optionally restrict the cookie path to `/admin` and `/api/admin` to reduce exposure.
-
-- **Where to look:** `src/app/api/admin/auth/route.ts` (sets cookie); any middleware or API that reads `admin-bootstrap-token` cookie (e.g. `requireAdmin()` or admin auth check).
-- **Done when:** Cookie value is a random token; server validates token against in-memory or server-side store; `ADMIN_PASSWORD` never sent to client. Document in AGENTS.md or API.md if auth flow changes.
-
-**User search exposes all matching users**  
-`GET /api/users/search?q=...` returns id, name, email, and image for up to 10 users matching the query (minimum 2 characters). Any authenticated user can harvest other users' emails and names by searching. **Recommendation:** Consider restricting who can call this (e.g. only group owners/collaborators when adding collaborators or linking members), or limit returned fields (e.g. no email, or only show email for users already in the same group). If the current behavior is intentional (e.g. for invites), document it and consider rate limiting and a higher minimum query length.
-
-- **Where to look:** `src/app/api/users/search/route.ts`; call sites (collaborators UI, member link UI) in `src/app/[slug]/config/`.
-- **Done when:** Access restricted or response limited as chosen; if rate limiting added, use `src/lib/rate-limit.ts` or new helper. Update docs/API.md.
-
-**Rate limit bypass via spoofed IP headers**  
-`src/lib/rate-limit.ts` uses `x-forwarded-for` or `x-real-ip` to identify the client. These headers can be spoofed by clients if the app is not behind a trusted proxy that overwrites them. An attacker could send a different IP per request and bypass the per-IP cronograma rate limit. **Recommendation:** When behind a trusted reverse proxy (e.g. Vercel), ensure the proxy sets and overwrites these headers; document that the app trusts them. For production at scale, use a Redis-backed rate limiter (e.g. @upstash/ratelimit) and/or rate limit by session or API key for authenticated routes.
-
-- **Where to look:** `src/lib/rate-limit.ts`; deploy/proxy config (Vercel, etc.). Docs (API.md or AGENTS.md) for “trusted proxy” and optional Redis.
-- **Done when:** Document trust of X-Forwarded-For/X-Real-IP when behind proxy; if Redis added, cronograma uses it and doc updated.
-
-**No rate limiting on auth and sensitive endpoints**  
-Login (`/api/auth/*`), admin bootstrap (`POST /api/admin/auth`), and user search (`GET /api/users/search`) are not rate limited. This allows brute-force attempts on credentials (admin bootstrap with body username/password) and user enumeration or harvesting via search. **Recommendation:** Add rate limiting (per IP and/or per session) for `POST /api/admin/auth` (strict) and optionally for login and user search. Use the same strategy as cronograma (or Redis) and document in API.md.
-
-- **Where to look:** `src/lib/rate-limit.ts` (extend or add helpers); `src/app/api/admin/auth/route.ts`; optionally `src/app/api/auth/[...nextauth]/route.ts`, `src/app/api/users/search/route.ts`.
-- **Done when:** Admin auth POST is rate limited; optional login/search limits as chosen. docs/API.md updated.
 
 **Inconsistent request body validation**  
 Several API routes parse JSON bodies with ad-hoc checks instead of Zod (e.g. groups POST, schedules POST, configuration days/priorities/roles PUT/PATCH, admin groups PATCH, collaborators POST, members POST/PUT, admin auth, admin users PUT, holidays POST). This can lead to missing validation, wrong types, or prototype pollution. **Recommendation:** Use Zod schemas and `parseBody(schema, body)` (or equivalent) for all mutable request bodies; add schemas in `src/lib/schemas/` where missing. Align with AGENTS.md "Request validation."
@@ -113,9 +71,9 @@ Install only what you need for the phase you’re implementing. Dependencies: Zo
 Findings from auditing current dependencies against recommended or standard usage. Address when touching the relevant areas.
 
 **TanStack Query**  
-Config flows use `useConfigContext` (useQuery) and `refetchContext` (invalidation) correctly. The **home page** (`src/app/page.tsx`) and **admin page** (`src/app/admin/page.tsx`) still use manual `fetch` + `useState` + `useEffect` for groups and dashboard data. Recommended approach: use **useQuery** (and **useMutation** where appropriate) for all server state so the app benefits from caching, request deduplication, loading/error states, and refetch on focus. Align home and admin with the same pattern as config (e.g. `useQuery({ queryKey: ['groups'], queryFn: ... })`).
+Config flows use `useConfigContext` (useQuery) and `refetchContext` (invalidation) correctly. Several other pages still use manual `fetch` + `useState` + `useEffect` for server data: **home** (`src/app/page.tsx`), **admin** (`src/app/admin/page.tsx`), **settings** (`src/app/settings/page.tsx`), **asignaciones** (`src/app/asignaciones/page.tsx`), **config holidays** (`src/app/[slug]/config/holidays/page.tsx`), **config collaborators** (`src/app/[slug]/config/collaborators/page.tsx`), and **cronograma** (`src/app/[slug]/cronograma/[year]/[month]/page.tsx`). Recommended approach: use **useQuery** (and **useMutation** where appropriate) for all client-side server state so the app benefits from caching, request deduplication, loading/error states, and refetch on focus. Align all pages with the same pattern as config (e.g. `useQuery({ queryKey: ['groups'], queryFn: ... })`).
 
-- **Where to look:** `src/app/page.tsx`, `src/app/admin/page.tsx`; `src/lib/config-queries.ts` and `src/components/QueryProvider.tsx` for pattern. **Done when:** Home and admin use useQuery/useMutation; no manual fetch+useState+useEffect for server data; loading/error handled.
+- **Where to look:** Pages listed above; `src/lib/config-queries.ts` and `src/components/QueryProvider.tsx` for pattern. Config holidays and collaborators should use `useConfigContext` if the API supports it, or at least `useQuery` for consistency. **Done when:** All client-side data fetching uses useQuery/useMutation; no manual fetch+useState+useEffect for server data; loading/error handled.
 
 **react-hotkeys-hook**  
 Usage is appropriate: `enableOnFormTags: false` where shortcuts should not fire in inputs, and `mod+k` for config "Ir a…". Optional: set `preventDefault: true` for `mod+k` if browser default ever conflicts. The shortcuts help overlay (`?`) is a custom div with `role="dialog"`; for full a11y (focus trap, Escape) consider Radix Dialog (optional; §2 Modals already recommends Radix for new modals).
@@ -123,6 +81,37 @@ Usage is appropriate: `enableOnFormTags: false` where shortcuts should not fire 
 - **Where to look:** `src/components/KeyboardShortcuts.tsx`. **Done when:** No change required unless adding preventDefault or Radix Dialog for overlay.
 
 **Zod** — No change needed. **Auth.js** — No change needed. **Radix UI Dialog** — No change needed. **Drizzle ORM** — No change needed.
+
+**Server/client component boundaries**  
+Several pages are entirely `"use client"` and fetch data with `useEffect` + `fetch`, but could benefit from being server components that fetch data on the server and pass it to smaller client children (faster initial renders, smaller JS bundles, no client-side fetch waterfall). Key candidates:
+
+- **Home page** (`src/app/page.tsx`, ~320 lines): server page fetches groups and dashboard, passes to a `DashboardClient` component for calendar, modal, and interactivity.
+- **Cronograma** (`src/app/[slug]/cronograma/[year]/[month]/page.tsx`): server page fetches schedule data, passes to `SharedScheduleView` (already client).
+- **Settings** (`src/app/settings/page.tsx`): server page fetches holidays, passes to client for form interaction.
+
+Config pages are correctly client because they use `useConfigContext` (TanStack Query) with view-scoped `include` — no change needed there. The config layout is already server with `getGroupForConfigLayout`, which is the right pattern.
+
+- **Where to look:** Pages listed above; `src/app/[slug]/config/layout.tsx` for the reference pattern (server layout + client shell). **Done when:** Target pages are server components that fetch data and render a client child with props; no `useEffect` + `fetch` waterfall on mount.
+
+**Component decomposition**  
+Several page components are monolithic client components that mix data fetching, form logic, modals, and rendering in 250–400 lines. Extracting focused sub-components improves readability and testability:
+
+| Page | Lines | Could extract |
+|------|-------|---------------|
+| `src/app/page.tsx` (home) | ~320 | `DashboardCalendar`, `NextAssignmentCard`, `GroupsCard` |
+| `src/app/admin/page.tsx` | ~330 | `AdminUsersSection`, `AdminGroupsSection` |
+| `src/app/[slug]/config/schedules/page.tsx` | ~390 | `ColumnOrderEditor` (already defined inline, lines 21–183) |
+| `src/app/settings/page.tsx` | ~245 | `HolidaysSection` |
+| `src/components/SharedScheduleView/index.tsx` | ~770 | Extract `useScheduleFilters`, `useWeekCollapse` hooks; resize/responsive hook |
+
+SharedScheduleView is the largest client component. It already delegates to sub-components (MonthHeader, CalendarGrid, WeekSection, DateDetailModal), but the orchestrator itself has grown. Extracting filter state + logic and week collapse logic into custom hooks would make it a lean composition.
+
+- **Where to look:** Pages and component listed above. **Done when:** Each extracted component is under ~200 lines; page components are composition of focused children; SharedScheduleView orchestrator uses custom hooks for filter/collapse/resize logic.
+
+**Shared type deduplication**  
+`ConfigContextData` shape is defined in both `src/lib/group-context.tsx` and `src/lib/config-queries.ts`. Not a runtime issue, but types can drift. Define the canonical type in one place (e.g. `config-queries.ts`) and import from both.
+
+- **Where to look:** `src/lib/group-context.tsx`, `src/lib/config-queries.ts`. **Done when:** One shared type; no drift risk.
 
 ---
 
@@ -143,9 +132,6 @@ The public schedule grid is complex. Add an `<h1>` with month/year (and optional
 Use **Radix UI** `@radix-ui/react-dialog` for new modals (focus trap, aria, restore focus on close). If you prefer not to add Radix, use **focus-trap-react** (or **react-focus-on**) around existing modal markup. The date-detail modal in SharedScheduleView now uses Radix Dialog (`DateDetailModal.tsx`). Apply to any other modals that do not yet follow this pattern.
 
 - **Where to look:** `src/components/SharedScheduleView/DateDetailModal.tsx` for reference; `src/components/ConfirmDialog.tsx`. **Done when:** All modals use Radix Dialog or focus trap; Escape closes and restores focus.
-
-**No hardcoded copy**  
-Move remaining hardcoded Spanish (e.g. “Cerrar,” “Ensayo” in SharedScheduleView components, month names if duplicated) into `messages/es.json` and use `useTranslations` / `t()`. Use next-intl plural rules where applicable (e.g. “1 día” vs “2 días”).
 
 **Focus and contrast**  
 Audit interactive elements for keyboard reachability and visible focus indicators. Verify text/background contrast (WCAG AA) for body text, labels, and disabled states in both themes.
@@ -218,9 +204,6 @@ The schedule detail page (`src/app/[slug]/config/schedules/[id]/page.tsx`) issue
 **Create-group alignment**  
 The create form only sends `name` and `slug` (`src/app/groups/new/page.tsx`); the API accepts `days`, `roles`, `collaboratorUserIds` (`src/app/api/groups/route.ts`). Either extend the UI with optional initial days/roles/collaborators and send them in the same POST, or simplify the API so POST only creates the group and the rest is done via existing config endpoints. Align UI and API so the same capabilities are available without duplication.
 
-**Slug in URL for new-tab and refresh**  
-Config detail pages (e.g. member edit, role edit) depend on `groupId` from GroupProvider. If the user opens a link in a new tab or refreshes, context may be missing. Ensure all config URLs include the slug (e.g. `/[slug]/config/members/[id]`) and that the page can resolve group from the URL (e.g. via server layout or the slug-accepting API above) so “open in new tab” and refresh work without in-memory context.
-
 **Schedule editing UX**  
 In the schedule detail view, allow inline edit of assignments where possible: e.g. click a cell → dropdown or modal to change the assigned member (same data as today, fewer clicks). Optional: “Intercambiar” to swap two assignments on the same date, or use a drag-and-drop library for reassignment. When adding a new month, offer “Usar asignaciones del mes anterior como base” (copy from previous month) so the user can tweak instead of starting from scratch—complements “Fill empty” and “Rebuild.”
 
@@ -242,9 +225,6 @@ Allow group owners (or admins) to export group data (members, roles, events, sch
 
 **E2E critical path**  
 Add **Playwright** and an E2E test for the main journey: sign in → create group → add member → add role → add event → generate schedule → view public cronograma. Use Playwright’s Next.js-friendly patterns (e.g. `baseURL`, `page.goto`). Run on CI so refactors do not break the core flow.
-
-**Seeded “big” group**  
-Implemented via **unified seed** `scripts/seed.ts`: solo artists, jazz trio, two rock bands, and an orchestra. Use it for performance testing (scheduler, public cronograma, config lists) and manual QA. Run: `npm run seed -- --user=<UUID>` (see scripts/CONTEXT.md).
 
 **Staging parity**  
 Keep a staging environment that mirrors production (same auth provider and DB shape) so full flows (OAuth, member linking, cronograma sharing) can be tested before release.
@@ -270,9 +250,6 @@ Keep all user-facing strings in `messages/es.json` and use next-intl plural and 
 
 **PWA / “add to home screen”**  
 Use **next-pwa** (Workbox-based) or add a manual `manifest.json` and a minimal service worker for the public cronograma so users can “add to home screen” on mobile. Document in CLIENT.md.
-
-**Respect prefers-color-scheme**  
-Ensure the existing theme toggle and default theme respect `prefers-color-scheme` so first-time visitors get their system preference. Check layout and any theme provider.
 
 **Cache headers for public cronograma**  
 When adding caching (see section 3), consider `Cache-Control` or `ETag` / `Last-Modified` for the public cronograma response so browsers and CDNs can cache appropriately. Invalidate or shorten TTL when the schedule is updated (e.g. via `updatedAt` on the schedule row).
@@ -384,13 +361,12 @@ Use consistent wording and icons for the three sources (cross-group, holiday, av
 
 ## Suggested order of implementation
 
-- **Library standards (§1):** Address TanStack Query on home/admin when touching those pages.
-- **Phase 1 (Server and data):** Server group resolution.
-- **Phase 2 (A11y and perf):** Skip link + landmarks, cronograma grid semantics, move hardcoded strings, cache public API.
+- **Library standards (§1):** Address TanStack Query on all manual-fetch pages (home, admin, settings, asignaciones, holidays, collaborators, cronograma). Push server/client boundaries down (home, cronograma, settings pages). Decompose large page components. Deduplicate shared types.
+- **Phase 2 (A11y and perf):** Skip link + landmarks, cronograma grid semantics, cache public API.
 - **Phase 3 (Product and ops):** Draft/published docs, guided setup + My assignments, shared forms, audit log + export, E2E + seed.
 - **§11 Simpler usage and new features:** Pick items from section 11 (e.g. persist Mis asignaciones filters, copy from previous month, iCal/PDF export, balance report) as product priorities; no hard dependency on earlier phases. For **conflicts and availability** (§11), start with “Revalidar cronograma” (holiday + availability) and cross-group warn-when-assigning; then make conflicts actionable and add availability conflict detection.
 
-*Loading, errors, empty states, and unsaved banner (formerly Phase 1) are done; see AGENTS.md Features.*
+*Loading, errors, empty states, and unsaved banner (formerly Phase 1) are done. Hardcoded copy (§2) is done. Server group resolution (formerly Phase 1) is done. prefers-color-scheme (§9) is done. All original Security items are done (only "Inconsistent request body validation" remains). Seeded big group (§8) is done. Slug in URL for config (§7) is done. See AGENTS.md Features.*
 
 You can implement individual items out of order (e.g. skip link and cache before server resolution) where there are no hard dependencies. When adding libraries, install only those needed for the phase (e.g. Phase 2: Radix or focus-trap-react; Phase 3: React Hook Form, @hookform/resolvers, Playwright, googleapis, @react-pdf/renderer as needed).
 
