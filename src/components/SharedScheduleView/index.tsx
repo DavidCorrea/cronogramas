@@ -92,7 +92,7 @@ export default function SharedScheduleView({
   const getDateDisplayLabel = (sd: ScheduleDateInfo): string => {
     const label = sd.recurringEventLabel ?? sd.label ?? null;
     if (label) return label;
-    return sd.type === "for_everyone" ? t("defaultRehearsalLabel") : t("defaultEventLabel");
+    return sd.type === "for_everyone" ? t("defaultForEveryoneLabel") : t("defaultEventLabel");
   };
 
   const getDateDisplayTimeRange = (sd: ScheduleDateInfo): string | null => {
@@ -156,7 +156,7 @@ export default function SharedScheduleView({
       : [
           ...new Set([
             ...entryDates,
-            ...(schedule.rehearsalDates ?? []),
+            ...(schedule.forEveryoneDates ?? []),
             ...(schedule.extraDates ?? []).map((d) => d.date),
           ]),
         ]
@@ -181,7 +181,7 @@ export default function SharedScheduleView({
       : [
           ...new Set([
             ...entryDates,
-            ...(schedule.rehearsalDates ?? []),
+            ...(schedule.forEveryoneDates ?? []),
             ...(schedule.extraDates ?? []).map((d) => d.date),
           ]),
         ].sort();
@@ -235,12 +235,12 @@ export default function SharedScheduleView({
     );
   }, [visibleScheduleDates, hasActiveFilter, filteredEntries]);
 
-  const rehearsalSet = new Set(
+  const forEveryoneSet = new Set(
     schedule.scheduleDates
       ? scheduleDateList
           .filter((d) => String(d.type).toLowerCase() === "for_everyone")
           .map((d) => d.date)
-      : schedule.rehearsalDates ?? []
+      : schedule.forEveryoneDates ?? []
   );
   const conflictSet = new Set(
     (schedule.holidayConflicts ?? []).map((c) => `${c.date}-${c.memberId}`)
@@ -277,12 +277,12 @@ export default function SharedScheduleView({
   };
 
   const assignedDateCount = filteredMemberId
-    ? filteredDates.filter((d) => !rehearsalSet.has(d)).length
+    ? filteredDates.filter((d) => !forEveryoneSet.has(d)).length
     : 0;
 
   const upcomingDate =
     filteredMemberId && today
-      ? filteredDates.find((d) => d >= today && !rehearsalSet.has(d))
+      ? filteredDates.find((d) => d >= today && !forEveryoneSet.has(d))
       : null;
 
   const displayDates = upcomingDate
@@ -537,7 +537,7 @@ export default function SharedScheduleView({
                 >
                   <div className="divide-y divide-border">
                     {scheduleDates.map((sd) => {
-                      const isRehearsal = sd.type === "for_everyone";
+                      const isForEveryone = sd.type === "for_everyone";
                       const entriesOnSd = getEntriesForScheduleDate(sd);
                       const depRoleDate =
                         filteredMemberId &&
@@ -549,7 +549,7 @@ export default function SharedScheduleView({
                       const note = getNoteForScheduleDate(sd);
                       return (
                         <div key={sd.id ?? sd.date}>
-                          {isRehearsal ? (
+                          {isForEveryone ? (
                             <button
                               type="button"
                               className={`w-full text-left px-4 py-3.5 text-sm ${isPast(sd.date) ? "opacity-50" : ""}`}
@@ -655,14 +655,14 @@ export default function SharedScheduleView({
                           date,
                           type: "assignable" as const,
                         };
-                      const isRehearsal = rehearsalSet.has(date);
+                      const isForEveryone = forEveryoneSet.has(date);
                       const depRoleDate = hasDependentRoleOnDate(date);
                       const relevantRoleDate = hasRelevantRoleOnDate(date);
                       const highlighted =
                         filteredMemberId && (depRoleDate || relevantRoleDate);
                       return (
                         <div key={date}>
-                          {isRehearsal ? (
+                          {isForEveryone ? (
                             <button
                               type="button"
                               className={`w-full text-left px-4 py-3.5 text-sm ${isPast(date) ? "opacity-50" : ""}`}
@@ -760,7 +760,7 @@ export default function SharedScheduleView({
             today={today}
             entryDates={new Set(entryDates)}
             filteredDateSet={new Set(filteredDates)}
-            rehearsalSet={rehearsalSet}
+            forEveryoneSet={forEveryoneSet}
             hasActiveFilter={hasActiveFilter}
             hasDependentRoleOnDate={hasDependentRoleOnDate}
             hasRelevantRoleOnDate={hasRelevantRoleOnDate}
@@ -829,17 +829,17 @@ export default function SharedScheduleView({
                             <div className="divide-y divide-border">
                               {dates.map((date) => {
                                 const sd = scheduleDateByDateMap.get(date) ?? { date, type: "assignable" as const };
-                                const isRehearsal = rehearsalSet.has(date);
+                                const isForEveryone = forEveryoneSet.has(date);
                                 const entriesOnDate = schedule.entries.filter(
                                   (e) => e.date === date && (!filteredRoleId || e.roleId === filteredRoleId)
                                 );
                                 const note = getNoteForScheduleDate(sd);
-                                const label = !isRehearsal ? getDateDisplayLabel(sd) : null;
+                                const label = !isForEveryone ? getDateDisplayLabel(sd) : null;
                                 const timeRange = getDateDisplayTimeRange(sd);
                                 return (
                                   <div
                                     key={date}
-                                    className={`px-4 py-3.5 ${isPast(date) ? "opacity-50" : ""} ${isRehearsal ? "bg-muted/20" : ""}`}
+                                    className={`px-4 py-3.5 ${isPast(date) ? "opacity-50" : ""} ${isForEveryone ? "bg-muted/20" : ""}`}
                                   >
                                     <div className="flex items-baseline justify-between gap-2">
                                       <span className="font-medium text-sm">{formatDateWeekdayDay(date)}</span>
@@ -850,7 +850,7 @@ export default function SharedScheduleView({
                                     {timeRange && (
                                       <p className="text-xs text-muted-foreground mt-0.5">{timeRange}</p>
                                     )}
-                                    {isRehearsal ? (
+                                    {isForEveryone ? (
                                       <p className="text-sm text-muted-foreground italic mt-1">
                                         {getDateDisplayLabel(sd) || "Ensayo"}
                                       </p>
@@ -921,7 +921,7 @@ export default function SharedScheduleView({
                                         date,
                                         type: "assignable" as const,
                                       };
-                                    const isRehearsal = rehearsalSet.has(date);
+                                    const isForEveryone = forEveryoneSet.has(date);
                                     const entriesOnDate = schedule.entries.filter(
                                       (e) => e.date === date && (!filteredRoleId || e.roleId === filteredRoleId)
                                     );
@@ -931,7 +931,7 @@ export default function SharedScheduleView({
                                         key={date}
                                         className={[
                                           "border-b border-border",
-                                          isRehearsal ? "bg-muted/20" : "",
+                                          isForEveryone ? "bg-muted/20" : "",
                                           isPast(date) ? "opacity-50" : "",
                                           "hover:bg-muted/20 transition-colors",
                                         ]
@@ -942,13 +942,13 @@ export default function SharedScheduleView({
                                           <div>
                                             {formatDateWeekdayDay(date)}
                                           </div>
-                                          {!isRehearsal &&
+                                          {!isForEveryone &&
                                             getDateDisplayLabel(sd) && (
                                               <div className="text-xs text-muted-foreground italic font-normal mt-0.5">
                                                 {getDateDisplayLabel(sd)}
                                               </div>
                                             )}
-                                          {!isRehearsal &&
+                                          {!isForEveryone &&
                                             getDateDisplayTimeRange(sd) && (
                                               <div className="text-xs text-muted-foreground font-normal mt-0.5">
                                                 {getDateDisplayTimeRange(sd)}
@@ -960,7 +960,7 @@ export default function SharedScheduleView({
                                             </div>
                                           )}
                                         </td>
-                                        {isRehearsal ? (
+                                        {isForEveryone ? (
                                           <td
                                             colSpan={visibleRoles.length}
                                             className="px-4 py-4 text-sm text-muted-foreground italic text-center"

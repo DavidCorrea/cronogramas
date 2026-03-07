@@ -43,8 +43,8 @@ export function DateDetailModal({
       date: selectedDate,
       type: "assignable" as const,
     });
-  const isRehearsal = sd.type === "for_everyone";
-  const label = getDateDisplayLabel(sd) || (isRehearsal ? "Ensayo" : "");
+  const isForEveryone = sd.type === "for_everyone";
+  const label = getDateDisplayLabel(sd) || (isForEveryone ? "Ensayo" : "");
   const timeRange = getDateDisplayTimeRange(sd);
   const entriesOnDate = schedule.entries.filter((e) => e.date === selectedDate);
   const roleIdsOnDate = [...new Set(entriesOnDate.map((e) => e.roleId))];

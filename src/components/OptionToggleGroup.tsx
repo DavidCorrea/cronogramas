@@ -2,7 +2,7 @@
 
 /**
  * Reusable toggle group: a bordered set of buttons where each item can be selected/deselected.
- * Used for "active days", "rehearsal days" in configuration, and "roles" / "available days" in members form.
+ * Used for "active days" in configuration, and "roles" / "available days" in members form.
  */
 export function OptionToggleGroup<T>({
   items,

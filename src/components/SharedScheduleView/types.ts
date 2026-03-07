@@ -66,7 +66,7 @@ export interface SharedScheduleData {
   notes: DateNote[];
   scheduleDates?: ScheduleDateInfo[];
   /** @deprecated */
-  rehearsalDates?: string[];
+  forEveryoneDates?: string[];
   /** @deprecated */
   leaderRoleId?: number | null;
   dependentRoleIds?: number[];

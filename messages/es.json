@@ -463,7 +463,7 @@
     "noAssignmentsThisMonth": "Este miembro no tiene asignaciones este mes.",
     "noAssignmentsFilter": "No se encontraron asignaciones con los filtros seleccionados.",
     "noEntries": "No se encontraron entradas.",
-    "defaultRehearsalLabel": "Ensayo",
+    "defaultForEveryoneLabel": "Ensayo",
     "defaultEventLabel": "Evento",
     "role": "Rol",
     "date": "Fecha",

@@ -252,7 +252,7 @@ export default function SchedulePreviewPage() {
       .sort((a, b) => a.displayOrder - b.displayOrder);
   }, [schedule]);
 
-  const rehearsalSet = useMemo(
+  const forEveryoneSet = useMemo(
     () =>
       new Set(
         (schedule?.scheduleDates ?? [])
@@ -844,7 +844,7 @@ export default function SchedulePreviewPage() {
             {!isCollapsed && (
             <div className="p-4 space-y-4">
         {scheduleDates.map((sd) => {
-          const isRehearsal = rehearsalSet.has(sd.id);
+          const isForEveryone = forEveryoneSet.has(sd.id);
           const note = noteMap.get(sd.id);
           const timeRange = sd.startTimeUtc && sd.endTimeUtc && (sd.startTimeUtc !== "00:00" || sd.endTimeUtc !== "23:59")
             ? `${utcTimeToLocalDisplay(sd.startTimeUtc)} – ${utcTimeToLocalDisplay(sd.endTimeUtc)}`
@@ -853,7 +853,7 @@ export default function SchedulePreviewPage() {
           return (
             <div
               key={sd.id}
-              className={`border border-border rounded-md overflow-hidden ${isRehearsal ? "bg-muted/30" : "bg-background"}`}
+              className={`border border-border rounded-md overflow-hidden ${isForEveryone ? "bg-muted/30" : "bg-background"}`}
             >
               <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -862,7 +862,7 @@ export default function SchedulePreviewPage() {
                     {timeRange && (
                       <span className="text-xs text-muted-foreground">{timeRange}</span>
                     )}
-                    {!isRehearsal && getDateDisplayLabel(sd) && (
+                    {!isForEveryone && getDateDisplayLabel(sd) && (
                       <span className="text-xs text-muted-foreground italic">
                         {getDateDisplayLabel(sd)}
                       </span>
@@ -883,13 +883,13 @@ export default function SchedulePreviewPage() {
                 </div>
               </div>
 
-              {isRehearsal && (
+              {isForEveryone && (
                 <div className="px-4 py-3 text-sm text-muted-foreground italic text-center border-b border-border">
                   {getDateDisplayLabel(sd) || "Ensayo"}
                 </div>
               )}
 
-              {!isRehearsal && (
+              {!isForEveryone && (
                 <div className="divide-y divide-border/50">
                   {roleOrder.map((role) => {
                     const existingEntries = schedule.entries.filter(
@@ -971,7 +971,7 @@ export default function SchedulePreviewPage() {
           </thead>
           <tbody>
             {scheduleDates.map((sd) => {
-              const isRehearsal = rehearsalSet.has(sd.id);
+              const isForEveryone = forEveryoneSet.has(sd.id);
               const note = noteMap.get(sd.id);
               const timeRange = sd.startTimeUtc && sd.endTimeUtc && (sd.startTimeUtc !== "00:00" || sd.endTimeUtc !== "23:59")
                 ? `${utcTimeToLocalDisplay(sd.startTimeUtc)} – ${utcTimeToLocalDisplay(sd.endTimeUtc)}`
@@ -980,7 +980,7 @@ export default function SchedulePreviewPage() {
               return (
                 <tr
                   key={sd.id}
-                  className={`border-b border-border ${isRehearsal ? "bg-muted/20" : "hover:bg-muted/30"} transition-colors`}
+                  className={`border-b border-border ${isForEveryone ? "bg-muted/20" : "hover:bg-muted/30"} transition-colors`}
                 >
                   <td className="px-4 py-3 text-sm font-medium whitespace-nowrap">
                     <div>
@@ -988,7 +988,7 @@ export default function SchedulePreviewPage() {
                       {timeRange && (
                         <div className="text-xs text-muted-foreground mt-0.5">{timeRange}</div>
                       )}
-                      {!isRehearsal && getDateDisplayLabel(sd) && (
+                      {!isForEveryone && getDateDisplayLabel(sd) && (
                         <div className="text-xs text-muted-foreground italic mt-0.5">
                           {getDateDisplayLabel(sd)}
                         </div>
@@ -998,7 +998,7 @@ export default function SchedulePreviewPage() {
                       <div className="mt-0.5 text-xs text-muted-foreground">{note}</div>
                     ) : null}
                   </td>
-                  {isRehearsal ? (
+                  {isForEveryone ? (
                     <td
                       colSpan={roleOrder.length}
                       className="px-4 py-3 text-sm text-muted-foreground italic text-center"

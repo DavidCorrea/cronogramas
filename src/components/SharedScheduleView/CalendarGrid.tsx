@@ -6,7 +6,7 @@ export interface CalendarGridProps {
   today: string;
   entryDates: Set<string>;
   filteredDateSet: Set<string>;
-  rehearsalSet: Set<string>;
+  forEveryoneSet: Set<string>;
   hasActiveFilter: boolean;
   hasDependentRoleOnDate: (date: string) => boolean;
   hasRelevantRoleOnDate: (date: string) => boolean;
@@ -23,7 +23,7 @@ export function CalendarGrid({
   today,
   entryDates,
   filteredDateSet,
-  rehearsalSet,
+  forEveryoneSet,
   hasActiveFilter,
   hasDependentRoleOnDate,
   hasRelevantRoleOnDate,
@@ -59,10 +59,10 @@ export function CalendarGrid({
           const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
           const hasAnyAssignment = entryDates.has(dateStr);
           const matchesFilter = filteredDateSet.has(dateStr);
-          const isRehearsalDay = rehearsalSet.has(dateStr);
+          const isForEveryoneDay = forEveryoneSet.has(dateStr);
           const isToday = dateStr === today;
           const past = isPast(dateStr);
-          const hasContent = hasAnyAssignment || isRehearsalDay;
+          const hasContent = hasAnyAssignment || isForEveryoneDay;
           const dimmed =
             hasActiveFilter && hasContent && !matchesFilter;
           const isHighlighted =
@@ -85,7 +85,7 @@ export function CalendarGrid({
                     ? "bg-foreground/15 font-semibold"
                     : hasAnyAssignment
                       ? "bg-muted/50 font-medium"
-                      : isRehearsalDay
+                      : isForEveryoneDay
                         ? "border border-dashed border-border"
                         : "text-muted-foreground",
                 hasContent
