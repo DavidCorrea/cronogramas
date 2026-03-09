@@ -3,7 +3,7 @@ import {
   MemberInfo,
   RoleDefinition,
   ScheduleAssignment,
-} from "@/lib/scheduler.types";
+} from "@/lib/scheduler-types";
 
 function makeRole(id: number, name: string, requiredCount = 1): RoleDefinition {
   return { id, name, requiredCount };

@@ -8,7 +8,7 @@ import {
   RoleDefinition,
   ScheduleDateOutput,
   ScheduleAssignment,
-} from "./scheduler.types";
+} from "./scheduler-types";
 
 // ---------------------------------------------------------------------------
 // Pure domain helpers — no DB access, usable from API routes and client

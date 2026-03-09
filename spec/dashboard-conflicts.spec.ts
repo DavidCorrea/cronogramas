@@ -1,6 +1,8 @@
 import {
   rangesOverlap,
   buildConflicts,
+  getOverlapSpan,
+  getConflictTimespans,
   type AssignmentWithTime,
 } from "@/lib/dashboard-conflicts";
 
@@ -154,6 +156,99 @@ describe("Dashboard conflict detection (time-aware)", () => {
         a("2026-01-04", 1, "CCMDV", "19:00", "21:00"),
       ];
       expect(buildConflicts(assignments)).toEqual([]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getOverlapSpan
+  // -------------------------------------------------------------------------
+
+  describe("overlap span calculation (getOverlapSpan)", () => {
+    it("returns the intersection of two partially overlapping ranges", () => {
+      expect(getOverlapSpan("09:00", "12:00", "10:00", "14:00")).toEqual({
+        start: "10:00",
+        end: "12:00",
+      });
+    });
+
+    it("returns the inner range when one is fully contained", () => {
+      expect(getOverlapSpan("08:00", "18:00", "10:00", "14:00")).toEqual({
+        start: "10:00",
+        end: "14:00",
+      });
+    });
+
+    it("returns null when ranges do not overlap", () => {
+      expect(getOverlapSpan("09:00", "12:00", "14:00", "17:00")).toBeNull();
+    });
+
+    it("returns null when ranges touch at the boundary (exclusive end)", () => {
+      expect(getOverlapSpan("09:00", "12:00", "12:00", "15:00")).toBeNull();
+    });
+
+    it("handles identical ranges", () => {
+      expect(getOverlapSpan("10:00", "14:00", "10:00", "14:00")).toEqual({
+        start: "10:00",
+        end: "14:00",
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getConflictTimespans
+  // -------------------------------------------------------------------------
+
+  describe("conflict timespan detection (getConflictTimespans)", () => {
+    function assignment(
+      groupId: number,
+      groupName: string,
+      start: string,
+      end: string,
+    ): AssignmentWithTime {
+      return { date: "2026-03-15", groupId, groupName, startTimeUtc: start, endTimeUtc: end };
+    }
+
+    it("finds cross-group overlaps with correct timespans", () => {
+      const result = getConflictTimespans([
+        assignment(1, "Band A", "09:00", "12:00"),
+        assignment(2, "Band B", "10:00", "14:00"),
+      ]);
+      expect(result).toEqual([
+        { groupNames: ["Band A", "Band B"], startUtc: "10:00", endUtc: "12:00" },
+      ]);
+    });
+
+    it("skips same-group pairs", () => {
+      const result = getConflictTimespans([
+        assignment(1, "Band A", "09:00", "12:00"),
+        assignment(1, "Band A", "10:00", "14:00"),
+      ]);
+      expect(result).toEqual([]);
+    });
+
+    it("returns empty when there are no overlaps", () => {
+      const result = getConflictTimespans([
+        assignment(1, "Band A", "09:00", "12:00"),
+        assignment(2, "Band B", "14:00", "17:00"),
+      ]);
+      expect(result).toEqual([]);
+    });
+
+    it("returns multiple timespans for three-way overlapping groups", () => {
+      const result = getConflictTimespans([
+        assignment(1, "Band A", "09:00", "13:00"),
+        assignment(2, "Band B", "10:00", "14:00"),
+        assignment(3, "Band C", "12:00", "16:00"),
+      ]);
+      expect(result).toHaveLength(3);
+    });
+
+    it("sorts group names alphabetically in each timespan", () => {
+      const result = getConflictTimespans([
+        assignment(2, "Zebra", "09:00", "12:00"),
+        assignment(1, "Alpha", "10:00", "14:00"),
+      ]);
+      expect(result[0].groupNames).toEqual(["Alpha", "Zebra"]);
     });
   });
 });

@@ -4,7 +4,7 @@ import {
   ScheduleAssignment,
   SchedulerInput,
   SchedulerOutput,
-} from "./scheduler.types";
+} from "./scheduler-types";
 import { getDayNameFromDateString } from "./dates";
 
 /** Parse "HH:MM" to minutes since midnight (0–1439). */
@@ -122,7 +122,6 @@ export function generateSchedule(input: SchedulerInput): SchedulerOutput {
   const assignments: ScheduleAssignment[] = [];
   const unfilledSlots: SchedulerOutput["unfilledSlots"] = [];
 
-  // Build member lookup by ID
   const memberById = new Map<number, MemberInfo>();
   for (const m of members) {
     memberById.set(m.id, m);
@@ -209,7 +208,6 @@ export function generateSchedule(input: SchedulerInput): SchedulerOutput {
       for (let slot = 0; slot < role.requiredCount; slot++) {
         const pointer = dayPointers.get(dayOfWeek) ?? 0;
 
-        // Build eligibility checker
         const isEligible = (memberId: number): boolean => {
           const m = memberById.get(memberId)!;
           if (!m.availableDays.includes(dayOfWeek)) return false;

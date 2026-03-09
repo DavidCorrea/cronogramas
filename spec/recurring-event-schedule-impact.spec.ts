@@ -7,11 +7,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { aggregateAffectedScheduleDates } from "@/lib/affected-schedule-dates";
 
 const mockRequireGroupAccess = jest.fn();
-jest.mock("@/lib/api-helpers", () => ({
-  requireGroupAccess: (...args: unknown[]) => mockRequireGroupAccess(...args),
-  apiError: (message: string, status: number, _code?: string) =>
-    NextResponse.json({ error: message }, { status }),
-}));
+jest.mock("@/lib/api-helpers", () => {
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const { z } = require("zod");
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return {
+    requireGroupAccess: (...args: unknown[]) => mockRequireGroupAccess(...args),
+    apiError: (message: string, status: number, _code?: string) =>
+      NextResponse.json({ error: message }, { status }),
+    parseBody: <T extends z.ZodType>(schema: T, body: unknown) => {
+      const result = schema.safeParse(body);
+      if (result.success) return { data: result.data };
+      const first = result.error.issues[0];
+      return {
+        error: NextResponse.json(
+          { error: first?.message ?? "Invalid request body" },
+          { status: 400 }
+        ),
+      };
+    },
+  };
+});
 
 const mockSelect = jest.fn();
 const mockFrom = jest.fn();

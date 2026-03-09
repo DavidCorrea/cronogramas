@@ -13,7 +13,7 @@ import {
   scheduleDate,
 } from "@/db/schema";
 import { eq, and, or, inArray } from "drizzle-orm";
-import { MemberInfo, RecurringEventConfig, RoleDefinition } from "./scheduler.types";
+import { MemberInfo, RecurringEventConfig, RoleDefinition } from "./scheduler-types";
 import {
   filterSchedulableRoles,
   getDependentRoleIds,

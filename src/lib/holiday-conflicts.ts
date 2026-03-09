@@ -9,44 +9,18 @@ export interface HolidayConflict {
 }
 
 /**
- * Find schedule entries where the assigned member is on holiday.
- * Checks both member-scoped holidays (by memberId) and
- * user-scoped holidays (by userId for linked members).
+ * Pure conflict detection: given schedule entries, group members, and all
+ * relevant holidays, returns which entries fall on a member's holiday.
  */
-export async function getHolidayConflicts(
+export function findHolidayConflicts(
   entries: { date: string; memberId: number }[],
-  groupId: number
-): Promise<HolidayConflict[]> {
+  groupMembers: { id: number; name: string; userId: string | null }[],
+  allHolidays: { memberId: number | null; userId: string | null; startDate: string; endDate: string }[],
+): HolidayConflict[] {
   if (entries.length === 0) return [];
-
-  const memberIds = [...new Set(entries.map((e) => e.memberId))];
-
-  const groupMembers = await db
-    .select({ id: members.id, name: members.name, userId: members.userId })
-    .from(members)
-    .where(eq(members.groupId, groupId));
 
   const memberMap = new Map(groupMembers.map((m) => [m.id, m]));
 
-  const linkedUserIds = groupMembers
-    .filter((m) => m.userId != null && memberIds.includes(m.id))
-    .map((m) => m.userId!);
-
-  const conditions = [];
-  if (memberIds.length > 0) {
-    conditions.push(inArray(holidays.memberId, memberIds));
-  }
-  if (linkedUserIds.length > 0) {
-    conditions.push(inArray(holidays.userId, linkedUserIds));
-  }
-  if (conditions.length === 0) return [];
-
-  const allHolidays = await db
-    .select()
-    .from(holidays)
-    .where(or(...conditions));
-
-  // Build per-member holiday ranges
   const memberHolidays = new Map<number, { start: string; end: string }[]>();
   for (const h of allHolidays) {
     const range = { start: h.startDate, end: h.endDate };
@@ -85,4 +59,43 @@ export async function getHolidayConflicts(
   }
 
   return conflicts;
+}
+
+/**
+ * Find schedule entries where the assigned member is on holiday.
+ * Checks both member-scoped holidays (by memberId) and
+ * user-scoped holidays (by userId for linked members).
+ */
+export async function getHolidayConflicts(
+  entries: { date: string; memberId: number }[],
+  groupId: number
+): Promise<HolidayConflict[]> {
+  if (entries.length === 0) return [];
+
+  const memberIds = [...new Set(entries.map((e) => e.memberId))];
+
+  const groupMembers = await db
+    .select({ id: members.id, name: members.name, userId: members.userId })
+    .from(members)
+    .where(eq(members.groupId, groupId));
+
+  const linkedUserIds = groupMembers
+    .filter((m) => m.userId != null && memberIds.includes(m.id))
+    .map((m) => m.userId!);
+
+  const conditions = [];
+  if (memberIds.length > 0) {
+    conditions.push(inArray(holidays.memberId, memberIds));
+  }
+  if (linkedUserIds.length > 0) {
+    conditions.push(inArray(holidays.userId, linkedUserIds));
+  }
+  if (conditions.length === 0) return [];
+
+  const allHolidays = await db
+    .select()
+    .from(holidays)
+    .where(or(...conditions));
+
+  return findHolidayConflicts(entries, groupMembers, allHolidays);
 }

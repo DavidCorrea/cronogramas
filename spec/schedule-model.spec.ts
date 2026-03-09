@@ -4,13 +4,20 @@ import {
   filterRebuildableDates,
   validateDateInScheduleMonth,
   EVENT_DEFAULTS,
+  filterSchedulableRoles,
+  getDependentRoleIds,
+  isDependentRole,
+  validateDependentRoleAssignment,
+  getEligibleMemberIds,
+  computeDatesWithGaps,
+  applyPreferredSlots,
 } from "@/lib/schedule-model";
 import {
   MemberInfo,
   RoleDefinition,
   RecurringEventConfig,
   EventAssignment,
-} from "@/lib/scheduler.types";
+} from "@/lib/scheduler-types";
 import { getScheduleDates } from "@/lib/dates";
 
 // ---------------------------------------------------------------------------
@@ -773,5 +780,346 @@ describe("EVENT_DEFAULTS", () => {
     expect(EVENT_DEFAULTS.label).toBe("Evento");
     expect(EVENT_DEFAULTS.startTimeUtc).toBe("00:00");
     expect(EVENT_DEFAULTS.endTimeUtc).toBe("23:59");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// filterSchedulableRoles
+// ---------------------------------------------------------------------------
+
+describe("filterSchedulableRoles", () => {
+  it("keeps independent roles and excludes dependent roles", () => {
+    const roles = [
+      { id: 1, name: "Cantantes", requiredCount: 3, exclusiveGroupId: 10, dependsOnRoleId: null },
+      { id: 2, name: "Músicos", requiredCount: 2, exclusiveGroupId: null, dependsOnRoleId: null },
+      { id: 3, name: "Coristas", requiredCount: 1, exclusiveGroupId: null, dependsOnRoleId: 1 },
+    ];
+    const result = filterSchedulableRoles(roles);
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.id)).toEqual([1, 2]);
+  });
+
+  it("maps exclusiveGroupId correctly, defaulting null", () => {
+    const roles = [
+      { id: 1, name: "A", requiredCount: 1, exclusiveGroupId: 5 },
+      { id: 2, name: "B", requiredCount: 1 },
+    ];
+    const result = filterSchedulableRoles(roles);
+    expect(result[0].exclusiveGroupId).toBe(5);
+    expect(result[1].exclusiveGroupId).toBeNull();
+  });
+
+  it("returns empty array when all roles are dependent", () => {
+    const roles = [
+      { id: 1, name: "Dep", requiredCount: 1, dependsOnRoleId: 99 },
+    ];
+    expect(filterSchedulableRoles(roles)).toEqual([]);
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(filterSchedulableRoles([])).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getDependentRoleIds / isDependentRole
+// ---------------------------------------------------------------------------
+
+describe("dependent role identification", () => {
+  const roles = [
+    { id: 1, dependsOnRoleId: null },
+    { id: 2, dependsOnRoleId: 1 },
+    { id: 3, dependsOnRoleId: null },
+    { id: 4, dependsOnRoleId: 3 },
+  ];
+
+  it("getDependentRoleIds returns only roles with dependsOnRoleId", () => {
+    const ids = getDependentRoleIds(roles);
+    expect(ids).toEqual(new Set([2, 4]));
+  });
+
+  it("getDependentRoleIds returns empty set when no dependent roles exist", () => {
+    expect(getDependentRoleIds([{ id: 1 }, { id: 2 }])).toEqual(new Set());
+  });
+
+  it("isDependentRole returns true for a dependent role", () => {
+    expect(isDependentRole(2, roles)).toBe(true);
+  });
+
+  it("isDependentRole returns false for an independent role", () => {
+    expect(isDependentRole(1, roles)).toBe(false);
+  });
+
+  it("isDependentRole returns false for a role that does not exist", () => {
+    expect(isDependentRole(99, roles)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateDependentRoleAssignment
+// ---------------------------------------------------------------------------
+
+describe("dependent role assignment validation", () => {
+  const roles = [
+    { id: 1, dependsOnRoleId: null },
+    { id: 2, dependsOnRoleId: 1 },
+  ];
+
+  it("valid when member is assigned to the source role on the same date", () => {
+    const result = validateDependentRoleAssignment({
+      roleId: 2,
+      memberId: 10,
+      roles,
+      assignmentsOnDate: [{ roleId: 1, memberId: 10 }],
+    });
+    expect(result).toEqual({ valid: true });
+  });
+
+  it("invalid when member is not assigned to the source role", () => {
+    const result = validateDependentRoleAssignment({
+      roleId: 2,
+      memberId: 10,
+      roles,
+      assignmentsOnDate: [{ roleId: 1, memberId: 99 }],
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it("invalid when another member holds the source role but not this member", () => {
+    const result = validateDependentRoleAssignment({
+      roleId: 2,
+      memberId: 10,
+      roles,
+      assignmentsOnDate: [{ roleId: 1, memberId: 20 }],
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it("invalid when role is not a dependent role", () => {
+    const result = validateDependentRoleAssignment({
+      roleId: 1,
+      memberId: 10,
+      roles,
+      assignmentsOnDate: [{ roleId: 1, memberId: 10 }],
+    });
+    expect(result.valid).toBe(false);
+  });
+
+  it("invalid when role does not exist", () => {
+    const result = validateDependentRoleAssignment({
+      roleId: 99,
+      memberId: 10,
+      roles,
+      assignmentsOnDate: [],
+    });
+    expect(result.valid).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getEligibleMemberIds
+// ---------------------------------------------------------------------------
+
+describe("eligible member selection for a role on a date", () => {
+  const members = [
+    { id: 1, roleIds: [10, 20], availableDays: ["Sábado"] },
+    { id: 2, roleIds: [10], availableDays: ["Sábado", "Domingo"] },
+    { id: 3, roleIds: [10], availableDays: [] },
+    { id: 4, roleIds: [20], availableDays: ["Sábado"] },
+  ];
+
+  it("includes members with the role who are available on that weekday", () => {
+    // 2026-03-07 is a Saturday (sábado)
+    const result = getEligibleMemberIds({
+      role: { id: 10, dependsOnRoleId: null },
+      date: "2026-03-07",
+      members,
+      assignmentsOnDate: [],
+    });
+    expect(result).toEqual(expect.arrayContaining([1, 2, 3]));
+    expect(result).not.toContain(4);
+  });
+
+  it("includes members with empty availableDays on any weekday", () => {
+    // 2026-03-09 is a Monday (lunes); only member 3 has empty availableDays for role 10
+    const result = getEligibleMemberIds({
+      role: { id: 10, dependsOnRoleId: null },
+      date: "2026-03-09",
+      members,
+      assignmentsOnDate: [],
+    });
+    expect(result).toContain(3);
+  });
+
+  it("excludes members not available on the weekday", () => {
+    // 2026-03-09 is Monday; members 1 and 2 are only available on sábado/domingo
+    const result = getEligibleMemberIds({
+      role: { id: 10, dependsOnRoleId: null },
+      date: "2026-03-09",
+      members,
+      assignmentsOnDate: [],
+    });
+    expect(result).not.toContain(1);
+    expect(result).not.toContain(2);
+  });
+
+  it("for dependent roles, only includes members assigned to the source role", () => {
+    const result = getEligibleMemberIds({
+      role: { id: 20, dependsOnRoleId: 10 },
+      date: "2026-03-07",
+      members,
+      assignmentsOnDate: [{ roleId: 10, memberId: 1 }],
+    });
+    expect(result).toEqual([1]);
+  });
+
+  it("for dependent roles, returns empty when no one is assigned to the source role", () => {
+    const result = getEligibleMemberIds({
+      role: { id: 20, dependsOnRoleId: 10 },
+      date: "2026-03-07",
+      members,
+      assignmentsOnDate: [],
+    });
+    expect(result).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeDatesWithGaps
+// ---------------------------------------------------------------------------
+
+describe("finding dates with unfilled role slots", () => {
+  const roleDefinitions: RoleDefinition[] = [
+    { id: 1, name: "Cantantes", requiredCount: 2 },
+    { id: 2, name: "Músicos", requiredCount: 1 },
+  ];
+
+  it("returns dates where a role has fewer assignments than required", () => {
+    const result = computeDatesWithGaps({
+      dates: ["2026-03-07", "2026-03-14"],
+      currentAssignments: [
+        { date: "2026-03-07", roleId: 1 },
+        { date: "2026-03-07", roleId: 1 },
+        { date: "2026-03-07", roleId: 2 },
+      ],
+      roleDefinitions,
+      dependentRoleIds: new Set(),
+    });
+    expect(result).toEqual(["2026-03-14"]);
+  });
+
+  it("returns empty when all dates are fully filled", () => {
+    const result = computeDatesWithGaps({
+      dates: ["2026-03-07"],
+      currentAssignments: [
+        { date: "2026-03-07", roleId: 1 },
+        { date: "2026-03-07", roleId: 1 },
+        { date: "2026-03-07", roleId: 2 },
+      ],
+      roleDefinitions,
+      dependentRoleIds: new Set(),
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("ignores dependent role assignments when counting filled slots", () => {
+    const result = computeDatesWithGaps({
+      dates: ["2026-03-07"],
+      currentAssignments: [
+        { date: "2026-03-07", roleId: 1 },
+        { date: "2026-03-07", roleId: 1 },
+        { date: "2026-03-07", roleId: 2 },
+        { date: "2026-03-07", roleId: 3 },
+      ],
+      roleDefinitions,
+      dependentRoleIds: new Set([3]),
+    });
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty for empty dates", () => {
+    expect(
+      computeDatesWithGaps({
+        dates: [],
+        currentAssignments: [],
+        roleDefinitions,
+        dependentRoleIds: new Set(),
+      })
+    ).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyPreferredSlots
+// ---------------------------------------------------------------------------
+
+describe("preferred member slot allocation", () => {
+  const assignments = [
+    { date: "2026-03-07", roleId: 1, memberId: 10 },
+    { date: "2026-03-07", roleId: 2, memberId: 20 },
+    { date: "2026-03-14", roleId: 1, memberId: 30 },
+    { date: "2026-03-14", roleId: 2, memberId: 40 },
+  ];
+
+  it("fills preferred slots up to maxSlots, displacing scheduler assignments", () => {
+    const result = applyPreferredSlots({
+      preferredMemberId: 99,
+      preferredRoleIds: [1],
+      maxSlots: 2,
+      dates: ["2026-03-07", "2026-03-14"],
+      assignments,
+    });
+    expect(result.preferred).toHaveLength(2);
+    expect(result.preferred[0]).toEqual({ date: "2026-03-07", roleId: 1, memberId: 99 });
+    expect(result.preferred[1]).toEqual({ date: "2026-03-14", roleId: 1, memberId: 99 });
+    expect(result.remaining).toHaveLength(2);
+    expect(result.remaining.map((a) => a.memberId)).toEqual([20, 40]);
+  });
+
+  it("round-robins across multiple preferred roles", () => {
+    const result = applyPreferredSlots({
+      preferredMemberId: 99,
+      preferredRoleIds: [1, 2],
+      maxSlots: 2,
+      dates: ["2026-03-07", "2026-03-14"],
+      assignments,
+    });
+    expect(result.preferred[0].roleId).toBe(1);
+    expect(result.preferred[1].roleId).toBe(2);
+  });
+
+  it("does nothing when maxSlots is 0", () => {
+    const result = applyPreferredSlots({
+      preferredMemberId: 99,
+      preferredRoleIds: [1],
+      maxSlots: 0,
+      dates: ["2026-03-07"],
+      assignments,
+    });
+    expect(result.preferred).toEqual([]);
+    expect(result.remaining).toEqual(assignments);
+  });
+
+  it("does nothing when preferredRoleIds is empty", () => {
+    const result = applyPreferredSlots({
+      preferredMemberId: 99,
+      preferredRoleIds: [],
+      maxSlots: 5,
+      dates: ["2026-03-07"],
+      assignments,
+    });
+    expect(result.preferred).toEqual([]);
+    expect(result.remaining).toEqual(assignments);
+  });
+
+  it("caps slots at the number of dates available", () => {
+    const result = applyPreferredSlots({
+      preferredMemberId: 99,
+      preferredRoleIds: [1],
+      maxSlots: 100,
+      dates: ["2026-03-07"],
+      assignments,
+    });
+    expect(result.preferred).toHaveLength(1);
   });
 });
