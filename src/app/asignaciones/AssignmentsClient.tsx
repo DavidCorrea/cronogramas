@@ -53,21 +53,21 @@ export default function AssignmentsClient({
   }, [assignments]);
 
   const uniqueRoles = useMemo(() => {
-    const set = new Set(assignments.map((a) => a.roleName));
-    return [...set].sort();
+    const roleNames = new Set(assignments.map((a) => a.roleName));
+    return [...roleNames].sort();
   }, [assignments]);
 
   const years = useMemo(() => {
-    const set = new Set(assignments.map((a) => a.date.slice(0, 4)));
-    return [...set].sort((a, b) => b.localeCompare(a));
+    const yearsSet = new Set(assignments.map((a) => a.date.slice(0, 4)));
+    return [...yearsSet].sort((a, b) => b.localeCompare(a));
   }, [assignments]);
 
   const filtered = useMemo(() => {
-    return assignments.filter((a) => {
-      if (filterGroupId && a.groupId !== parseInt(filterGroupId, 10)) return false;
-      if (filterRole && a.roleName !== filterRole) return false;
-      if (filterYear && a.date.slice(0, 4) !== filterYear) return false;
-      if (filterMonth && a.date.slice(5, 7) !== filterMonth.padStart(2, "0")) return false;
+    return assignments.filter((assignment) => {
+      if (filterGroupId && assignment.groupId !== parseInt(filterGroupId, 10)) return false;
+      if (filterRole && assignment.roleName !== filterRole) return false;
+      if (filterYear && assignment.date.slice(0, 4) !== filterYear) return false;
+      if (filterMonth && assignment.date.slice(5, 7) !== filterMonth.padStart(2, "0")) return false;
       return true;
     });
   }, [assignments, filterGroupId, filterRole, filterYear, filterMonth]);

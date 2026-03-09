@@ -212,7 +212,7 @@ function getNextAvailableMonth(
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
-  const set = new Set(
+  const existingMonthKeys = new Set(
     schedulesList.map((s) => `${s.year}-${s.month}`)
   );
   let m: number;
@@ -231,7 +231,7 @@ function getNextAvailableMonth(
       y += 1;
     }
   }
-  while (set.has(`${y}-${m}`)) {
+  while (existingMonthKeys.has(`${y}-${m}`)) {
     m += 1;
     if (m > 12) {
       m = 1;
@@ -338,8 +338,8 @@ export default function SchedulesPageClient({
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || t("errorGenerate"));
+        const errorBody = await res.json();
+        alert(errorBody.error || t("errorGenerate"));
         return;
       }
 

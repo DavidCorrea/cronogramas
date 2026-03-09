@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getRawArray } from "@/lib/intl-utils";
 import {
-  formatDateShort as formatDate,
   formatDateWeekdayDay,
   formatDateRange,
   utcTimeToLocalDisplay,
@@ -16,141 +15,18 @@ import BackLink from "@/components/BackLink";
 import { DangerZone } from "@/components/DangerZone";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { TogglePill } from "@/components/TogglePill";
-
-interface ScheduleEntry {
-  id: number;
-  scheduleDateId: number;
-  date: string;
-  roleId: number;
-  memberId: number;
-  memberName: string;
-  roleName: string;
-}
-
-interface ScheduleDateInfo {
-  id: number;
-  date: string;
-  type: "assignable" | "for_everyone";
-  label: string | null;
-  note: string | null;
-  startTimeUtc: string;
-  endTimeUtc: string;
-  recurringEventId?: number | null;
-  recurringEventLabel?: string | null;
-  entries: ScheduleEntry[];
-}
-
-interface RoleInfo {
-  id: number;
-  name: string;
-  requiredCount: number;
-  displayOrder: number;
-  dependsOnRoleId: number | null;
-}
-
-interface HolidayConflict {
-  date: string;
-  memberId: number;
-  memberName: string;
-}
-
-interface AuditLogEntry {
-  id: number;
-  action: string;
-  detail: string | null;
-  userName: string | null;
-  createdAt: string;
-}
-
-interface ScheduleDetail {
-  id: number;
-  month: number;
-  year: number;
-  status: string;
-  entries: ScheduleEntry[];
-  scheduleDates: ScheduleDateInfo[];
-  roles: RoleInfo[];
-  prevScheduleId: number | null;
-  nextScheduleId: number | null;
-  holidayConflicts?: HolidayConflict[];
-  auditLog?: AuditLogEntry[];
-}
-
-interface Member {
-  id: number;
-  name: string;
-  roleIds: number[];
-  availableDayIds: number[];
-}
-
-interface ScheduleDay {
-  id: number;
-  weekdayId: number;
-  dayOfWeek: string;
-  active: boolean;
-  type?: string;
-  label?: string | null;
-  groupId?: number;
-}
-
-interface ScheduleDetailClientProps {
-  slug: string;
-  scheduleId: number;
-  initialSchedule: ScheduleDetail;
-  initialMembers: Member[];
-  initialScheduleDays: ScheduleDay[];
-}
-
-function getWeekDateRange(year: number, month: number, weekNumber: number): { start: string; end: string } {
-  const lastDay = new Date(year, month, 0).getDate();
-  const startDay = (weekNumber - 1) * 7 + 1;
-  const endDay = Math.min(weekNumber * 7, lastDay);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return {
-    start: `${year}-${pad(month)}-${pad(startDay)}`,
-    end: `${year}-${pad(month)}-${pad(endDay)}`,
-  };
-}
-
-interface AuditDetailStructured {
-  message: string;
-  changes?: { date: string; role: string; from: string | null; to: string | null }[];
-  added?: { date: string; roleName: string; memberName: string }[];
-  mode?: string;
-  removedCount?: number;
-}
-
-function tryParseJson(str: string | null): AuditDetailStructured | null {
-  if (!str) return null;
-  try {
-    const parsed = JSON.parse(str);
-    return typeof parsed === "object" && parsed !== null && "message" in parsed ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function formatRelativeTime(
-  isoStr: string,
-  t: (key: string, values?: { n?: number }) => string
-): string {
-  const now = Date.now();
-  const then = new Date(isoStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return t("now");
-  if (diffMin < 60) return t("minutesAgo", { n: diffMin });
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return t("hoursAgo", { n: diffHours });
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return t("yesterday");
-  if (diffDays < 30) return t("daysAgo", { n: diffDays });
-  return new Date(isoStr).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
-}
-
-function slotKey(scheduleDateId: number, roleId: number, slotIndex: number): string {
-  return `${scheduleDateId}|${roleId}|${slotIndex}`;
-}
+import type {
+  ScheduleDateInfo,
+  RoleInfo,
+  ScheduleDetail,
+  Member,
+  ScheduleDay,
+  ScheduleDetailClientProps,
+} from "./schedule-detail-types";
+import { getWeekDateRange, slotKey } from "./schedule-detail-helpers";
+import { RebuildModal } from "./RebuildModal";
+import { EditDateModal } from "./EditDateModal";
+import { AuditLogSection } from "./AuditLogSection";
 
 export default function ScheduleDetailClient({
   slug,
@@ -1022,88 +898,14 @@ export default function ScheduleDetailClient({
         })}
       </div>
 
-      {/* Audit log */}
-      {schedule.auditLog && schedule.auditLog.length > 0 && (
-        <div className="border border-border rounded-md">
-          <button
-            onClick={() => setLogOpen(!logOpen)}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <span>{t("changeHistory")} ({schedule.auditLog.length})</span>
-            <span className="text-xs">{logOpen ? "▲" : "▼"}</span>
-          </button>
-          {logOpen && (
-            <div className="border-t border-border divide-y divide-border">
-              {schedule.auditLog.map((entry) => {
-                const parsed = tryParseJson(entry.detail);
-                const isStructured = parsed && (parsed.changes || parsed.added);
-
-                return (
-                  <div key={entry.id} className="px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm">
-                          {isStructured ? parsed.message : (entry.detail ?? entry.action)}
-                        </p>
-                        {entry.userName && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {t("byUser", { name: entry.userName })}
-                          </p>
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                        {formatRelativeTime(entry.createdAt, t)}
-                      </span>
-                    </div>
-                    {isStructured && (
-                      <div className="mt-1">
-                        <button
-                          onClick={() => setLogDetailOpen(logDetailOpen === entry.id ? null : entry.id)}
-                          className="text-xs text-accent hover:opacity-80 transition-opacity"
-                        >
-                          {logDetailOpen === entry.id ? t("hideDetails") : t("showDetails")}
-                        </button>
-                        {logDetailOpen === entry.id && (
-                          <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                            {parsed.changes?.map((c, i) => (
-                              <div key={`${c.date}-${c.role ?? ""}-${c.from ?? ""}-${c.to ?? ""}-${i}`} className="flex gap-2">
-                                <span className="shrink-0">{c.date}</span>
-                                <span className="shrink-0 uppercase tracking-wide">{c.role}</span>
-                                <span>
-                                  {c.from ?? "—"} → {c.to ?? "—"}
-                                </span>
-                              </div>
-                            ))}
-                            {parsed.added && (
-                              <>
-                                {(parsed.removedCount ?? 0) > 0 && (
-                                  <p>{parsed.removedCount} asignacion{parsed.removedCount === 1 ? "" : "es"} reemplazada{parsed.removedCount === 1 ? "" : "s"}</p>
-                                )}
-                                {parsed.added.map((a, i) => (
-                                  <div key={`${a.date}-${a.roleName}-${a.memberName}-${i}`} className="flex gap-2">
-                                    <span className="shrink-0">{a.date}</span>
-                                    <span className="shrink-0 uppercase tracking-wide">{a.roleName}</span>
-                                    <span>{a.memberName}</span>
-                                  </div>
-                                ))}
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-      {!schedule.auditLog?.length && (
-        <div className="text-sm text-muted-foreground text-center py-4">
-          {t("noChangesRecorded")}
-        </div>
-      )}
+      <AuditLogSection
+        entries={schedule.auditLog ?? []}
+        logOpen={logOpen}
+        logDetailOpen={logDetailOpen}
+        onToggleLog={() => setLogOpen(!logOpen)}
+        onToggleDetail={setLogDetailOpen}
+        t={t}
+      />
 
       <DangerZone description={tSchedules("dangerZoneDescription")}>
         <button
@@ -1116,181 +918,36 @@ export default function ScheduleDetailClient({
         </button>
       </DangerZone>
 
-      {/* Rebuild modal */}
       {rebuildOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background border border-border rounded-lg shadow-lg max-w-lg w-full max-h-[80vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
-                {t("rebuildModalTitle")}
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {t("rebuildModalSubtitle")}
-              </p>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              {!rebuildMode && (
-                <div className="space-y-3">
-                  <button
-                    onClick={() => handleRebuildPreview("overwrite")}
-                    className="w-full rounded-md border border-border p-4 text-left hover:border-foreground transition-colors"
-                  >
-                    <p className="text-sm font-medium">{t("rebuildOverwrite")}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("rebuildOverwriteHelp")}
-                    </p>
-                  </button>
-                  <button
-                    onClick={() => handleRebuildPreview("fill_empty")}
-                    className="w-full rounded-md border border-border p-4 text-left hover:border-foreground transition-colors"
-                  >
-                    <p className="text-sm font-medium">{t("rebuildFillEmpty")}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t("rebuildFillEmptyHelp")}
-                    </p>
-                  </button>
-                </div>
-              )}
-
-              {rebuildLoading && (
-                <p className="text-sm text-muted-foreground py-8 text-center">
-                  {t("generatingPreview")}
-                </p>
-              )}
-
-              {rebuildPreview && !rebuildLoading && (
-                <div className="space-y-4">
-                  {rebuildRemovedCount > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      {t("willReplaceAssignments", { n: rebuildRemovedCount })}
-                    </p>
-                  )}
-                  {rebuildPreview.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">
-                      {t("noNewAssignments")}
-                    </p>
-                  ) : (
-                    <div className="divide-y divide-border">
-                      {(() => {
-                        const grouped = new Map<string, typeof rebuildPreview>();
-                        for (const entry of rebuildPreview!) {
-                          const list = grouped.get(entry.date) ?? [];
-                          list.push(entry);
-                          grouped.set(entry.date, list);
-                        }
-                        return [...grouped.entries()].map(([date, entries]) => (
-                          <div key={date} className="py-3 first:pt-0">
-                            <p className="text-sm font-medium mb-1.5">{formatDate(date)}</p>
-                            <div className="space-y-1">
-                              {entries.map((e) => (
-                                <div key={`${e.date}-${e.roleId}-${e.memberId}`} className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground text-xs uppercase tracking-wide">{e.roleName}</span>
-                                  <span>{e.memberName}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
-              <button
-                onClick={closeRebuild}
-                className="rounded-md border border-border px-4 py-2 text-sm hover:border-foreground transition-colors"
-              >
-                {tCommon("cancel")}
-              </button>
-              {rebuildPreview && rebuildPreview.length > 0 && (
-                <button
-                  onClick={handleRebuildApply}
-                  disabled={rebuildLoading}
-                  className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-                >
-                  {rebuildLoading ? t("applying") : t("apply")}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <RebuildModal
+          rebuildMode={rebuildMode}
+          rebuildLoading={rebuildLoading}
+          rebuildPreview={rebuildPreview}
+          rebuildRemovedCount={rebuildRemovedCount}
+          onPreview={handleRebuildPreview}
+          onApply={handleRebuildApply}
+          onClose={closeRebuild}
+          t={t}
+          tCommon={tCommon}
+        />
       )}
 
-      {/* Edit schedule date modal */}
       {editDateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background border border-border rounded-lg shadow-lg max-w-md w-full">
-            <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
-                {t("editDateTitle")}
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {formatDateWeekdayDay(editDateModal.date)}
-              </p>
-            </div>
-            <div className="px-6 py-4 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">{t("startTimeLabel")}</label>
-                  <input
-                    type="time"
-                    value={editDateStartUtc}
-                    onChange={(e) => setEditDateStartUtc(e.target.value)}
-                    className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
-                  />
-                  <p className="text-xs text-muted-foreground mt-0.5">{t("yourTimezone")}</p>
-                </div>
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">{t("endTimeLabel")}</label>
-                  <input
-                    type="time"
-                    value={editDateEndUtc}
-                    onChange={(e) => setEditDateEndUtc(e.target.value)}
-                    className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
-                  />
-                  <p className="text-xs text-muted-foreground mt-0.5">{t("yourTimezone")}</p>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">{t("noteLabel")}</label>
-                <input
-                  type="text"
-                  value={editDateNote}
-                  onChange={(e) => setEditDateNote(e.target.value)}
-                  placeholder={tCommon("optional")}
-                  className="rounded-md border border-border bg-transparent px-3 py-2 text-sm w-full"
-                />
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-border flex flex-wrap items-center justify-between gap-3">
-              <button
-                onClick={handleDeleteFromEditModal}
-                className="text-sm text-destructive hover:opacity-80"
-              >
-                {t("deleteDate")}
-              </button>
-              <div className="flex gap-2">
-                <button
-                  onClick={closeEditDateModal}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:border-foreground transition-colors"
-                >
-                  {tCommon("cancel")}
-                </button>
-                <button
-                  onClick={handleSaveEditDate}
-                  disabled={editDateSaving}
-                  className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-                >
-                  {editDateSaving ? t("saving") : t("save")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <EditDateModal
+          date={editDateModal.date}
+          startUtc={editDateStartUtc}
+          endUtc={editDateEndUtc}
+          note={editDateNote}
+          saving={editDateSaving}
+          onStartChange={setEditDateStartUtc}
+          onEndChange={setEditDateEndUtc}
+          onNoteChange={setEditDateNote}
+          onSave={handleSaveEditDate}
+          onDelete={handleDeleteFromEditModal}
+          onClose={closeEditDateModal}
+          t={t}
+          tCommon={tCommon}
+        />
       )}
 
       <ConfirmDialog

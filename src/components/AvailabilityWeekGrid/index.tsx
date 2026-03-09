@@ -2,100 +2,24 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import {
+  MIN_BLOCK_MINUTES,
+  SNAP_MINUTES,
+  TOTAL_MINUTES,
+  STEPS_PER_HOUR,
+  STEPS_PER_DAY,
+  HEADER_HEIGHT,
+  BODY_PADDING_TOP,
+  BODY_PADDING_BOTTOM,
+  getBodyHeightPx,
+  parseHHMM,
+  minutesToHHMM,
+  snapToStep,
+  normalizeDayBlocks,
+} from "./utils";
+import type { AvailabilityBlock, AvailabilityWeekGridProps } from "./types";
 
-const MIN_BLOCK_MINUTES = 30;
-const SNAP_MINUTES = 30; // snap to 30-min boundaries
-const TOTAL_MINUTES = 24 * 60; // 1440
-const STEPS_PER_HOUR = TOTAL_MINUTES / 24 / SNAP_MINUTES; // 2 for 30-min
-const STEPS_PER_DAY = 24 * STEPS_PER_HOUR; // 48
-const HEADER_HEIGHT = 40;
-/** Padding above 00 and below 24; blocks cannot extend into these areas */
-const BODY_PADDING_TOP = 12;
-const BODY_PADDING_BOTTOM = 12;
-
-/** Body height in px (used for layout and block positioning so they match). */
-function getBodyHeightPx(gridHeight: number): number {
-  return gridHeight - BODY_PADDING_TOP - BODY_PADDING_BOTTOM;
-}
-
-function parseHHMM(s: string): number {
-  const [h, m] = (s ?? "00:00").trim().split(":").map((x) => parseInt(x, 10) || 0);
-  return Math.min(TOTAL_MINUTES, Math.max(0, h * 60 + m));
-}
-
-/** Normalize blocks for one day: clamp to [0,24h], merge overlaps, trim total to ≤24h. */
-function normalizeDayBlocks(blocks: AvailabilityBlock[]): AvailabilityBlock[] {
-  if (blocks.length === 0) return [];
-  const parsed = blocks
-    .map((b) => {
-      const start = Math.max(0, Math.min(TOTAL_MINUTES, parseHHMM(b.startLocal)));
-      const end = Math.max(0, Math.min(TOTAL_MINUTES, parseHHMM(b.endLocal)));
-      return { start, end };
-    })
-    .filter((b) => b.end > b.start)
-    .sort((a, b) => a.start - b.start);
-  if (parsed.length === 0) return [];
-  const merged: { start: number; end: number }[] = [];
-  for (const b of parsed) {
-    const last = merged[merged.length - 1];
-    if (last && b.start <= last.end) {
-      last.end = Math.max(last.end, b.end);
-    } else {
-      merged.push({ start: b.start, end: b.end });
-    }
-  }
-  const total = merged.reduce((s, b) => s + (b.end - b.start), 0);
-  if (total <= TOTAL_MINUTES) {
-    return merged.map((b) => ({
-      startLocal: minutesToHHMM(b.start),
-      endLocal: minutesToHHMM(b.end),
-    }));
-  }
-  let toTrim = total - TOTAL_MINUTES;
-  for (let i = merged.length - 1; i >= 0 && toTrim > 0; i--) {
-    const len = merged[i].end - merged[i].start;
-    if (toTrim >= len) {
-      toTrim -= len;
-      merged.splice(i, 1);
-    } else {
-      merged[i].end -= toTrim;
-      toTrim = 0;
-    }
-  }
-  return merged.map((b) => ({
-    startLocal: minutesToHHMM(b.start),
-    endLocal: minutesToHHMM(b.end),
-  }));
-}
-
-function minutesToHHMM(min: number): string {
-  const m = Math.min(TOTAL_MINUTES, Math.max(0, Math.round(min)));
-  const h = Math.floor(m / 60);
-  const mi = m % 60;
-  return `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
-}
-
-/** Snap minutes to nearest SNAP_MINUTES (e.g. 15), clamped to [0, TOTAL_MINUTES]. */
-function snapToStep(min: number): number {
-  const step = SNAP_MINUTES;
-  const rounded = Math.round(min / step) * step;
-  return Math.min(TOTAL_MINUTES, Math.max(0, rounded));
-}
-
-export interface WeekdayOption {
-  weekdayId: number;
-  dayOfWeek: string;
-}
-
-export type AvailabilityBlock = { startLocal: string; endLocal: string };
-
-export interface AvailabilityWeekGridProps {
-  days: WeekdayOption[];
-  /** key = weekdayId, value = array of blocks (multiple blocks per day allowed) */
-  availability: Record<number, AvailabilityBlock[]>;
-  onChange: (availability: Record<number, AvailabilityBlock[]>) => void;
-  gridHeight?: number;
-}
+export type { WeekdayOption, AvailabilityBlock, AvailabilityWeekGridProps } from "./types";
 
 export default function AvailabilityWeekGrid({
   days,
@@ -425,26 +349,26 @@ export default function AvailabilityWeekGrid({
           />
         </div>
 
-        {days.map((d) => {
-          const blocks = availability[d.weekdayId] ?? [];
+        {days.map((day) => {
+          const blocks = availability[day.weekdayId] ?? [];
           const hasBlocks = blocks.length > 0;
 
           return (
             <div
-              key={d.weekdayId}
+              key={day.weekdayId}
               className="flex-1 min-w-[5.5rem] flex flex-col border-r border-border last:border-r-0"
             >
               <div className="h-10 shrink-0 border-b border-border flex items-center justify-center gap-1 bg-background">
-                <span className="text-xs font-medium truncate max-w-full px-0.5" title={d.dayOfWeek}>
-                  {d.dayOfWeek}
+                <span className="text-xs font-medium truncate max-w-full px-0.5" title={day.dayOfWeek}>
+                  {day.dayOfWeek}
                 </span>
                 {hasBlocks && (
                   <button
                     type="button"
-                    onClick={(e) => handleRemoveAllDay(e, d.weekdayId)}
+                    onClick={(e) => handleRemoveAllDay(e, day.weekdayId)}
                     className="rounded p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    aria-label={t("removeAllDay", { day: d.dayOfWeek })}
-                    title={t("removeAllDay", { day: d.dayOfWeek })}
+                    aria-label={t("removeAllDay", { day: day.dayOfWeek })}
+                    title={t("removeAllDay", { day: day.dayOfWeek })}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -460,14 +384,14 @@ export default function AvailabilityWeekGrid({
               <div
                 className="shrink-0 relative cursor-pointer group"
                 style={{ height: getBodyHeightPx(gridHeight) }}
-                onClick={(e) => handleColumnBodyClick(e, d.weekdayId)}
+                onClick={(e) => handleColumnBodyClick(e, day.weekdayId)}
                 data-column-body
                 role="button"
                 tabIndex={0}
                 aria-label={
                   hasBlocks
-                    ? t("availabilityBlocksCount", { day: d.dayOfWeek, n: blocks.length })
-                    : t("addAvailabilityDay", { day: d.dayOfWeek })
+                    ? t("availabilityBlocksCount", { day: day.dayOfWeek, n: blocks.length })
+                    : t("addAvailabilityDay", { day: day.dayOfWeek })
                 }
               >
                 {/* Hour borders: only at full hours, behind grid so they don't show inside blocks */}
@@ -494,7 +418,7 @@ export default function AvailabilityWeekGrid({
                     <div
                       key={`cell-${step}`}
                       data-step={step}
-                      data-weekday-id={d.weekdayId}
+                      data-weekday-id={day.weekdayId}
                       className="min-h-0 w-full col-start-1"
                       style={{ gridRow: `${step + 1} / ${step + 2}` }}
                     />
@@ -513,7 +437,7 @@ export default function AvailabilityWeekGrid({
                         className="group/block col-start-1 mx-0.5 rounded bg-primary/80 transition-colors flex flex-col cursor-grab active:cursor-grabbing z-10 relative min-h-0"
                         style={{ gridRow: `${startRow} / ${endRow}` }}
                         onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(ev) => handlePointerDownBlock(ev, d.weekdayId, blockIndex, "center")}
+                        onPointerDown={(ev) => handlePointerDownBlock(ev, day.weekdayId, blockIndex, "center")}
                         title={timeLabel}
                       >
                         <span
@@ -527,12 +451,12 @@ export default function AvailabilityWeekGrid({
                           aria-hidden
                           onPointerDown={(ev) => {
                             ev.stopPropagation();
-                            handlePointerDownBlock(ev, d.weekdayId, blockIndex, "top");
+                            handlePointerDownBlock(ev, day.weekdayId, blockIndex, "top");
                           }}
                         >
                           <button
                             type="button"
-                            onClick={(ev) => handleRemoveBlock(ev, d.weekdayId, blockIndex)}
+                            onClick={(ev) => handleRemoveBlock(ev, day.weekdayId, blockIndex)}
                             className="rounded p-1 min-w-[28px] min-h-[28px] flex items-center justify-center text-primary-foreground/90 touch-manipulation"
                             aria-label={t("removeBlock", { time: timeLabel })}
                             title={t("removeBlock", { time: timeLabel })}
@@ -548,7 +472,7 @@ export default function AvailabilityWeekGrid({
                           aria-hidden
                           onPointerDown={(ev) => {
                             ev.stopPropagation();
-                            handlePointerDownBlock(ev, d.weekdayId, blockIndex, "bottom");
+                            handlePointerDownBlock(ev, day.weekdayId, blockIndex, "bottom");
                           }}
                         />
                       </div>
@@ -580,24 +504,24 @@ export default function AvailabilityWeekGrid({
         onPointerUp={dragState ? handlePointerUp : undefined}
         onPointerLeave={dragState ? handlePointerUp : undefined}
       >
-        {days.map((d) => {
-          const blocks = availability[d.weekdayId] ?? [];
+        {days.map((day) => {
+          const blocks = availability[day.weekdayId] ?? [];
           const hasBlocks = blocks.length > 0;
           return (
             <div
-              key={d.weekdayId}
+              key={day.weekdayId}
               className="flex flex-col gap-1 rounded-md bg-background border border-border overflow-hidden"
             >
               <div className="flex items-center justify-between px-2 py-1.5 shrink-0">
-                <span className="text-sm font-medium" title={d.dayOfWeek}>{d.dayOfWeek}</span>
+                <span className="text-sm font-medium" title={day.dayOfWeek}>{day.dayOfWeek}</span>
                 <span className="w-7 h-7 flex shrink-0 items-center justify-center" aria-hidden>
                   {hasBlocks ? (
                     <button
                       type="button"
-                      onClick={(e) => handleRemoveAllDay(e, d.weekdayId)}
+                      onClick={(e) => handleRemoveAllDay(e, day.weekdayId)}
                       className="rounded p-1.5 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 touch-manipulation -m-1.5"
-                      aria-label={t("removeAllDay", { day: d.dayOfWeek })}
-                      title={t("removeAllDay", { day: d.dayOfWeek })}
+                      aria-label={t("removeAllDay", { day: day.dayOfWeek })}
+                      title={t("removeAllDay", { day: day.dayOfWeek })}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -608,17 +532,17 @@ export default function AvailabilityWeekGrid({
               </div>
               <div
                 ref={(el) => {
-                  mobileStripRefs.current[d.weekdayId] = el;
+                  mobileStripRefs.current[day.weekdayId] = el;
                 }}
-                data-weekday-id={d.weekdayId}
+                data-weekday-id={day.weekdayId}
                 className="relative cursor-pointer group w-full h-24 rounded border border-border bg-muted/30 overflow-hidden touch-none"
-                onClick={(e) => handleMobileStripClick(e, d.weekdayId)}
+                onClick={(e) => handleMobileStripClick(e, day.weekdayId)}
                 role="button"
                 tabIndex={0}
                 aria-label={
                   hasBlocks
-                    ? t("availabilityBlocksCount", { day: d.dayOfWeek, n: blocks.length })
-                    : t("addAvailabilityDay", { day: d.dayOfWeek })
+                    ? t("availabilityBlocksCount", { day: day.dayOfWeek, n: blocks.length })
+                    : t("addAvailabilityDay", { day: day.dayOfWeek })
                 }
               >
                 {/* 48 step cells: click target; no borders */}
@@ -627,7 +551,7 @@ export default function AvailabilityWeekGrid({
                     <div
                       key={step}
                       data-step={step}
-                      data-weekday-id={d.weekdayId}
+                      data-weekday-id={day.weekdayId}
                       className="flex-1 min-w-0 h-full"
                     />
                   ))}
@@ -668,7 +592,7 @@ export default function AvailabilityWeekGrid({
                       title={timeLabel}
                       onClick={(e) => e.stopPropagation()}
                       onPointerDown={(ev) =>
-                        handlePointerDownBlockMobile(ev, d.weekdayId, blockIndex, "center")
+                        handlePointerDownBlockMobile(ev, day.weekdayId, blockIndex, "center")
                       }
                     >
                       <div
@@ -676,7 +600,7 @@ export default function AvailabilityWeekGrid({
                         aria-hidden
                         onPointerDown={(ev) => {
                           ev.stopPropagation();
-                          handlePointerDownBlockMobile(ev, d.weekdayId, blockIndex, "left");
+                          handlePointerDownBlockMobile(ev, day.weekdayId, blockIndex, "left");
                         }}
                       />
                       <div className="flex-1 min-w-0" aria-hidden />
@@ -685,7 +609,7 @@ export default function AvailabilityWeekGrid({
                         aria-hidden
                         onPointerDown={(ev) => {
                           ev.stopPropagation();
-                          handlePointerDownBlockMobile(ev, d.weekdayId, blockIndex, "right");
+                          handlePointerDownBlockMobile(ev, day.weekdayId, blockIndex, "right");
                         }}
                       />
                       {/* Time + remove on top of handles so time is always visible */}
@@ -700,7 +624,7 @@ export default function AvailabilityWeekGrid({
                         </span>
                         <button
                           type="button"
-                          onClick={(ev) => handleRemoveBlock(ev, d.weekdayId, blockIndex)}
+                          onClick={(ev) => handleRemoveBlock(ev, day.weekdayId, blockIndex)}
                           className="shrink-0 rounded p-1 min-w-[28px] min-h-[28px] flex items-center justify-center text-primary-foreground/90 touch-manipulation pointer-events-auto"
                           aria-label={t("removeTime", { time: timeLabel })}
                           title={t("removeTime", { time: timeLabel })}

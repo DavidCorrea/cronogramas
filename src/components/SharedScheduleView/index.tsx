@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
-  formatDateLong,
   formatDateWeekdayDay,
   formatDateRange,
   getWeekdayName,
@@ -16,13 +15,17 @@ import {
   type SharedScheduleData,
   getTodayISO,
   getWeekDateRange,
-  getRelativeLabel,
   groupDatesByWeek,
   groupScheduleDatesByWeek,
 } from "./types";
 import { MonthHeader } from "./MonthHeader";
 import { WeekSection } from "./WeekSection";
 import { CalendarGrid } from "./CalendarGrid";
+import {
+  getDateDisplayLabel as getDateDisplayLabelPure,
+  getDateDisplayTimeRange,
+} from "./helpers";
+import { MemberAgendaCard } from "./MemberAgendaCard";
 
 const DateDetailModal = dynamic(
   () => import("./DateDetailModal").then((m) => ({ default: m.DateDetailModal })),
@@ -111,37 +114,7 @@ export default function SharedScheduleView({
     if (!scheduleDateByDateMap.has(d.date)) scheduleDateByDateMap.set(d.date, d);
   }
 
-  const getDateDisplayLabel = (sd: ScheduleDateInfo): string => {
-    const label = sd.recurringEventLabel ?? sd.label ?? null;
-    if (label) return label;
-    return sd.type === "for_everyone" ? t("defaultForEveryoneLabel") : t("defaultEventLabel");
-  };
-
-  const getDateDisplayTimeRange = (sd: ScheduleDateInfo): string | null => {
-    const startUtc = sd.startTimeUtc ?? sd.recurringEventStartTimeUtc;
-    const endUtc = sd.endTimeUtc ?? sd.recurringEventEndTimeUtc;
-    if (!startUtc || !endUtc) return null;
-    const parseHHMM = (s: string) => {
-      const parts = s.split(":").map(Number);
-      return [parts[0] ?? 0, parts[1] ?? 0];
-    };
-    const [y, mo, day] = sd.date.split("-").map(Number);
-    const [sh, sm] = parseHHMM(startUtc);
-    const [eh, em] = parseHHMM(endUtc);
-    const startDate = new Date(Date.UTC(y, mo - 1, day, sh, sm, 0));
-    const endDate = new Date(Date.UTC(y, mo - 1, day, eh, em, 0));
-    const start = startDate.toLocaleTimeString("es-ES", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-    const end = endDate.toLocaleTimeString("es-ES", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-    return `${start} – ${end}`;
-  };
+  const getDateDisplayLabel = (sd: ScheduleDateInfo) => getDateDisplayLabelPure(sd, t);
 
   const isDateVisible = (d: string): boolean => {
     if (!showPastDates && today && d < today) return false;
@@ -185,9 +158,9 @@ export default function SharedScheduleView({
           .sort()
           .filter(isDateVisible);
 
-  const filteredEntries = schedule.entries.filter((e) => {
-    if (filteredMemberId && e.memberId !== filteredMemberId) return false;
-    if (filteredRoleId && e.roleId !== filteredRoleId) return false;
+  const filteredEntries = schedule.entries.filter((entry) => {
+    if (filteredMemberId && entry.memberId !== filteredMemberId) return false;
+    if (filteredRoleId && entry.roleId !== filteredRoleId) return false;
     return true;
   });
 
@@ -304,7 +277,7 @@ export default function SharedScheduleView({
 
   const upcomingDate =
     filteredMemberId && today
-      ? filteredDates.find((d) => d >= today && !forEveryoneSet.has(d))
+      ? filteredDates.find((d) => d >= today && !forEveryoneSet.has(d)) ?? null
       : null;
 
   const displayDates = upcomingDate
@@ -439,109 +412,18 @@ export default function SharedScheduleView({
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {filteredMemberId && selectedMember && (
-          <div className="mb-8 border border-foreground/20 rounded-md p-5 lg:hidden">
-            <h2 className="text-lg font-medium">
-              {t("agendaOf", { name: selectedMember.name })}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {assignedDateCount}{" "}
-              {assignedDateCount === 1 ? t("dateAssigned") : t("datesAssigned")}
-            </p>
-            {upcomingDate && (
-              <div className="mt-4 pt-4 border-t border-border/50">
-                <h3 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">
-                  {t("nextAssignment")}
-                </h3>
-                <p className="font-medium">
-                  {formatDateLong(upcomingDate)}
-                  {today && (
-                    <span className="ml-2 text-sm text-muted-foreground font-normal">
-                      — {getRelativeLabel(upcomingDate, today, t)}
-                    </span>
-                  )}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {getNonDependentRolesForDate(upcomingDate)}
-                  {hasDependentRoleOnDate(upcomingDate) && (
-                    <span className="ml-2 text-foreground font-medium">
-                      ★ {getDependentRoleNamesOnDate(upcomingDate).join(", ")}
-                    </span>
-                  )}
-                </p>
-                {upcomingDate &&
-                  getNoteForScheduleDate(
-                    scheduleDateByDateMap.get(upcomingDate) ?? {
-                      date: upcomingDate,
-                      type: "assignable",
-                    }
-                  ) && (
-                    <p className="text-xs text-accent mt-2">
-                      {getNoteForScheduleDate(
-                        scheduleDateByDateMap.get(upcomingDate) ?? {
-                          date: upcomingDate,
-                          type: "assignable",
-                        }
-                      )}
-                    </p>
-                  )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {filteredMemberId && selectedMember && (
-          <div className="hidden lg:block">
-            <div className="mb-8 border-b border-border pb-6">
-              <h2 className="text-lg font-medium">
-                {t("agendaOf", { name: selectedMember.name })}
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                {assignedDateCount}{" "}
-                {assignedDateCount === 1 ? t("dateAssigned") : t("datesAssigned")}
-              </p>
-            </div>
-            {upcomingDate && (
-              <div className="mb-8 border border-foreground/20 rounded-md p-5">
-                <h3 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">
-                  {t("nextAssignment")}
-                </h3>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-medium">
-                    {formatDateLong(upcomingDate)}
-                    {today && (
-                      <span className="ml-2 text-sm text-muted-foreground font-normal">
-                        — {getRelativeLabel(upcomingDate, today, t)}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {getNonDependentRolesForDate(upcomingDate)}
-                    {hasDependentRoleOnDate(upcomingDate) && (
-                      <span className="ml-2 text-foreground font-medium">
-                        ★ {getDependentRoleNamesOnDate(upcomingDate).join(", ")}
-                      </span>
-                    )}
-                  </span>
-                </div>
-                {upcomingDate &&
-                  getNoteForScheduleDate(
-                    scheduleDateByDateMap.get(upcomingDate) ?? {
-                      date: upcomingDate,
-                      type: "assignable",
-                    }
-                  ) && (
-                    <p className="text-xs text-accent mt-2">
-                      {getNoteForScheduleDate(
-                        scheduleDateByDateMap.get(upcomingDate) ?? {
-                          date: upcomingDate,
-                          type: "assignable",
-                        }
-                      )}
-                    </p>
-                  )}
-              </div>
-            )}
-          </div>
+          <MemberAgendaCard
+            memberName={selectedMember.name}
+            assignedDateCount={assignedDateCount}
+            upcomingDate={upcomingDate}
+            today={today}
+            getNonDependentRolesForDate={getNonDependentRolesForDate}
+            hasDependentRoleOnDate={hasDependentRoleOnDate}
+            getDependentRoleNamesOnDate={getDependentRoleNamesOnDate}
+            getNoteForScheduleDate={getNoteForScheduleDate}
+            scheduleDateByDateMap={scheduleDateByDateMap}
+            t={t}
+          />
         )}
 
         <div
