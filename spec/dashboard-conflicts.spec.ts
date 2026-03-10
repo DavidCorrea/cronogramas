@@ -7,7 +7,7 @@ import {
 } from "@/lib/dashboard-conflicts";
 
 describe("Dashboard conflict detection (time-aware)", () => {
-  describe("time range overlap (rangesOverlap)", () => {
+  describe("when checking if two time ranges overlap", () => {
     it("does not overlap when one block ends exactly when the other starts", () => {
       expect(rangesOverlap("09:00", "12:00", "12:00", "15:00")).toBe(false);
       expect(rangesOverlap("12:00", "15:00", "09:00", "12:00")).toBe(false);
@@ -34,7 +34,7 @@ describe("Dashboard conflict detection (time-aware)", () => {
     });
   });
 
-  describe("conflict building (buildConflicts)", () => {
+  describe("when building cross-group conflicts from assignments", () => {
     function assignment(
       date: string,
       groupId: number,
@@ -163,7 +163,7 @@ describe("Dashboard conflict detection (time-aware)", () => {
   // getOverlapSpan
   // -------------------------------------------------------------------------
 
-  describe("overlap span calculation (getOverlapSpan)", () => {
+  describe("when calculating the overlap span between two ranges", () => {
     it("returns the intersection of two partially overlapping ranges", () => {
       expect(getOverlapSpan("09:00", "12:00", "10:00", "14:00")).toEqual({
         start: "10:00",
@@ -198,7 +198,7 @@ describe("Dashboard conflict detection (time-aware)", () => {
   // getConflictTimespans
   // -------------------------------------------------------------------------
 
-  describe("conflict timespan detection (getConflictTimespans)", () => {
+  describe("when detecting conflict timespans across groups", () => {
     function assignment(
       groupId: number,
       groupName: string,

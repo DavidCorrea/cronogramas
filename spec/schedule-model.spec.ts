@@ -691,10 +691,10 @@ describe("generateGroupSchedule — scheduling algorithm scenarios", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Domain helpers extracted for model-boundary compliance
+// Domain helpers
 // ---------------------------------------------------------------------------
 
-describe("resolveHolidaysForMember", () => {
+describe("when resolving holidays for a member", () => {
   const holidays = [
     { userId: "user-1", memberId: null, startDate: "2026-07-01", endDate: "2026-07-14" },
     { userId: null, memberId: 10, startDate: "2026-08-01", endDate: "2026-08-10" },
@@ -735,7 +735,7 @@ describe("resolveHolidaysForMember", () => {
   });
 });
 
-describe("filterRebuildableDates", () => {
+describe("when filtering dates available for schedule rebuild", () => {
   it("keeps only dates on or after today", () => {
     const dates = ["2026-03-01", "2026-03-07", "2026-03-08", "2026-03-15"];
     expect(filterRebuildableDates(dates, "2026-03-07")).toEqual([
@@ -755,7 +755,7 @@ describe("filterRebuildableDates", () => {
   });
 });
 
-describe("validateDateInScheduleMonth", () => {
+describe("when validating a date belongs to the schedule month", () => {
   it("accepts a date within the schedule month", () => {
     expect(validateDateInScheduleMonth({ date: "2026-03-15", month: 3, year: 2026 }))
       .toEqual({ valid: true });
@@ -775,7 +775,7 @@ describe("validateDateInScheduleMonth", () => {
   });
 });
 
-describe("EVENT_DEFAULTS", () => {
+describe("event default values", () => {
   it("provides sensible defaults for null DB fields", () => {
     expect(EVENT_DEFAULTS.label).toBe("Evento");
     expect(EVENT_DEFAULTS.startTimeUtc).toBe("00:00");
@@ -787,7 +787,7 @@ describe("EVENT_DEFAULTS", () => {
 // filterSchedulableRoles
 // ---------------------------------------------------------------------------
 
-describe("filterSchedulableRoles", () => {
+describe("when filtering roles eligible for scheduling", () => {
   it("keeps independent roles and excludes dependent roles", () => {
     const roles = [
       { id: 1, name: "Cantantes", requiredCount: 3, exclusiveGroupId: 10, dependsOnRoleId: null },

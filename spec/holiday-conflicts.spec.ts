@@ -1,6 +1,6 @@
 import { findHolidayConflicts } from "@/lib/holiday-conflicts";
 
-describe("findHolidayConflicts", () => {
+describe("when detecting assignments that conflict with holidays", () => {
   const groupMembers = [
     { id: 1, name: "Ana", userId: "user-a" },
     { id: 2, name: "Carlos", userId: null },

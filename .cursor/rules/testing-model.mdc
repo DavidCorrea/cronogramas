@@ -31,7 +31,7 @@ The model layer is the critical core of the app. Every model function must have 
 | `src/lib/timezone-utils.ts` | `spec/timezone-utils.spec.ts` |
 | `src/lib/holiday-conflicts.ts` | `spec/holiday-conflicts.spec.ts` |
 
-As the model layer grows (see model-boundary rule), new model modules get their own test file in `spec/`. Add the mapping here when you create one.
+As the model layer grows, new model modules get their own test file in `spec/`. Add the mapping here when you create one.
 
 **Scheduling algorithm scenario index** (reference for scheduler and schedule-model tests):
 
