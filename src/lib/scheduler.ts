@@ -7,13 +7,11 @@ import {
 } from "./scheduler-types";
 import { getDayNameFromDateString } from "./dates";
 
-/** Parse "HH:MM" to minutes since midnight (0–1439). */
 function parseTimeToMinutes(hhmm: string): number {
   const [h, m] = (hhmm ?? "00:00").trim().split(":").map((x) => parseInt(x, 10) || 0);
   return Math.min(1439, Math.max(0, h * 60 + m));
 }
 
-/** True if [aStart, aEnd) overlaps [bStart, bEnd) (times in HH:MM). */
 function timeRangesOverlap(
   aStart: string,
   aEnd: string,
@@ -27,17 +25,6 @@ function timeRangesOverlap(
   return aS < bE && bS < aE;
 }
 
-/**
- * Returns the capitalised Spanish day-of-week name for an ISO date string
- * (e.g. "2026-03-04" → "Miércoles"). Uses shared date helper for consistency with schedule creation.
- */
-function getDayOfWeek(dateStr: string): string {
-  return getDayNameFromDateString(dateStr);
-}
-
-/**
- * Checks whether a given date falls within any of the member's holiday periods.
- */
 function isOnHoliday(member: MemberInfo, dateStr: string): boolean {
   return member.holidays.some(
     (h) => dateStr >= h.startDate && dateStr <= h.endDate
@@ -58,14 +45,14 @@ function sortRolesByPriority(
   }
 
   const priorities = dayRolePriorities[dayOfWeek];
+  const originalIndex = new Map(roles.map((r, i) => [r, i]));
   const sorted = [...roles];
 
   sorted.sort((a, b) => {
     const prioA = priorities[a.id] ?? Infinity;
     const prioB = priorities[b.id] ?? Infinity;
     if (prioA !== prioB) return prioA - prioB;
-    // Preserve original order for roles with equal priority
-    return roles.indexOf(a) - roles.indexOf(b);
+    return (originalIndex.get(a) ?? 0) - (originalIndex.get(b) ?? 0);
   });
 
   return sorted;
@@ -90,6 +77,110 @@ function pickFromRotation(
     }
   }
   return null;
+}
+
+/**
+ * Checks whether a member can fill a role on a given date, considering
+ * availability, holidays, exclusive groups, duplicate roles, and time windows.
+ */
+function isMemberEligible(
+  member: MemberInfo,
+  date: string,
+  dayOfWeek: string,
+  role: RoleDefinition,
+  rolesOnDate: Map<number, Set<number>>,
+  exclusiveOnDate: Map<number, Map<number, number>>,
+  eventWindow?: { startUtc: string; endUtc: string }
+): boolean {
+  if (!member.availableDays.includes(dayOfWeek)) return false;
+  if (isOnHoliday(member, date)) return false;
+  if (rolesOnDate.get(member.id)?.has(role.id)) return false;
+
+  if (role.exclusiveGroupId) {
+    const assignedRoleId = exclusiveOnDate
+      .get(member.id)
+      ?.get(role.exclusiveGroupId);
+    if (assignedRoleId !== undefined && assignedRoleId !== role.id) return false;
+  }
+
+  if (eventWindow) {
+    const blocks = member.availabilityBlocksByDay?.[dayOfWeek];
+    if (!blocks?.length) return false;
+    const overlaps = blocks.some((block) =>
+      timeRangesOverlap(
+        eventWindow.startUtc,
+        eventWindow.endUtc,
+        block.startUtc,
+        block.endUtc
+      )
+    );
+    if (!overlaps) return false;
+  }
+
+  return true;
+}
+
+/** Initialise per-role per-day-of-week pointers from the previous month's assignments. */
+function initializePointers(
+  roles: RoleDefinition[],
+  rotationLists: Map<number, number[]>,
+  previousAssignments: ScheduleAssignment[]
+): Map<number, Map<string, number>> {
+  const pointers = new Map<number, Map<string, number>>();
+
+  for (const role of roles) {
+    const list = rotationLists.get(role.id)!;
+    if (list.length === 0) continue;
+
+    const lastMemberByDay = new Map<
+      string,
+      { memberId: number; date: string }
+    >();
+    for (const pa of previousAssignments) {
+      if (pa.roleId !== role.id) continue;
+      const dow = getDayNameFromDateString(pa.date);
+      const current = lastMemberByDay.get(dow);
+      if (!current || pa.date > current.date) {
+        lastMemberByDay.set(dow, { memberId: pa.memberId, date: pa.date });
+      }
+    }
+
+    const dayPointers = new Map<string, number>();
+    for (const [dow, { memberId }] of lastMemberByDay) {
+      const idx = list.indexOf(memberId);
+      if (idx !== -1) {
+        dayPointers.set(dow, (idx + 1) % list.length);
+      }
+    }
+    if (dayPointers.size > 0) {
+      pointers.set(role.id, dayPointers);
+    }
+  }
+
+  return pointers;
+}
+
+function recordExclusiveGroup(
+  memberId: number,
+  role: RoleDefinition,
+  exclusiveOnDate: Map<number, Map<number, number>>
+): void {
+  if (role.exclusiveGroupId == null) return;
+  if (!exclusiveOnDate.has(memberId)) {
+    exclusiveOnDate.set(memberId, new Map());
+  }
+  exclusiveOnDate.get(memberId)!.set(role.exclusiveGroupId, role.id);
+}
+
+function recordRoleAssignment(
+  memberId: number,
+  roleId: number,
+  rolesOnDate: Map<number, Set<number>>
+): void {
+  if (!rolesOnDate.has(memberId)) {
+    rolesOnDate.set(memberId, new Set());
+  }
+  rolesOnDate.get(memberId)!.add(roleId);
 }
 
 /**
@@ -119,148 +210,65 @@ export function generateSchedule(input: SchedulerInput): SchedulerOutput {
     dayEventTimeWindow,
   } = input;
 
+  const memberById = new Map(members.map((m) => [m.id, m] as const));
+  const roleById = new Map(roles.map((r) => [r.id, r] as const));
+  const rotationLists = new Map(
+    roles.map((role) => [
+      role.id,
+      members
+        .filter((m) => m.roleIds.includes(role.id))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((m) => m.id),
+    ] as const)
+  );
+  const rolePointers = initializePointers(roles, rotationLists, previousAssignments);
+
   const assignments: ScheduleAssignment[] = [];
   const unfilledSlots: SchedulerOutput["unfilledSlots"] = [];
 
-  const memberById = new Map<number, MemberInfo>();
-  for (const m of members) {
-    memberById.set(m.id, m);
-  }
-
-  // Build role lookup by ID (for resolving exclusive groups from previousAssignments)
-  const roleById = new Map<number, RoleDefinition>();
-  for (const role of roles) {
-    roleById.set(role.id, role);
-  }
-
-  // Build per-role rotation lists (alphabetically sorted by member name)
-  const roleRotationLists = new Map<number, number[]>();
-  for (const role of roles) {
-    const capableMembers = members
-      .filter((m) => m.roleIds.includes(role.id))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((m) => m.id);
-    roleRotationLists.set(role.id, capableMembers);
-  }
-
-  // Per-role per-day-of-week pointers
-  // roleId → dayOfWeek → pointer index
-  const rolePointers = new Map<number, Map<string, number>>();
-
-  // Initialise pointers from previousAssignments (per-day-of-week)
-  for (const role of roles) {
-    const list = roleRotationLists.get(role.id)!;
-    if (list.length === 0) continue;
-
-    const lastMemberByDay = new Map<string, { memberId: number; date: string }>();
-    for (const pa of previousAssignments) {
-      if (pa.roleId !== role.id) continue;
-      const dow = getDayOfWeek(pa.date);
-      const current = lastMemberByDay.get(dow);
-      if (!current || pa.date > current.date) {
-        lastMemberByDay.set(dow, { memberId: pa.memberId, date: pa.date });
-      }
-    }
-
-    if (!rolePointers.has(role.id)) {
-      rolePointers.set(role.id, new Map());
-    }
-    const dayPointers = rolePointers.get(role.id)!;
-    for (const [dow, { memberId }] of lastMemberByDay) {
-      const idx = list.indexOf(memberId);
-      if (idx !== -1) {
-        dayPointers.set(dow, (idx + 1) % list.length);
-      }
-    }
-  }
-
   for (const date of dates) {
-    const dayOfWeek = getDayOfWeek(date);
-    // Track exclusive groups: memberId → exclusiveGroupId → roleId assigned.
-    // Allows same role across events but blocks different roles from the same group.
-    const memberExclusiveOnDate = new Map<number, Map<number, number>>();
-    // Track which role IDs each member is already assigned on this date (to prevent duplicates)
-    const memberRolesOnDate = new Map<number, Set<number>>();
+    const dayOfWeek = getDayNameFromDateString(date);
+    const eventWindow = dayEventTimeWindow?.[dayOfWeek];
+    const orderedRoles = sortRolesByPriority(roles, dayOfWeek, dayRolePriorities);
 
-    // Pre-populate exclusive-group tracking from previousAssignments on this date
+    const exclusiveOnDate = new Map<number, Map<number, number>>();
+    const rolesOnDate = new Map<number, Set<number>>();
+
     for (const pa of previousAssignments) {
       if (pa.date !== date) continue;
       const paRole = roleById.get(pa.roleId);
-      if (paRole?.exclusiveGroupId != null) {
-        if (!memberExclusiveOnDate.has(pa.memberId)) {
-          memberExclusiveOnDate.set(pa.memberId, new Map());
-        }
-        memberExclusiveOnDate.get(pa.memberId)!.set(paRole.exclusiveGroupId, pa.roleId);
-      }
+      if (paRole) recordExclusiveGroup(pa.memberId, paRole, exclusiveOnDate);
     }
 
-    // Sort roles by day-specific priority
-    const orderedRoles = sortRolesByPriority(roles, dayOfWeek, dayRolePriorities);
-
-    // Process roles in order
     for (const role of orderedRoles) {
-      const list = roleRotationLists.get(role.id)!;
-      if (!rolePointers.has(role.id)) {
-        rolePointers.set(role.id, new Map());
-      }
+      if (!rolePointers.has(role.id)) rolePointers.set(role.id, new Map());
       const dayPointers = rolePointers.get(role.id)!;
 
       for (let slot = 0; slot < role.requiredCount; slot++) {
         const pointer = dayPointers.get(dayOfWeek) ?? 0;
+        const list = rotationLists.get(role.id)!;
 
-        const isEligible = (memberId: number): boolean => {
-          const m = memberById.get(memberId)!;
-          if (!m.availableDays.includes(dayOfWeek)) return false;
-          if (isOnHoliday(m, date)) return false;
-          if (memberRolesOnDate.get(m.id)?.has(role.id)) return false;
-          if (role.exclusiveGroupId) {
-            const memberExclusive = memberExclusiveOnDate.get(m.id);
-            if (memberExclusive?.has(role.exclusiveGroupId)) {
-              const existingRoleId = memberExclusive.get(role.exclusiveGroupId)!;
-              if (existingRoleId !== role.id) return false;
-            }
-          }
-          // If event has a time window, member must have at least one availability block overlapping it
-          const eventWindow = dayEventTimeWindow?.[dayOfWeek];
-          if (eventWindow) {
-            const blocks = m.availabilityBlocksByDay?.[dayOfWeek];
-            if (!blocks?.length) return false;
-            const overlaps = blocks.some((block) =>
-              timeRangesOverlap(
-                eventWindow.startUtc,
-                eventWindow.endUtc,
-                block.startUtc,
-                block.endUtc
-              )
-            );
-            if (!overlaps) return false;
-          }
-          return true;
-        };
-
-        const result = pickFromRotation(list, pointer, isEligible);
+        const result = pickFromRotation(list, pointer, (memberId) =>
+          isMemberEligible(
+            memberById.get(memberId)!,
+            date,
+            dayOfWeek,
+            role,
+            rolesOnDate,
+            exclusiveOnDate,
+            eventWindow
+          )
+        );
 
         if (!result) {
           unfilledSlots.push({ date, roleId: role.id });
           continue;
         }
 
-        const chosen = memberById.get(result.memberId)!;
-        assignments.push({ date, roleId: role.id, memberId: chosen.id });
+        assignments.push({ date, roleId: role.id, memberId: result.memberId });
         dayPointers.set(dayOfWeek, result.newPointer);
-
-        // Track exclusive group: which role was assigned from this group
-        if (role.exclusiveGroupId != null) {
-          if (!memberExclusiveOnDate.has(chosen.id)) {
-            memberExclusiveOnDate.set(chosen.id, new Map());
-          }
-          memberExclusiveOnDate.get(chosen.id)!.set(role.exclusiveGroupId, role.id);
-        }
-        // Track assigned role IDs to prevent duplicates
-        if (!memberRolesOnDate.has(chosen.id)) {
-          memberRolesOnDate.set(chosen.id, new Set());
-        }
-        memberRolesOnDate.get(chosen.id)!.add(role.id);
+        recordExclusiveGroup(result.memberId, role, exclusiveOnDate);
+        recordRoleAssignment(result.memberId, role.id, rolesOnDate);
       }
     }
   }
