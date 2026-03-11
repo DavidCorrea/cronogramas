@@ -654,54 +654,57 @@ export default function EventForm({
           }
         }}
       >
-          <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-            <Dialog.Content
-              className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-background p-6 shadow-lg focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
-              aria-labelledby="delete-dialog-title"
-              aria-describedby="delete-dialog-description"
-              onEscapeKeyDown={() => { setShowDeleteDialog(false); setAffectedInfo(null); }}
-            >
-              <Dialog.Title id="delete-dialog-title" className="text-lg font-medium text-foreground">
-                {t("deleteDialogTitle")}
-              </Dialog.Title>
-              <Dialog.Description id="delete-dialog-description" className="mt-2 text-sm text-muted-foreground">
-                {affectedInfo ? t("deleteDialogMessage", {
-                  count: affectedInfo.count,
-                  schedules: affectedInfo.schedules.length,
-                }) : ""}
-              </Dialog.Description>
-              <div className="flex flex-col gap-2 pt-4">
-                <button
-                  type="button"
-                  disabled={deleteInProgress}
-                  onClick={() => handleDeleteConfirm(false)}
-                  className="rounded-md border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-                >
-                  {t("deleteEventOnly")}
-                </button>
-                <button
-                  type="button"
-                  disabled={deleteInProgress}
-                  onClick={() => handleDeleteConfirm(true)}
-                  className="rounded-md bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-                >
-                  {t("deleteEventAndDates")}
-                </button>
-                <Dialog.Close asChild>
-                  <button
-                    type="button"
-                    disabled={deleteInProgress}
-                    onClick={() => { setShowDeleteDialog(false); setAffectedInfo(null); }}
-                    className="rounded-md text-sm text-muted-foreground hover:text-foreground pt-2"
-                  >
-                    {tCommon("cancel")}
-                  </button>
-                </Dialog.Close>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content
+            className="fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-md translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-background shadow-lg focus:outline-none"
+            aria-describedby="delete-dialog-description"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={() => { setShowDeleteDialog(false); setAffectedInfo(null); }}
+          >
+            <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-4">
+              <div>
+                <Dialog.Title className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
+                  {t("deleteDialogTitle")}
+                </Dialog.Title>
+                <Dialog.Description id="delete-dialog-description" className="text-sm text-muted-foreground mt-1">
+                  {affectedInfo ? t("deleteDialogMessage", {
+                    count: affectedInfo.count,
+                    schedules: affectedInfo.schedules.length,
+                  }) : ""}
+                </Dialog.Description>
               </div>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
+              <button
+                type="button"
+                onClick={() => { setShowDeleteDialog(false); setAffectedInfo(null); }}
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={tCommon("close")}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-6 py-4 flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={deleteInProgress}
+                onClick={() => handleDeleteConfirm(false)}
+                className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-foreground transition-colors disabled:opacity-50"
+              >
+                {t("deleteEventOnly")}
+              </button>
+              <button
+                type="button"
+                disabled={deleteInProgress}
+                onClick={() => handleDeleteConfirm(true)}
+                className="rounded-md bg-destructive px-5 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {t("deleteEventAndDates")}
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <Dialog.Root
         open={!!(showRecalcDialog && affectedInfo)}
@@ -709,44 +712,57 @@ export default function EventForm({
           if (!open) setShowRecalcDialog(false);
         }}
       >
-          <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
-            <Dialog.Content
-              className="fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-background p-6 shadow-lg focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
-              aria-labelledby="recalc-dialog-title"
-              aria-describedby="recalc-dialog-description"
-              onEscapeKeyDown={() => setShowRecalcDialog(false)}
-            >
-              <Dialog.Title id="recalc-dialog-title" className="text-lg font-medium text-foreground">
-                {t("recalcDialogTitle")}
-              </Dialog.Title>
-              <Dialog.Description id="recalc-dialog-description" className="mt-2 text-sm text-muted-foreground">
-                {affectedInfo ? t("recalcDialogMessage", {
-                  count: affectedInfo.count,
-                  schedules: affectedInfo.schedules.length,
-                }) : ""}
-              </Dialog.Description>
-              <div className="flex flex-col gap-2 pt-4">
-                <button
-                  type="button"
-                  disabled={recalcInProgress}
-                  onClick={() => handleRecalcConfirm(true)}
-                  className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                >
-                  {t("recalcYes")}
-                </button>
-                <button
-                  type="button"
-                  disabled={recalcInProgress}
-                  onClick={() => handleRecalcConfirm(false)}
-                  className="rounded-md border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-                >
-                  {t("recalcNo")}
-                </button>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content
+            className="fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-md translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-background shadow-lg focus:outline-none"
+            aria-describedby="recalc-dialog-description"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={() => setShowRecalcDialog(false)}
+          >
+            <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-4">
+              <div>
+                <Dialog.Title className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
+                  {t("recalcDialogTitle")}
+                </Dialog.Title>
+                <Dialog.Description id="recalc-dialog-description" className="text-sm text-muted-foreground mt-1">
+                  {affectedInfo ? t("recalcDialogMessage", {
+                    count: affectedInfo.count,
+                    schedules: affectedInfo.schedules.length,
+                  }) : ""}
+                </Dialog.Description>
               </div>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
+              <button
+                type="button"
+                onClick={() => setShowRecalcDialog(false)}
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={tCommon("close")}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-6 py-4 flex flex-wrap items-center gap-3 justify-end">
+              <button
+                type="button"
+                disabled={recalcInProgress}
+                onClick={() => handleRecalcConfirm(false)}
+                className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:border-foreground transition-colors disabled:opacity-50"
+              >
+                {t("recalcNo")}
+              </button>
+              <button
+                type="button"
+                disabled={recalcInProgress}
+                onClick={() => handleRecalcConfirm(true)}
+                className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {t("recalcYes")}
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

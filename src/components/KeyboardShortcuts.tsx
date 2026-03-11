@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslations } from "next-intl";
+import * as Dialog from "@radix-ui/react-dialog";
 
 const SEQUENCE_TIMEOUT_MS = 1200;
 
@@ -13,6 +14,7 @@ export default function KeyboardShortcuts() {
   const [pendingG, setPendingG] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = useTranslations("shortcuts");
+  const tCommon = useTranslations("common");
 
   const clearSequence = useCallback(() => {
     if (timeoutRef.current) {
@@ -22,10 +24,14 @@ export default function KeyboardShortcuts() {
     setPendingG(false);
   }, []);
 
-  useHotkeys("shift+/", () => setShowHelp(true), { enableOnFormTags: false });
-  useHotkeys("escape", () => {
+  const closeHelp = useCallback(() => {
     setShowHelp(false);
     clearSequence();
+  }, [clearSequence]);
+
+  useHotkeys("shift+/", () => setShowHelp(true), { enableOnFormTags: false });
+  useHotkeys("escape", () => {
+    closeHelp();
   }, { enableOnFormTags: true });
   useHotkeys("g", () => {
     clearSequence();
@@ -49,60 +55,57 @@ export default function KeyboardShortcuts() {
 
   useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
 
-  const closeHelp = useCallback(() => {
-    setShowHelp(false);
-    clearSequence();
-  }, [clearSequence]);
-
-  if (!showHelp) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="shortcuts-title"
-      onClick={closeHelp}
-    >
-      <div
-        className="bg-background border border-border rounded-lg shadow-xl max-w-sm w-full p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 id="shortcuts-title" className="text-lg font-medium uppercase tracking-wide">
+    <Dialog.Root open={showHelp} onOpenChange={(v) => { if (!v) closeHelp(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+        <Dialog.Content
+          className="fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-sm translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-background shadow-lg focus:outline-none"
+          aria-describedby="shortcuts-description"
+          onEscapeKeyDown={closeHelp}
+        >
+          <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-4">
+            <Dialog.Title className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
+              {t("title")}
+            </Dialog.Title>
+            <button
+              type="button"
+              onClick={closeHelp}
+              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={tCommon("close")}
+            >
+              ✕
+            </button>
+          </div>
+
+          <Dialog.Description className="sr-only" id="shortcuts-description">
             {t("title")}
-          </h2>
-          <button
-            type="button"
-            onClick={closeHelp}
-            className="text-muted-foreground hover:text-foreground text-sm"
-          >
-            {t("esc")}
-          </button>
-        </div>
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li className="flex justify-between gap-4">
-            <span>?</span>
-            <span>{t("title")}</span>
-          </li>
-          <li className="flex justify-between gap-4">
-            <span className="font-mono">g</span>
-            <span>{t("pressGThen")}</span>
-          </li>
-          <li className="pl-4 flex justify-between gap-4">
-            <span className="font-mono">h</span>
-            <span>{t("goToHome")}</span>
-          </li>
-          <li className="pl-4 flex justify-between gap-4">
-            <span className="font-mono">a</span>
-            <span>{t("goToAssignments")}</span>
-          </li>
-          <li className="flex justify-between gap-4 pt-2 border-t border-border">
-            <span className="font-mono">⌘K</span>
-            <span>{t("goToSearch")}</span>
-          </li>
-        </ul>
-      </div>
-    </div>
+          </Dialog.Description>
+
+          <ul className="px-6 py-4 space-y-2 text-sm text-muted-foreground">
+            <li className="flex justify-between gap-4">
+              <span>?</span>
+              <span>{t("title")}</span>
+            </li>
+            <li className="flex justify-between gap-4">
+              <span className="font-mono">g</span>
+              <span>{t("pressGThen")}</span>
+            </li>
+            <li className="pl-4 flex justify-between gap-4">
+              <span className="font-mono">h</span>
+              <span>{t("goToHome")}</span>
+            </li>
+            <li className="pl-4 flex justify-between gap-4">
+              <span className="font-mono">a</span>
+              <span>{t("goToAssignments")}</span>
+            </li>
+            <li className="flex justify-between gap-4 pt-2 border-t border-border">
+              <span className="font-mono">⌘K</span>
+              <span>{t("goToSearch")}</span>
+            </li>
+          </ul>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import * as Dialog from "@radix-ui/react-dialog";
 import { getRawArray } from "@/lib/intl-utils";
 import { formatDateLong, utcTimeToLocalDisplay } from "@/lib/timezone-utils";
 import { getConflictTimespans } from "@/lib/dashboard-conflicts";
@@ -314,36 +315,42 @@ export default function DashboardClient({
           </div>
         </div>
 
-      {calendarSelectedDate && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
-          onClick={() => setCalendarSelectedDate(null)}
-        >
-          <div
-            className="rounded-xl border border-border bg-card shadow-xl w-full max-w-sm p-6"
-            onClick={(e) => e.stopPropagation()}
+      <Dialog.Root
+        open={!!calendarSelectedDate}
+        onOpenChange={(v) => { if (!v) setCalendarSelectedDate(null); }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content
+            className="fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-sm translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-background shadow-lg focus:outline-none"
+            aria-describedby="calendar-detail-description"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={() => setCalendarSelectedDate(null)}
           >
-            <div className="flex items-start justify-between mb-4">
+            <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-4">
               <div>
-                <h3 className="font-medium capitalize text-foreground">
-                  {formatDateLong(calendarSelectedDate)}
-                </h3>
-                {conflictDateSet.has(calendarSelectedDate) && (
+                <Dialog.Title className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
+                  {calendarSelectedDate ? formatDateLong(calendarSelectedDate) : ""}
+                </Dialog.Title>
+                {calendarSelectedDate && conflictDateSet.has(calendarSelectedDate) && (
                   <p className="text-xs text-destructive mt-0.5">{t("conflict")}</p>
                 )}
               </div>
               <button
+                type="button"
                 onClick={() => setCalendarSelectedDate(null)}
-                className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                 aria-label={t("close")}
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ✕
               </button>
             </div>
 
-            <div className="space-y-2">
+            <Dialog.Description className="sr-only" id="calendar-detail-description">
+              {calendarSelectedDate ? formatDateLong(calendarSelectedDate) : ""}
+            </Dialog.Description>
+
+            <div className="px-6 py-4 space-y-2">
               {calendarDateConflictContent && (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 mb-3 space-y-1">
                   <p className="text-xs font-medium text-destructive uppercase tracking-wide">
@@ -385,9 +392,9 @@ export default function DashboardClient({
                 </>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }

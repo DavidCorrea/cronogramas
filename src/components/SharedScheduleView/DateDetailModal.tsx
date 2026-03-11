@@ -17,7 +17,6 @@ export interface DateDetailModalProps {
   scheduleDateByDateMap: Map<string, ScheduleDateInfo>;
   getDateDisplayLabel: (sd: ScheduleDateInfo) => string;
   getDateDisplayTimeRange: (sd: ScheduleDateInfo) => string | null;
-  getNoteForScheduleDate: (sd: ScheduleDateInfo) => string | undefined;
   hasConflict: (date: string, memberId: number) => boolean;
   filteredMemberId?: number | null;
   t: (key: string) => string;
@@ -32,7 +31,6 @@ export function DateDetailModal({
   scheduleDateByDateMap,
   getDateDisplayLabel,
   getDateDisplayTimeRange,
-  getNoteForScheduleDate,
   hasConflict,
   filteredMemberId,
   t,
@@ -62,46 +60,46 @@ export function DateDetailModal({
       if (bRelevant !== aRelevant) return bRelevant - aRelevant;
       return (a.role?.displayOrder ?? 0) - (b.role?.displayOrder ?? 0);
     });
-  const note = getNoteForScheduleDate(sd);
+  const note = sd.note?.trim() || null;
   const hasContent = label || timeRange || rolesSorted.length > 0 || note;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
         <Dialog.Content
-          className="fixed left-[50%] top-[50%] z-50 flex max-h-[90vh] w-full max-w-sm translate-x-[-50%] translate-y-[-50%] flex-col rounded-lg border border-border bg-background p-5 shadow-lg focus:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+          className="fixed left-[50%] top-[50%] z-50 flex max-h-[90vh] w-[calc(100%-2rem)] max-w-sm translate-x-[-50%] translate-y-[-50%] flex-col rounded-lg border border-border bg-background shadow-lg focus:outline-none"
           aria-describedby={hasContent ? "date-detail-description" : undefined}
+          onPointerDownOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={() => onOpenChange(false)}
         >
-          <div className="flex shrink-0 items-start justify-between pb-4">
-            <Dialog.Title className="font-medium capitalize text-foreground">
-              {formatDateLong(selectedDate)}
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground transition-colors text-lg leading-none ml-3"
-                aria-label={tCommon("close")}
-              >
-                &times;
-              </button>
-            </Dialog.Close>
+          <div className="px-6 py-4 border-b border-border flex shrink-0 items-start justify-between gap-4">
+            <div>
+              <Dialog.Title className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
+                {formatDateLong(selectedDate)}
+              </Dialog.Title>
+              {timeRange && (
+                <p className="text-sm text-muted-foreground mt-1">{timeRange}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={tCommon("close")}
+            >
+              ✕
+            </button>
           </div>
 
           {hasContent ? (
             <div
               id="date-detail-description"
-              className="flex min-h-0 flex-1 flex-col overflow-hidden pt-4"
+              className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4"
             >
               {label ? (
                 <p className="shrink-0 text-sm text-muted-foreground italic">
                   {label}
-                </p>
-              ) : null}
-              {timeRange ? (
-                <p className="shrink-0 text-xs text-muted-foreground mt-0.5">
-                  {timeRange}
                 </p>
               ) : null}
               {rolesSorted.length > 0 ? (
@@ -177,7 +175,7 @@ export function DateDetailModal({
               ) : null}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground" id="date-detail-description">
+            <p className="px-6 py-4 text-sm text-muted-foreground" id="date-detail-description">
               {t("noDetails")}
             </p>
           )}
