@@ -93,13 +93,25 @@ export const MONTH_NAMES = [
   "Diciembre",
 ];
 
+/**
+ * Monday-based week number within a month.
+ * Week 1 always contains day 1; subsequent weeks start on Monday.
+ */
+export function mondayWeekNumber(year: number, month: number, dayOfMonth: number): number {
+  const dow1 = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const mondayBased = dow1 === 0 ? 6 : dow1 - 1;
+  const daysInFirstWeek = 7 - mondayBased;
+  if (dayOfMonth <= daysInFirstWeek) return 1;
+  return Math.ceil((dayOfMonth - daysInFirstWeek) / 7) + 1;
+}
+
 export function groupDatesByWeek(
   dates: string[]
 ): { weekNumber: number; dates: string[] }[] {
   const weekMap = new Map<number, string[]>();
   for (const date of dates) {
-    const dayOfMonth = parseInt(date.slice(8, 10), 10);
-    const weekNum = Math.ceil(dayOfMonth / 7);
+    const [y, m, d] = date.split("-").map(Number);
+    const weekNum = mondayWeekNumber(y, m, d);
     if (!weekMap.has(weekNum)) weekMap.set(weekNum, []);
     weekMap.get(weekNum)!.push(date);
   }
@@ -113,8 +125,8 @@ export function groupScheduleDatesByWeek(
 ): { weekNumber: number; scheduleDates: ScheduleDateInfo[] }[] {
   const weekMap = new Map<number, ScheduleDateInfo[]>();
   for (const sd of scheduleDates) {
-    const dayOfMonth = parseInt(sd.date.slice(8, 10), 10);
-    const weekNum = Math.ceil(dayOfMonth / 7);
+    const [y, m, d] = sd.date.split("-").map(Number);
+    const weekNum = mondayWeekNumber(y, m, d);
     if (!weekMap.has(weekNum)) weekMap.set(weekNum, []);
     weekMap.get(weekNum)!.push(sd);
   }
@@ -129,8 +141,20 @@ export function getWeekDateRange(
   weekNumber: number
 ): { start: string; end: string } {
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const startDay = (weekNumber - 1) * 7 + 1;
-  const endDay = Math.min(weekNumber * 7, lastDay);
+  const dow1 = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const mondayBased = dow1 === 0 ? 6 : dow1 - 1;
+  const daysInFirstWeek = 7 - mondayBased;
+
+  let startDay: number;
+  let endDay: number;
+  if (weekNumber === 1) {
+    startDay = 1;
+    endDay = daysInFirstWeek;
+  } else {
+    startDay = daysInFirstWeek + (weekNumber - 2) * 7 + 1;
+    endDay = Math.min(daysInFirstWeek + (weekNumber - 1) * 7, lastDay);
+  }
+
   const pad = (n: number) => String(n).padStart(2, "0");
   return {
     start: `${year}-${pad(month)}-${pad(startDay)}`,

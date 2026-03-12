@@ -1,13 +1,4 @@
-export function getWeekDateRange(year: number, month: number, weekNumber: number): { start: string; end: string } {
-  const lastDay = new Date(year, month, 0).getDate();
-  const startDay = (weekNumber - 1) * 7 + 1;
-  const endDay = Math.min(weekNumber * 7, lastDay);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return {
-    start: `${year}-${pad(month)}-${pad(startDay)}`,
-    end: `${year}-${pad(month)}-${pad(endDay)}`,
-  };
-}
+export { getWeekDateRange } from "@/components/SharedScheduleView/types";
 
 export interface AuditDetailStructured {
   message: string;

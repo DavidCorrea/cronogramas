@@ -23,7 +23,8 @@ import type {
   ScheduleDay,
   ScheduleDetailClientProps,
 } from "./schedule-detail-types";
-import { getWeekDateRange, slotKey } from "./schedule-detail-helpers";
+import { slotKey } from "./schedule-detail-helpers";
+import { getWeekDateRange, mondayWeekNumber } from "@/components/SharedScheduleView/types";
 import { RebuildModal } from "./RebuildModal";
 import { DateFormModal } from "./DateFormModal";
 import { AuditLogSection } from "./AuditLogSection";
@@ -449,8 +450,8 @@ export default function ScheduleDetailClient({
   const visibleScheduleDatesByWeek = useMemo(() => {
     const weekMap = new Map<number, ScheduleDateInfo[]>();
     for (const sd of visibleScheduleDatesFiltered) {
-      const dayOfMonth = parseInt(sd.date.slice(8, 10), 10);
-      const weekNum = Math.ceil(dayOfMonth / 7);
+      const [y, m, d] = sd.date.split("-").map(Number);
+      const weekNum = mondayWeekNumber(y, m, d);
       if (!weekMap.has(weekNum)) weekMap.set(weekNum, []);
       weekMap.get(weekNum)!.push(sd);
     }
