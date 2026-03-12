@@ -490,7 +490,8 @@
     "dayHeaders": ["L", "M", "X", "J", "V", "S", "D"],
     "saveInCalendar": "Guardar en calendario",
     "saveInCalendarSuccess": "Eventos añadidos a tu Google Calendar.",
-    "saveInCalendarError": "No se pudieron añadir los eventos. Intenta de nuevo."
+    "saveInCalendarError": "No se pudieron añadir los eventos. Intenta de nuevo.",
+    "notes": "Notas"
   },
   "admin": {
     "title": "Administración",

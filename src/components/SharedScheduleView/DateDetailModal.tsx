@@ -169,9 +169,12 @@ export function DateDetailModal({
                 </div>
               ) : null}
               {note ? (
-                <p className="mt-3 shrink-0 border-t border-border/50 pt-3 text-xs text-accent">
-                  {note}
-                </p>
+                <details className="mt-3 shrink-0 rounded-lg border border-border bg-background/50">
+                  <summary className="cursor-pointer px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wide select-none">
+                    {t("notes")}
+                  </summary>
+                  <p className="px-4 pb-3 text-sm text-foreground whitespace-pre-line max-h-32 overflow-y-auto">{note}</p>
+                </details>
               ) : null}
             </div>
           ) : (

@@ -7,7 +7,7 @@ Read this file first. It tells you what to read, how to work, and project-specif
 # When you begin
 
 - **First action:** Read **`DOMAIN.md`** (glossary, business rules) and **`STRUCTURE.md`** (codebase map) at the project root.
-- **Touching a library we use?** Read the matching skill in **`.cursor/skills/<name>/SKILL.md`** before changing or adding usage. Skills: `nextjs`, `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`, `web-vitals`.
+- **Touching a library we use?** Read the matching skill in **`.cursor/skills/<name>/SKILL.md`** before changing or adding usage. Skills: `nextjs`, `next-auth`, `next-intl`, `react`, `tanstack-react-query`, `drizzle-orm`, `zod`, `radix-ui-dialog`, `radix-ui-tooltip`, `react-hotkeys-hook`, `googleapis`, `tailwind`, `typescript`, `web-vitals`.
 - **Adding or changing API routes?** See **docs/API.md**.
 - **Adding or changing pages or nav?** See **docs/CLIENT.md**.
 - **Changing schema or migrations?** See **docs/DATABASE.md** and the "Database and migrations" convention below.

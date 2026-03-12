@@ -1,6 +1,7 @@
 "use client";
 
 import React, { memo } from "react";
+import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   formatDateWeekdayDay,
 } from "@/lib/timezone-utils";
@@ -78,8 +79,33 @@ function DesktopTableInner({
     filteredMemberId != null &&
     roleEntries.some((e) => e.memberId === filteredMemberId);
 
+  const noteIndicator = (note: string) => (
+    <Tooltip.Root>
+      <Tooltip.Trigger asChild>
+        <span className="ml-1.5 inline-flex items-center text-muted-foreground/60 cursor-default" aria-label={t("notes")}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+        </span>
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content
+          side="top"
+          sideOffset={6}
+          className="z-50 max-w-xs rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md whitespace-pre-line animate-in fade-in-0 zoom-in-95"
+        >
+          {note}
+          <Tooltip.Arrow className="fill-popover" />
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+
   return (
-    <>
+    <Tooltip.Provider delayDuration={300}>
       {datesByWeek.map(({ weekNumber, dates }) => {
         const isCollapsed = collapsedWeeks.has(weekNumber);
         return (
@@ -127,8 +153,9 @@ function DesktopTableInner({
                       className={`px-4 py-3.5 ${isPast(date) ? "opacity-50" : ""} ${isForEveryone ? "bg-muted/20" : ""}`}
                     >
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="font-medium text-sm">
+                        <span className="font-medium text-sm inline-flex items-center">
                           {formatDateWeekdayDay(date)}
+                          {sd.note?.trim() && noteIndicator(sd.note.trim())}
                         </span>
                         {label && (
                           <span className="text-xs text-muted-foreground italic shrink-0">
@@ -245,7 +272,10 @@ function DesktopTableInner({
                             .join(" ")}
                         >
                           <td className="px-4 py-4 text-sm font-medium whitespace-nowrap align-middle">
-                            <div>{formatDateWeekdayDay(date)}</div>
+                            <div className="inline-flex items-center">
+                              {formatDateWeekdayDay(date)}
+                              {sd.note?.trim() && noteIndicator(sd.note.trim())}
+                            </div>
                             {!isForEveryone && getDateDisplayLabel(sd) && (
                               <div className="text-xs text-muted-foreground italic font-normal mt-0.5">
                                 {getDateDisplayLabel(sd)}
@@ -329,7 +359,7 @@ function DesktopTableInner({
           </section>
         );
       })}
-    </>
+    </Tooltip.Provider>
   );
 }
 
