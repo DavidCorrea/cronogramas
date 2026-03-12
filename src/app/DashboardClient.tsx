@@ -63,6 +63,7 @@ export default function DashboardClient({
   const t = useTranslations("home");
   const [, startTransition] = useTransition();
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<string | null>(null);
+  const [conflictsModalOpen, setConflictsModalOpen] = useState(false);
 
   const ROLE_LABELS: Record<string, string> = useMemo(
     () => ({
@@ -133,6 +134,37 @@ export default function DashboardClient({
     return timespans.length > 0 ? timespans : null;
   }, [calendarSelectedDate, conflictDateSet, assignmentsByDate]);
 
+  const monthPrefix = `${currentYear}-${String(currentMonth).padStart(2, "0")}-`;
+  const allConflictDetails = useMemo(() => {
+    if (conflicts.length === 0) return [];
+    return conflicts
+      .filter((c) => c.date.startsWith(monthPrefix))
+      .map((c) => {
+        const dateAssignments = assignmentsByDate.get(c.date) ?? [];
+        const withTime = dateAssignments.filter(
+          (a): a is Assignment & { startTimeUtc: string; endTimeUtc: string } =>
+            a.startTimeUtc != null && a.endTimeUtc != null,
+        );
+        const rawTimespans = withTime.length >= 2 ? getConflictTimespans(withTime) : [];
+        const merged = new Map<string, { startUtc: string; endUtc: string; groupNames: Set<string> }>();
+        for (const ts of rawTimespans) {
+          const key = `${ts.startUtc}|${ts.endUtc}`;
+          const existing = merged.get(key);
+          if (existing) {
+            for (const name of ts.groupNames) existing.groupNames.add(name);
+          } else {
+            merged.set(key, { startUtc: ts.startUtc, endUtc: ts.endUtc, groupNames: new Set(ts.groupNames) });
+          }
+        }
+        const timespans = [...merged.values()].map((m) => ({
+          startUtc: m.startUtc,
+          endUtc: m.endUtc,
+          groupNames: [...m.groupNames].sort(),
+        }));
+        return { date: c.date, groups: c.groups, timespans };
+      });
+  }, [conflicts, monthPrefix, assignmentsByDate]);
+
   const nextAssignment = useMemo(() => {
     if (assignments.length === 0) return null;
     const future = assignments.filter((a) => a.date >= todayISO);
@@ -140,13 +172,13 @@ export default function DashboardClient({
     const firstDate = future[0].date;
     const onDate = future.filter((a) => a.date === firstDate);
 
-    const byGroup = new Map<number, { groupName: string; groupSlug: string; roles: string[] }>();
+    const byGroup = new Map<number, { groupName: string; groupSlug: string; roles: string[]; startTimeUtc?: string; endTimeUtc?: string }>();
     for (const a of onDate) {
       const existing = byGroup.get(a.groupId);
       if (existing) {
         existing.roles.push(a.roleName);
       } else {
-        byGroup.set(a.groupId, { groupName: a.groupName, groupSlug: a.groupSlug, roles: [a.roleName] });
+        byGroup.set(a.groupId, { groupName: a.groupName, groupSlug: a.groupSlug, roles: [a.roleName], startTimeUtc: a.startTimeUtc, endTimeUtc: a.endTimeUtc });
       }
     }
 
@@ -156,7 +188,6 @@ export default function DashboardClient({
   const daysInMonth = new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate();
   const firstDayDow = new Date(Date.UTC(currentYear, currentMonth - 1, 1)).getUTCDay();
   const leadingBlanks = firstDayDow === 0 ? 6 : firstDayDow - 1;
-  const MONTH_NAMES = getRawArray(t, "monthsLowercase");
   const dayHeaders = getRawArray(t, "dayHeaders");
   const hasAssignments = assignments.length > 0;
 
@@ -176,21 +207,26 @@ export default function DashboardClient({
                     — {getRelativeLabel(nextAssignment.date, todayISO, t)}
                   </span>
                 </p>
-                {conflictDateSet.has(nextAssignment.date) && (
-                  <p className="text-xs text-destructive mt-1">{t("conflictMultipleGroups")}</p>
-                )}
-                <div className="mt-3 space-y-1.5">
+                <div className="mt-3 space-y-2">
                   {nextAssignment.items.map((item) => (
-                    <div key={item.groupSlug} className="flex items-center justify-between gap-3">
-                      <p className="text-sm text-muted-foreground">
+                    <div key={item.groupSlug} className="rounded-lg border border-border bg-background/50 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-foreground">{item.groupName}</p>
+                        <Link
+                          href={`/${item.groupSlug}/cronograma/${nextAssignment.date.slice(0, 4)}/${Number(nextAssignment.date.slice(5, 7))}`}
+                          className="shrink-0 text-xs font-medium text-accent hover:opacity-80 transition-opacity"
+                        >
+                          {t("view")} &rarr;
+                        </Link>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
                         {item.roles.join(", ")}
+                        {item.startTimeUtc != null && item.endTimeUtc != null && (
+                          <span className="ml-1.5">
+                            · {utcTimeToLocalDisplay(item.startTimeUtc)}–{utcTimeToLocalDisplay(item.endTimeUtc)}
+                          </span>
+                        )}
                       </p>
-                      <Link
-                        href={`/${item.groupSlug}/cronograma`}
-                        className="shrink-0 text-sm font-medium text-accent hover:opacity-80 transition-opacity"
-                      >
-                        {item.groupName} &rarr;
-                      </Link>
                     </div>
                   ))}
                 </div>
@@ -200,7 +236,7 @@ export default function DashboardClient({
             {hasAssignments && (
               <section className="rounded-xl border border-border bg-card p-6">
                 <h2 className="uppercase tracking-widest text-xs font-medium text-muted-foreground mb-4">
-                  {MONTH_NAMES[currentMonth - 1]} {currentYear}
+                  {t("monthAssignments")}
                 </h2>
                 <div className="max-w-md mx-auto lg:max-w-none lg:mx-0">
                   <div className="grid grid-cols-7 gap-1 mb-1">
@@ -254,6 +290,16 @@ export default function DashboardClient({
                     })}
                   </div>
                 </div>
+                {allConflictDetails.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setConflictsModalOpen(true)}
+                    className="mt-4 flex items-center gap-1.5 text-xs font-medium text-destructive hover:opacity-80 transition-opacity"
+                  >
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-destructive" />
+                    {t("possibleConflicts")} ({allConflictDetails.length})
+                  </button>
+                )}
               </section>
             )}
           </div>
@@ -328,14 +374,9 @@ export default function DashboardClient({
             onEscapeKeyDown={() => setCalendarSelectedDate(null)}
           >
             <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-4">
-              <div>
-                <Dialog.Title className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
-                  {calendarSelectedDate ? formatDateLong(calendarSelectedDate) : ""}
-                </Dialog.Title>
-                {calendarSelectedDate && conflictDateSet.has(calendarSelectedDate) && (
-                  <p className="text-xs text-destructive mt-0.5">{t("conflict")}</p>
-                )}
-              </div>
+              <Dialog.Title className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
+                {calendarSelectedDate ? formatDateLong(calendarSelectedDate) : ""}
+              </Dialog.Title>
               <button
                 type="button"
                 onClick={() => setCalendarSelectedDate(null)}
@@ -391,6 +432,70 @@ export default function DashboardClient({
                   ))}
                 </>
               )}
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={conflictsModalOpen} onOpenChange={setConflictsModalOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content
+            className="fixed left-[50%] top-[50%] z-50 w-[calc(100%-2rem)] max-w-sm max-h-[80dvh] translate-x-[-50%] translate-y-[-50%] rounded-lg border border-border bg-background shadow-lg focus:outline-none flex flex-col"
+            aria-describedby="conflicts-description"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={() => setConflictsModalOpen(false)}
+          >
+            <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-4">
+              <Dialog.Title className="font-[family-name:var(--font-display)] font-semibold text-lg uppercase">
+                {t("possibleConflicts")}
+              </Dialog.Title>
+              <button
+                type="button"
+                onClick={() => setConflictsModalOpen(false)}
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={t("close")}
+              >
+                ✕
+              </button>
+            </div>
+
+            <Dialog.Description className="sr-only" id="conflicts-description">
+              {t("possibleConflicts")}
+            </Dialog.Description>
+
+            <div className="px-6 py-4 space-y-5 overflow-y-auto">
+              {allConflictDetails.map((c) => (
+                <div key={c.date}>
+                  <p className="font-medium capitalize text-foreground text-sm">
+                    {formatDateLong(c.date)}
+                  </p>
+                  <div className="mt-1.5 space-y-1.5">
+                    {c.timespans.length > 0 ? (
+                      c.timespans.map((ts, idx) => (
+                        <div key={idx} className="rounded-md bg-muted/40 px-3 py-2">
+                          <p className="text-xs font-medium text-foreground">
+                            {utcTimeToLocalDisplay(ts.startUtc)}–{utcTimeToLocalDisplay(ts.endUtc)}
+                          </p>
+                          <div className="mt-0.5 space-y-0.5">
+                            {ts.groupNames.map((name) => (
+                              <p key={name} className="text-xs text-muted-foreground">{name}</p>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-md bg-muted/40 px-3 py-2">
+                        <div className="space-y-0.5">
+                          {c.groups.map((name) => (
+                            <p key={name} className="text-xs text-muted-foreground">{name}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </Dialog.Content>
         </Dialog.Portal>
