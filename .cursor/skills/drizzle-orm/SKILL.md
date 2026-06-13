@@ -7,7 +7,7 @@ description: How this project uses Drizzle ORM with PostgreSQL. Use when working
 
 ## How we use it
 
-- **Client:** Single shared client in `src/lib/db.ts`: `drizzle(postgres(DATABASE_URL), { schema })`. All routes and lib code import `db` from `@/lib/db`. Driver: **postgres-js** (`postgres`); no per-request client creation.
+- **Client:** Single shared client in `src/lib/db.ts`: `drizzle(postgres(DATABASE_URL, opts), { schema })`. All routes and lib code import `db` from `@/lib/db`. Driver: **postgres-js** (`postgres`); no per-request client creation. The client is cached on `globalThis` outside production to survive dev hot reloads without leaking connections, and the pool is bounded (`max: 5`, `idle_timeout: 20`, `connect_timeout: 10`) so concurrent serverless invocations don't exhaust the DB connection limit. If `DATABASE_URL` ever points at a transaction-mode pooler (PgBouncer/Supabase/Neon pooled), add `prepare: false`.
 - **Schema:** Single file `src/db/schema.ts`. Tables use `pgTable`, `references()` for FKs, `uniqueIndex`/`primaryKey` where needed. No Drizzle `relations()` defined; types come from `$inferSelect` / `$inferInsert`.
 - **Migrations:** Generated only via **drizzle-kit**. Do **not** edit migration `.sql` or `meta/_journal.json` by hand. Config: `drizzle.config.ts` (schema path, `out`, `drizzle.__drizzle_migrations`). Full workflow and rules: **AGENTS.md** (Database and migrations).
 - **Queries:** All DB access via `db.select()`, `db.insert()`, `db.update()`, `db.delete()` with operators from `drizzle-orm` (`eq`, `and`, `or`, `inArray`, `max`, etc.). Prefer Drizzle aggregates (e.g. `max()`) over raw `sql` when possible.

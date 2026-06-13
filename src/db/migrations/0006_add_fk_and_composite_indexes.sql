@@ -1,0 +1,24 @@
+CREATE INDEX IF NOT EXISTS "idx_event_role_priorities_recurring_event_id" ON "event_role_priorities" USING btree ("recurring_event_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_event_role_priorities_role_id" ON "event_role_priorities" USING btree ("role_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_group_collaborators_group_id" ON "group_collaborators" USING btree ("group_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_group_collaborators_user_id" ON "group_collaborators" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_holidays_member_id" ON "holidays" USING btree ("member_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_holidays_user_id" ON "holidays" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_member_availability_member_id" ON "member_availability" USING btree ("member_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_member_availability_weekday_id" ON "member_availability" USING btree ("weekday_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_member_roles_member_id" ON "member_roles" USING btree ("member_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_member_roles_role_id" ON "member_roles" USING btree ("role_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_members_group_id" ON "members" USING btree ("group_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_members_user_id" ON "members" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_recurring_events_group_id" ON "recurring_events" USING btree ("group_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_recurring_events_weekday_id" ON "recurring_events" USING btree ("weekday_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_roles_group_id" ON "roles" USING btree ("group_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_schedule_audit_log_schedule_id" ON "schedule_audit_log" USING btree ("schedule_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_schedule_date_schedule_id" ON "schedule_date" USING btree ("schedule_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_schedule_date_schedule_id_date" ON "schedule_date" USING btree ("schedule_id","date");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_schedule_date_recurring_event_id" ON "schedule_date" USING btree ("recurring_event_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_schedule_date_assignments_schedule_date_id" ON "schedule_date_assignments" USING btree ("schedule_date_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_schedule_date_assignments_role_id" ON "schedule_date_assignments" USING btree ("role_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_schedule_date_assignments_member_id" ON "schedule_date_assignments" USING btree ("member_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_schedules_group_id" ON "schedules" USING btree ("group_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_schedules_group_id_status" ON "schedules" USING btree ("group_id","status");

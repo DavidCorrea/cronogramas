@@ -43,6 +43,13 @@
       "when": 1772742827369,
       "tag": "0005_add_cascade_schedule_date_assignments",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781373301871,
+      "tag": "0006_add_fk_and_composite_indexes",
+      "breakpoints": true
     }
   ]
 }

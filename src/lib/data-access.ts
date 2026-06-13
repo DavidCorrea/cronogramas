@@ -248,10 +248,20 @@ export async function loadEventPriorities(groupId: number) {
   const assignableDays = allRecurring.filter((d) => d.type === "assignable");
 
   const allRoles = await db.select().from(roles).where(eq(roles.groupId, groupId));
-  const allPriorities = await db.select().from(eventRolePriorities);
 
   const assignableIds = new Set(assignableDays.map((d) => d.id));
   const roleIds = new Set(allRoles.map((r) => r.id));
+
+  // Scope priorities to this group's assignable events (and roles) instead of
+  // scanning the whole event_role_priorities table and filtering in memory.
+  const recurringEventIds = [...assignableIds];
+  const allPriorities = recurringEventIds.length > 0
+    ? await db
+        .select()
+        .from(eventRolePriorities)
+        .where(inArray(eventRolePriorities.recurringEventId, recurringEventIds))
+    : [];
+
   const filtered = allPriorities.filter(
     (p) => assignableIds.has(p.recurringEventId) && roleIds.has(p.roleId),
   );

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { recurringEvents, scheduleDate, scheduleDateAssignments, schedules } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireGroupAccess, apiError } from "@/lib/api-helpers";
 import { loadScheduleConfig, getPreviousAssignments } from "@/lib/schedule-helpers";
 import { generateGroupSchedule, filterRebuildableDates } from "@/lib/schedule-model";
@@ -51,6 +51,9 @@ export async function POST(
   }
 
   const config = await loadScheduleConfig(groupId);
+  // Base previous assignments (from committed schedules) are the same for every
+  // schedule processed below, so load them once instead of per iteration.
+  const committedPreviousAssignments = await getPreviousAssignments(groupId);
   const today = new Date().toISOString().split("T")[0];
   let totalApplied = 0;
   let failedCount = 0;
@@ -86,9 +89,8 @@ export async function POST(
       const pastEntries = currentEntries.filter((e) => e.date < today);
       const futureEntries = currentEntries.filter((e) => e.date >= today);
 
-      const previousAssignments = await getPreviousAssignments(groupId);
       const allPrevious = [
-        ...previousAssignments,
+        ...committedPreviousAssignments,
         ...pastEntries.map((e) => ({ date: e.date, roleId: e.roleId, memberId: e.memberId })),
       ];
 
@@ -100,8 +102,10 @@ export async function POST(
         previousAssignments: allPrevious,
       });
 
-      for (const e of futureEntries) {
-        await db.delete(scheduleDateAssignments).where(eq(scheduleDateAssignments.id, e.id));
+      if (futureEntries.length > 0) {
+        await db
+          .delete(scheduleDateAssignments)
+          .where(inArray(scheduleDateAssignments.id, futureEntries.map((e) => e.id)));
       }
 
       const sdIdByKey = new Map<string, number>();

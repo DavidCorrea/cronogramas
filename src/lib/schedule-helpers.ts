@@ -116,23 +116,51 @@ export async function loadScheduleConfig(groupId: number): Promise<ScheduleConfi
     ? await db.select().from(holidays).where(or(...holidayConditions))
     : [];
 
+  // Batch member roles and availability for all members instead of querying
+  // per member (avoids N+1 across the group during schedule generation).
+  type AvailabilityRow = {
+    memberId: number;
+    weekdayName: string | null;
+    startTimeUtc: string | null;
+    endTimeUtc: string | null;
+  };
+  const [allMemberRoles, allAvailability] = memberIds.length > 0
+    ? await Promise.all([
+        db
+          .select({ memberId: memberRoles.memberId, roleId: memberRoles.roleId })
+          .from(memberRoles)
+          .where(inArray(memberRoles.memberId, memberIds)),
+        db
+          .select({
+            memberId: memberAvailability.memberId,
+            weekdayName: weekdays.name,
+            startTimeUtc: memberAvailability.startTimeUtc,
+            endTimeUtc: memberAvailability.endTimeUtc,
+          })
+          .from(memberAvailability)
+          .innerJoin(weekdays, eq(memberAvailability.weekdayId, weekdays.id))
+          .where(inArray(memberAvailability.memberId, memberIds)),
+      ])
+    : [[] as { memberId: number; roleId: number }[], [] as AvailabilityRow[]];
+
+  const roleIdsByMember = new Map<number, number[]>();
+  for (const r of allMemberRoles) {
+    const list = roleIdsByMember.get(r.memberId) ?? [];
+    list.push(r.roleId);
+    roleIdsByMember.set(r.memberId, list);
+  }
+
+  const availabilityByMember = new Map<number, AvailabilityRow[]>();
+  for (const a of allAvailability) {
+    const list = availabilityByMember.get(a.memberId) ?? [];
+    list.push(a);
+    availabilityByMember.set(a.memberId, list);
+  }
+
   const memberInfos: MemberInfo[] = [];
   for (const m of allMembers) {
-    const mRoles = await db
-      .select()
-      .from(memberRoles)
-      .where(eq(memberRoles.memberId, m.id));
-
-    const mAvailability = await db
-      .select({
-        weekdayId: memberAvailability.weekdayId,
-        weekdayName: weekdays.name,
-        startTimeUtc: memberAvailability.startTimeUtc,
-        endTimeUtc: memberAvailability.endTimeUtc,
-      })
-      .from(memberAvailability)
-      .innerJoin(weekdays, eq(memberAvailability.weekdayId, weekdays.id))
-      .where(eq(memberAvailability.memberId, m.id));
+    const mRoles = roleIdsByMember.get(m.id) ?? [];
+    const mAvailability = availabilityByMember.get(m.id) ?? [];
 
     const availDayNames = [...new Set(mAvailability.map((a) => a.weekdayName ?? "").filter(Boolean))];
 
@@ -156,7 +184,7 @@ export async function loadScheduleConfig(groupId: number): Promise<ScheduleConfi
     memberInfos.push({
       id: m.id,
       name: m.name,
-      roleIds: mRoles.map((r) => r.roleId),
+      roleIds: mRoles,
       availableDays: availDayNames,
       availabilityBlocksByDay,
       holidays: mHolidays,
@@ -177,31 +205,23 @@ export async function loadScheduleConfig(groupId: number): Promise<ScheduleConfi
  * Gather previous assignments from committed schedules for rotation continuity.
  */
 export async function getPreviousAssignments(groupId: number) {
-  const committedSchedules = await db
-    .select()
-    .from(schedules)
+  // Single join across the group's committed schedules instead of one query per
+  // schedule. Uses the (group_id, status) index on schedules.
+  const rows = await db
+    .select({
+      date: scheduleDate.date,
+      roleId: scheduleDateAssignments.roleId,
+      memberId: scheduleDateAssignments.memberId,
+    })
+    .from(scheduleDateAssignments)
+    .innerJoin(scheduleDate, eq(scheduleDateAssignments.scheduleDateId, scheduleDate.id))
+    .innerJoin(schedules, eq(scheduleDate.scheduleId, schedules.id))
     .where(and(eq(schedules.groupId, groupId), eq(schedules.status, "committed")));
 
-  const previousAssignments: { date: string; roleId: number; memberId: number }[] = [];
-  for (const s of committedSchedules) {
-    const rows = await db
-      .select({
-        date: scheduleDate.date,
-        roleId: scheduleDateAssignments.roleId,
-        memberId: scheduleDateAssignments.memberId,
-      })
-      .from(scheduleDateAssignments)
-      .innerJoin(scheduleDate, eq(scheduleDateAssignments.scheduleDateId, scheduleDate.id))
-      .where(eq(scheduleDate.scheduleId, s.id));
-
-    previousAssignments.push(
-      ...rows.map((e) => ({
-        date: e.date,
-        roleId: e.roleId,
-        memberId: e.memberId,
-      }))
-    );
-  }
-  return previousAssignments;
+  return rows.map((e) => ({
+    date: e.date,
+    roleId: e.roleId,
+    memberId: e.memberId,
+  }));
 }
 

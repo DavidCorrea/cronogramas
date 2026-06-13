@@ -1,4 +1,4 @@
-import { pgTable, text, integer, serial, boolean, uniqueIndex, timestamp, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, serial, boolean, uniqueIndex, index, timestamp, primaryKey } from "drizzle-orm/pg-core";
 
 // ── Auth.js tables ──
 
@@ -49,7 +49,10 @@ export const groupCollaborators = pgTable("group_collaborators", {
   groupId: integer("group_id")
     .notNull()
     .references(() => groups.id, { onDelete: "cascade" }),
-});
+}, (table) => [
+  index("idx_group_collaborators_group_id").on(table.groupId),
+  index("idx_group_collaborators_user_id").on(table.userId),
+]);
 
 export const members = pgTable("members", {
   id: serial("id").primaryKey(),
@@ -62,6 +65,8 @@ export const members = pgTable("members", {
     .references(() => groups.id, { onDelete: "cascade" }),
 }, (table) => [
   uniqueIndex("members_group_email_unique").on(table.groupId, table.email),
+  index("idx_members_group_id").on(table.groupId),
+  index("idx_members_user_id").on(table.userId),
 ]);
 
 export const exclusiveGroups = pgTable("exclusive_groups", {
@@ -83,7 +88,9 @@ export const roles = pgTable("roles", {
   groupId: integer("group_id")
     .notNull()
     .references(() => groups.id, { onDelete: "cascade" }),
-});
+}, (table) => [
+  index("idx_roles_group_id").on(table.groupId),
+]);
 
 export const memberRoles = pgTable("member_roles", {
   id: serial("id").primaryKey(),
@@ -93,7 +100,10 @@ export const memberRoles = pgTable("member_roles", {
   roleId: integer("role_id")
     .notNull()
     .references(() => roles.id, { onDelete: "cascade" }),
-});
+}, (table) => [
+  index("idx_member_roles_member_id").on(table.memberId),
+  index("idx_member_roles_role_id").on(table.roleId),
+]);
 
 export const weekdays = pgTable("weekdays", {
   id: serial("id").primaryKey(),
@@ -115,7 +125,10 @@ export const recurringEvents = pgTable("recurring_events", {
     .notNull()
     .references(() => groups.id, { onDelete: "cascade" }),
   notes: text("notes"),
-});
+}, (table) => [
+  index("idx_recurring_events_group_id").on(table.groupId),
+  index("idx_recurring_events_weekday_id").on(table.weekdayId),
+]);
 
 export const memberAvailability = pgTable("member_availability", {
   id: serial("id").primaryKey(),
@@ -127,7 +140,10 @@ export const memberAvailability = pgTable("member_availability", {
     .references(() => weekdays.id, { onDelete: "cascade" }),
   startTimeUtc: text("start_time_utc").notNull().default("00:00"),
   endTimeUtc: text("end_time_utc").notNull().default("23:59"),
-});
+}, (table) => [
+  index("idx_member_availability_member_id").on(table.memberId),
+  index("idx_member_availability_weekday_id").on(table.weekdayId),
+]);
 
 export const holidays = pgTable("holidays", {
   id: serial("id").primaryKey(),
@@ -138,7 +154,10 @@ export const holidays = pgTable("holidays", {
   startDate: text("start_date").notNull(),
   endDate: text("end_date").notNull(),
   description: text("description"),
-});
+}, (table) => [
+  index("idx_holidays_member_id").on(table.memberId),
+  index("idx_holidays_user_id").on(table.userId),
+]);
 
 export const schedules = pgTable("schedules", {
   id: serial("id").primaryKey(),
@@ -155,6 +174,8 @@ export const schedules = pgTable("schedules", {
     .references(() => groups.id, { onDelete: "cascade" }),
 }, (table) => [
   uniqueIndex("schedules_group_month_year_unique").on(table.groupId, table.month, table.year),
+  index("idx_schedules_group_id").on(table.groupId),
+  index("idx_schedules_group_id_status").on(table.groupId, table.status),
 ]);
 
 export const scheduleDate = pgTable("schedule_date", {
@@ -171,7 +192,11 @@ export const scheduleDate = pgTable("schedule_date", {
   recurringEventId: integer("recurring_event_id").references(() => recurringEvents.id, {
     onDelete: "set null",
   }),
-});
+}, (table) => [
+  index("idx_schedule_date_schedule_id").on(table.scheduleId),
+  index("idx_schedule_date_schedule_id_date").on(table.scheduleId, table.date),
+  index("idx_schedule_date_recurring_event_id").on(table.recurringEventId),
+]);
 
 export const scheduleDateAssignments = pgTable("schedule_date_assignments", {
   id: serial("id").primaryKey(),
@@ -184,7 +209,11 @@ export const scheduleDateAssignments = pgTable("schedule_date_assignments", {
   memberId: integer("member_id")
     .notNull()
     .references(() => members.id, { onDelete: "cascade" }),
-});
+}, (table) => [
+  index("idx_schedule_date_assignments_schedule_date_id").on(table.scheduleDateId),
+  index("idx_schedule_date_assignments_role_id").on(table.roleId),
+  index("idx_schedule_date_assignments_member_id").on(table.memberId),
+]);
 
 export const scheduleAuditLog = pgTable("schedule_audit_log", {
   id: serial("id").primaryKey(),
@@ -198,7 +227,9 @@ export const scheduleAuditLog = pgTable("schedule_audit_log", {
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
-});
+}, (table) => [
+  index("idx_schedule_audit_log_schedule_id").on(table.scheduleId),
+]);
 
 export const eventRolePriorities = pgTable("event_role_priorities", {
   id: serial("id").primaryKey(),
@@ -209,4 +240,7 @@ export const eventRolePriorities = pgTable("event_role_priorities", {
     .notNull()
     .references(() => roles.id, { onDelete: "cascade" }),
   priority: integer("priority").notNull().default(0),
-});
+}, (table) => [
+  index("idx_event_role_priorities_recurring_event_id").on(table.recurringEventId),
+  index("idx_event_role_priorities_role_id").on(table.roleId),
+]);
