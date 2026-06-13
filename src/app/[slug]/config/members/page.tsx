@@ -11,7 +11,10 @@ export default async function MembersPage({
 }) {
   const { slug } = await params;
   const group = await getGroupForConfigLayout(slug);
-  const ctx = await loadConfigContextForGroup(group.id, { include: ["members"] });
+  const ctx = await loadConfigContextForGroup(group.id, {
+    include: ["members"],
+    memberDetail: "basic",
+  });
   const members = ctx?.members ?? [];
   const t = await getTranslations("members");
 

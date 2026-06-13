@@ -33,7 +33,6 @@ async function SettingsContent({
       }}
       initialHolidays={holidays.map((h) => ({
         id: h.id,
-        userId: h.userId,
         startDate: h.startDate,
         endDate: h.endDate,
         description: h.description,

@@ -9,7 +9,7 @@ import {
   groups,
   recurringEvents,
 } from "@/db/schema";
-import { eq, and, or, lt, gt, asc, desc, inArray } from "drizzle-orm";
+import { eq, and, or, lt, gt, lte, gte, asc, desc, inArray } from "drizzle-orm";
 import { holidays } from "@/db/schema";
 import { findHolidayConflicts } from "./holiday-conflicts";
 
@@ -89,13 +89,21 @@ async function buildPublicScheduleResponseUncached(schedule: {
       .select({
         id: members.id,
         name: members.name,
-        groupId: members.groupId,
         userId: members.userId,
       })
       .from(members)
       .where(eq(members.groupId, groupId)),
 
-    db.select().from(roles).where(eq(roles.groupId, groupId)),
+    db
+      .select({
+        id: roles.id,
+        name: roles.name,
+        displayOrder: roles.displayOrder,
+        isRelevant: roles.isRelevant,
+        dependsOnRoleId: roles.dependsOnRoleId,
+      })
+      .from(roles)
+      .where(eq(roles.groupId, groupId)),
 
     db
       .select({
@@ -163,8 +171,28 @@ async function buildPublicScheduleResponseUncached(schedule: {
     holidayConditions.push(inArray(holidays.userId, linkedUserIds));
   }
 
+  // Only holidays overlapping this month can conflict — bound the scan by the
+  // month range instead of pulling every holiday for these members/users.
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const monthStart = `${year}-${pad(month)}-01`;
+  const monthEnd = `${year}-${pad(month)}-${pad(new Date(Date.UTC(year, month, 0)).getUTCDate())}`;
+
   const allHolidays = holidayConditions.length > 0
-    ? await db.select().from(holidays).where(or(...holidayConditions))
+    ? await db
+        .select({
+          memberId: holidays.memberId,
+          userId: holidays.userId,
+          startDate: holidays.startDate,
+          endDate: holidays.endDate,
+        })
+        .from(holidays)
+        .where(
+          and(
+            or(...holidayConditions),
+            lte(holidays.startDate, monthEnd),
+            gte(holidays.endDate, monthStart),
+          ),
+        )
     : [];
 
   const holidayConflicts = findHolidayConflicts(
@@ -194,10 +222,6 @@ async function buildPublicScheduleResponseUncached(schedule: {
     ).values(),
   ].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
 
-  const notes = scheduleDatesResult
-    .filter((sd) => sd.note != null && sd.note.trim() !== "")
-    .map((sd) => ({ scheduleDateId: sd.id, date: sd.date, description: sd.note! }));
-
   return {
     groupName: groupName ?? undefined,
     calendarExportEnabled,
@@ -205,7 +229,6 @@ async function buildPublicScheduleResponseUncached(schedule: {
     year,
     entries: enrichedEntries,
     members: uniqueMembers,
-    notes,
     scheduleDates: scheduleDatesResult.map((sd) => ({
       id: sd.id,
       date: sd.date,
@@ -214,14 +237,20 @@ async function buildPublicScheduleResponseUncached(schedule: {
       note: sd.note,
       startTimeUtc: sd.startTimeUtc ?? "00:00",
       endTimeUtc: sd.endTimeUtc ?? "23:59",
-      recurringEventId: sd.recurringEventId ?? null,
       recurringEventLabel: sd.recurringEventLabel ?? null,
     })),
     dependentRoleIds,
-    roles: allRoles,
+    // Only the columns the public view renders (name, order, relevance).
+    roles: allRoles.map((r) => ({
+      id: r.id,
+      name: r.name,
+      displayOrder: r.displayOrder,
+      isRelevant: r.isRelevant,
+    })),
     prevSchedule,
     nextSchedule,
-    holidayConflicts,
+    // memberName is intentionally dropped — the view only needs date + memberId.
+    holidayConflicts: holidayConflicts.map((c) => ({ date: c.date, memberId: c.memberId })),
   };
 }
 

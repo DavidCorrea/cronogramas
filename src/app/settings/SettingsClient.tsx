@@ -10,7 +10,6 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Holiday {
   id: number;
-  userId: string | null;
   startDate: string;
   endDate: string;
   description: string | null;

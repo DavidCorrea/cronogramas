@@ -17,6 +17,7 @@ export default async function EditRolePage({
   const group = await getGroupForConfigLayout(slug);
   const ctx = await loadConfigContextForGroup(group.id, {
     include: ["roles", "exclusiveGroups", "members"],
+    memberDetail: "withRoles",
   });
   const t = await getTranslations("roles");
 

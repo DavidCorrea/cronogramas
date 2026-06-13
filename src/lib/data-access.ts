@@ -64,7 +64,17 @@ export async function loadUserGroups(userId: string) {
 }
 
 export async function loadUserHolidays(userId: string) {
-  return db.select().from(holidays).where(eq(holidays.userId, userId));
+  // memberId is not used by the settings view; select only the displayed columns.
+  return db
+    .select({
+      id: holidays.id,
+      userId: holidays.userId,
+      startDate: holidays.startDate,
+      endDate: holidays.endDate,
+      description: holidays.description,
+    })
+    .from(holidays)
+    .where(eq(holidays.userId, userId));
 }
 
 // ── Member ──
@@ -90,7 +100,7 @@ export async function loadMemberById(memberId: number) {
   if (!member) return null;
 
   const memberRolesList = await db
-    .select()
+    .select({ roleId: memberRoles.roleId })
     .from(memberRoles)
     .where(eq(memberRoles.memberId, memberId));
 
@@ -230,7 +240,39 @@ export async function loadGroupCollaborators(groupId: number) {
   return { owner: owner ?? null, collaborators: collabs };
 }
 
-export async function loadEventPriorities(groupId: number) {
+/**
+ * Load a single recurring event with its weekday name. Returns null if missing.
+ * Use for the event edit page instead of loading the whole event catalog.
+ */
+export async function loadRecurringEventById(eventId: number) {
+  const row = (
+    await db
+      .select({
+        id: recurringEvents.id,
+        weekdayId: recurringEvents.weekdayId,
+        dayOfWeek: weekdays.name,
+        active: recurringEvents.active,
+        type: recurringEvents.type,
+        label: recurringEvents.label,
+        startTimeUtc: recurringEvents.startTimeUtc,
+        endTimeUtc: recurringEvents.endTimeUtc,
+        groupId: recurringEvents.groupId,
+        notes: recurringEvents.notes,
+      })
+      .from(recurringEvents)
+      .innerJoin(weekdays, eq(recurringEvents.weekdayId, weekdays.id))
+      .where(eq(recurringEvents.id, eventId))
+  )[0];
+
+  return row ?? null;
+}
+
+/**
+ * Load event–role priorities for a group. When recurringEventId is provided,
+ * scope to that single event (used by the event edit page) instead of loading
+ * every assignable event's priorities.
+ */
+export async function loadEventPriorities(groupId: number, recurringEventId?: number) {
   const allRecurring = await db
     .select({
       id: recurringEvents.id,
@@ -243,7 +285,11 @@ export async function loadEventPriorities(groupId: number) {
     })
     .from(recurringEvents)
     .innerJoin(weekdays, eq(recurringEvents.weekdayId, weekdays.id))
-    .where(eq(recurringEvents.groupId, groupId));
+    .where(
+      recurringEventId != null
+        ? and(eq(recurringEvents.groupId, groupId), eq(recurringEvents.id, recurringEventId))
+        : eq(recurringEvents.groupId, groupId),
+    );
 
   const assignableDays = allRecurring.filter((d) => d.type === "assignable");
 
@@ -417,7 +463,6 @@ export async function loadAdminGroups() {
       id: groups.id,
       name: groups.name,
       slug: groups.slug,
-      ownerId: groups.ownerId,
       calendarExportEnabled: groups.calendarExportEnabled,
     })
     .from(groups)

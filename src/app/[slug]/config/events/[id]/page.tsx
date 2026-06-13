@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import { getTranslations } from "next-intl/server";
 import { getGroupForConfigLayout } from "@/lib/config-server";
 import { loadConfigContextForGroup } from "@/lib/load-config-context";
-import { loadEventPriorities } from "@/lib/data-access";
+import { loadEventPriorities, loadRecurringEventById } from "@/lib/data-access";
 import { ConfigContentSkeleton } from "@/components/Skeletons";
 import BackLink from "@/components/BackLink";
 
@@ -21,12 +21,12 @@ export default async function EditEventPage({
   const group = await getGroupForConfigLayout(slug);
   const t = await getTranslations("events");
 
-  const [ctx, priorities] = await Promise.all([
-    loadConfigContextForGroup(group.id, { include: ["days", "roles"] }),
-    loadEventPriorities(group.id),
+  const [event, ctx, priorities] = await Promise.all([
+    loadRecurringEventById(eventId),
+    loadConfigContextForGroup(group.id, { include: ["roles"] }),
+    loadEventPriorities(group.id, eventId),
   ]);
 
-  const days = ctx?.days ?? [];
   const roles = (ctx?.roles ?? []) as Array<{
     id: number;
     name: string;
@@ -36,8 +36,7 @@ export default async function EditEventPage({
     exclusiveGroupId: number | null;
   }>;
 
-  const event = days.find((d) => d.id === eventId);
-  if (!event) {
+  if (!event || event.groupId !== group.id) {
     notFound();
   }
 

@@ -57,7 +57,7 @@ async function ScheduleContent({
 }) {
   const schedule = (
     await db
-      .select()
+      .select({ id: schedules.id })
       .from(schedules)
       .where(
         and(
@@ -85,8 +85,8 @@ async function ScheduleContent({
 
   const data = await buildPublicScheduleResponse({
     id: schedule.id,
-    month: schedule.month,
-    year: schedule.year,
+    month,
+    year,
     groupId: group.id,
     groupName: group.name,
     calendarExportEnabled: group.calendarExportEnabled,

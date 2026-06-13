@@ -39,7 +39,7 @@ export interface ScheduleDateInfo {
 export interface RoleInfo {
   id: number;
   name: string;
-  requiredCount: number;
+  requiredCount?: number;
   displayOrder: number;
   dependsOnRoleId?: number | null;
   isRelevant?: boolean;
@@ -53,7 +53,8 @@ export interface ScheduleNavLink {
 export interface HolidayConflict {
   date: string;
   memberId: number;
-  memberName: string;
+  /** Not rendered by the public view; only date+memberId are used for the warning marker. */
+  memberName?: string;
 }
 
 export interface SharedScheduleData {
@@ -63,7 +64,8 @@ export interface SharedScheduleData {
   year: number;
   entries: ScheduleEntry[];
   members: { id: number; name: string }[];
-  notes: DateNote[];
+  /** @deprecated Notes are read from scheduleDates[].note; this duplicate array is no longer populated. */
+  notes?: DateNote[];
   scheduleDates?: ScheduleDateInfo[];
   /** @deprecated */
   forEveryoneDates?: string[];

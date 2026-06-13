@@ -12,7 +12,6 @@ interface Group {
   id: number;
   name: string;
   slug: string;
-  ownerId: string;
   role: "owner" | "collaborator" | "member";
 }
 

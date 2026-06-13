@@ -22,12 +22,12 @@ interface GoToItem {
 
 export default function ConfigGoTo() {
   const { slug } = useGroup();
-  const { members, roles, days, schedules } = useConfigContext(slug, [
-    "members",
-    "roles",
-    "days",
-    "schedules",
-  ]);
+  const { members, roles, days, schedules } = useConfigContext(
+    slug,
+    ["members", "roles", "days", "schedules"],
+    // Search only needs member names — skip the roles/availability queries.
+    { memberDetail: "basic" }
+  );
   const router = useRouter();
   const tNav = useTranslations("configNav");
   const tSchedules = useTranslations("schedules");

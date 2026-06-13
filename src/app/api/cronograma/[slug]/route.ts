@@ -27,7 +27,7 @@ export async function GET(
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   let schedule = (await db
-    .select()
+    .select({ id: schedules.id, month: schedules.month, year: schedules.year })
     .from(schedules)
     .where(
       and(
@@ -40,7 +40,7 @@ export async function GET(
 
   if (!schedule) {
     const closest = (await db
-      .select()
+      .select({ id: schedules.id, month: schedules.month, year: schedules.year })
       .from(schedules)
       .where(
         and(
@@ -67,7 +67,7 @@ export async function GET(
 
     if (!hasFutureDate) {
       const nextSchedule = (await db
-        .select()
+        .select({ id: schedules.id, month: schedules.month, year: schedules.year })
         .from(schedules)
         .where(
           and(

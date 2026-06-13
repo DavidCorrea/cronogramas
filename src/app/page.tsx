@@ -53,7 +53,6 @@ async function DashboardContent({ userId }: { userId: string }) {
     id: g.id,
     name: g.name,
     slug: g.slug,
-    ownerId: g.ownerId,
     role: g.role,
   }));
 

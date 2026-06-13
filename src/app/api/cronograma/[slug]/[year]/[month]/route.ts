@@ -29,7 +29,7 @@ export async function GET(
   }
 
   const schedule = (await db
-    .select()
+    .select({ id: schedules.id })
     .from(schedules)
     .where(
       and(
@@ -49,8 +49,8 @@ export async function GET(
 
   const data = await buildPublicScheduleResponse({
     id: schedule.id,
-    month: schedule.month,
-    year: schedule.year,
+    month,
+    year,
     groupId: group.id,
     groupName: group.name,
     calendarExportEnabled: group.calendarExportEnabled,

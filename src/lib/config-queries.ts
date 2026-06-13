@@ -1,13 +1,22 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { ConfigContextSlice } from "@/lib/load-config-context";
+import type { ConfigContextSlice, MemberDetail } from "@/lib/load-config-context";
+
+export interface ConfigContextOptions {
+  /** Member slice granularity. Defaults to the server default ("full"). */
+  memberDetail?: MemberDetail;
+}
 
 /** Query key prefix for config context. Use with invalidateQueries to refetch all slices for a slug. */
-export function configContextQueryKey(slug: string, include?: ConfigContextSlice[]) {
+export function configContextQueryKey(
+  slug: string,
+  include?: ConfigContextSlice[],
+  options?: ConfigContextOptions
+) {
   const includeKey =
     include && include.length > 0 ? [...include].sort().join(",") : "full";
-  return ["config", slug, includeKey] as const;
+  return ["config", slug, includeKey, options?.memberDetail ?? "full"] as const;
 }
 
 /** Prefix for invalidating all config queries for a slug. Use in refetchContext. */
@@ -67,11 +76,15 @@ export interface ConfigContextData {
 
 async function fetchConfigContext(
   slug: string,
-  include?: ConfigContextSlice[]
+  include?: ConfigContextSlice[],
+  options?: ConfigContextOptions
 ): Promise<ConfigContextApiResponse> {
   const params = new URLSearchParams({ slug });
   if (include && include.length > 0) {
     params.set("include", include.join(","));
+  }
+  if (options?.memberDetail) {
+    params.set("members", options.memberDetail);
   }
   const res = await fetch(`/api/configuration/context?${params.toString()}`);
   if (!res.ok) {
@@ -85,10 +98,14 @@ async function fetchConfigContext(
  * View-scoped config context. Pass include to fetch only the slices this view needs.
  * Returns group + requested slices. Use refetchContext from useGroup() to invalidate after mutations.
  */
-export function useConfigContext(slug: string, include?: ConfigContextSlice[]) {
+export function useConfigContext(
+  slug: string,
+  include?: ConfigContextSlice[],
+  options?: ConfigContextOptions
+) {
   const query = useQuery({
-    queryKey: configContextQueryKey(slug, include),
-    queryFn: () => fetchConfigContext(slug, include),
+    queryKey: configContextQueryKey(slug, include, options),
+    queryFn: () => fetchConfigContext(slug, include, options),
     enabled: Boolean(slug),
   });
 

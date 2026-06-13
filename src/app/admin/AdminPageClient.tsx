@@ -21,7 +21,6 @@ interface GroupRow {
   id: number;
   name: string;
   slug: string;
-  ownerId: string;
   calendarExportEnabled: boolean;
   membersCount: number;
   schedulesCount: number;

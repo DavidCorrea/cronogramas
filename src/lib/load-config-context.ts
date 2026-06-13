@@ -23,6 +23,20 @@ export const CONFIG_CONTEXT_SLICES = [
 ] as const;
 export type ConfigContextSlice = (typeof CONFIG_CONTEXT_SLICES)[number];
 
+/**
+ * Member loading granularity:
+ * - `"basic"`: identity only (id, name, email, image, linked user). No
+ *   `member_roles` or `member_availability` queries. `roleIds`/`availability`
+ *   come back empty. Use for name-only views (member list, holidays dropdown,
+ *   ConfigGoTo search).
+ * - `"withRoles"`: basic + `roleIds` (one extra query). Use for role
+ *   assignment counts (roles list/forms). `availability` stays empty.
+ * - `"full"`: withRoles + availability. Use where availability is rendered
+ *   (schedule detail). This is the default for backward compatibility.
+ */
+export const MEMBER_DETAILS = ["basic", "withRoles", "full"] as const;
+export type MemberDetail = (typeof MEMBER_DETAILS)[number];
+
 export interface ConfigContextPayload {
   group: { id: number; name: string; slug: string };
   members?: Awaited<ReturnType<typeof loadMembers>>;
@@ -46,6 +60,12 @@ export interface ConfigContextPayload {
 export interface LoadConfigContextOptions {
   /** When set, only load these slices (and always group). Omit for full context. */
   include?: ConfigContextSlice[];
+  /**
+   * Granularity for the `members` slice. Defaults to `"full"` so callers that
+   * do not opt in keep the previous behaviour. Pass `"basic"`/`"withRoles"`
+   * to skip the availability/role queries a view does not need.
+   */
+  memberDetail?: MemberDetail;
 }
 
 /**
@@ -60,6 +80,7 @@ export async function loadConfigContextForGroup(
     options?.include && options.include.length > 0
       ? new Set(options.include)
       : null;
+  const memberDetail = options?.memberDetail ?? "full";
 
   const group = (
     await db
@@ -74,7 +95,7 @@ export async function loadConfigContextForGroup(
 
   const [allMembers, allRoles, allDaysRows, allExclusiveGroups, allSchedules] =
     await Promise.all([
-      loadAll || includeSet.has("members") ? loadMembers(groupId) : Promise.resolve(undefined),
+      loadAll || includeSet.has("members") ? loadMembers(groupId, memberDetail) : Promise.resolve(undefined),
       loadAll || includeSet.has("roles")
         ? db
             .select()
@@ -133,7 +154,7 @@ export async function loadConfigContextForGroup(
   };
 }
 
-async function loadMembers(groupId: number) {
+async function loadMembers(groupId: number, detail: MemberDetail = "full") {
   const rows = await db
     .select({
       id: members.id,
@@ -154,20 +175,29 @@ async function loadMembers(groupId: number) {
 
   const memberIds = rows.map((r) => r.id);
 
+  // Only query the relations the requested detail level needs. `basic` skips
+  // both; `withRoles` adds member_roles; `full` adds availability too.
+  const wantRoles = detail !== "basic";
+  const wantAvailability = detail === "full";
+
   const [memberRolesList, availabilityRows] = await Promise.all([
-    db
-      .select()
-      .from(memberRoles)
-      .where(inArray(memberRoles.memberId, memberIds)),
-    db
-      .select({
-        memberId: memberAvailability.memberId,
-        weekdayId: memberAvailability.weekdayId,
-        startTimeUtc: memberAvailability.startTimeUtc,
-        endTimeUtc: memberAvailability.endTimeUtc,
-      })
-      .from(memberAvailability)
-      .where(inArray(memberAvailability.memberId, memberIds)),
+    wantRoles
+      ? db
+          .select({ memberId: memberRoles.memberId, roleId: memberRoles.roleId })
+          .from(memberRoles)
+          .where(inArray(memberRoles.memberId, memberIds))
+      : Promise.resolve([]),
+    wantAvailability
+      ? db
+          .select({
+            memberId: memberAvailability.memberId,
+            weekdayId: memberAvailability.weekdayId,
+            startTimeUtc: memberAvailability.startTimeUtc,
+            endTimeUtc: memberAvailability.endTimeUtc,
+          })
+          .from(memberAvailability)
+          .where(inArray(memberAvailability.memberId, memberIds))
+      : Promise.resolve([]),
   ]);
 
   const rolesByMemberId = new Map<number, { roleId: number }[]>();
