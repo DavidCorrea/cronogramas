@@ -50,7 +50,7 @@ async function ScheduleContent({
   year,
   month,
 }: {
-  group: { id: number; name: string };
+  group: { id: number; name: string; calendarExportEnabled: boolean };
   slug: string;
   year: number;
   month: number;
@@ -88,6 +88,8 @@ async function ScheduleContent({
     month: schedule.month,
     year: schedule.year,
     groupId: group.id,
+    groupName: group.name,
+    calendarExportEnabled: group.calendarExportEnabled,
   });
 
   return (

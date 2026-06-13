@@ -50,6 +50,13 @@
       "when": 1781373301871,
       "tag": "0006_add_fk_and_composite_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781374532717,
+      "tag": "0007_add_remaining_fk_indexes",
+      "breakpoints": true
     }
   ]
 }

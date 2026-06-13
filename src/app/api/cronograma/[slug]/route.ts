@@ -97,6 +97,8 @@ export async function GET(
     month: schedule.month,
     year: schedule.year,
     groupId: group.id,
+    groupName: group.name,
+    calendarExportEnabled: group.calendarExportEnabled,
   });
 
   return NextResponse.json(data);

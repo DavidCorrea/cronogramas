@@ -27,6 +27,7 @@ export const accounts = pgTable("accounts", {
   session_state: text("session_state"),
 }, (table) => [
   primaryKey({ columns: [table.provider, table.providerAccountId] }),
+  index("idx_accounts_user_id").on(table.userId),
 ]);
 
 // ── App tables ──
@@ -39,7 +40,9 @@ export const groups = pgTable("groups", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   calendarExportEnabled: boolean("calendar_export_enabled").notNull().default(false),
-});
+}, (table) => [
+  index("idx_groups_owner_id").on(table.ownerId),
+]);
 
 export const groupCollaborators = pgTable("group_collaborators", {
   id: serial("id").primaryKey(),
@@ -75,7 +78,9 @@ export const exclusiveGroups = pgTable("exclusive_groups", {
   groupId: integer("group_id")
     .notNull()
     .references(() => groups.id, { onDelete: "cascade" }),
-});
+}, (table) => [
+  index("idx_exclusive_groups_group_id").on(table.groupId),
+]);
 
 export const roles = pgTable("roles", {
   id: serial("id").primaryKey(),
@@ -90,6 +95,7 @@ export const roles = pgTable("roles", {
     .references(() => groups.id, { onDelete: "cascade" }),
 }, (table) => [
   index("idx_roles_group_id").on(table.groupId),
+  index("idx_roles_exclusive_group_id").on(table.exclusiveGroupId),
 ]);
 
 export const memberRoles = pgTable("member_roles", {
@@ -229,6 +235,7 @@ export const scheduleAuditLog = pgTable("schedule_audit_log", {
     .$defaultFn(() => new Date().toISOString()),
 }, (table) => [
   index("idx_schedule_audit_log_schedule_id").on(table.scheduleId),
+  index("idx_schedule_audit_log_user_id").on(table.userId),
 ]);
 
 export const eventRolePriorities = pgTable("event_role_priorities", {

@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { db } from "./db";
 import {
   schedules,
@@ -14,11 +14,29 @@ import { holidays } from "@/db/schema";
 import { findHolidayConflicts } from "./holiday-conflicts";
 
 /**
- * Revalidate the public cronograma page for a schedule's month.
+ * Cache tag for a group's public schedule of a given month/year. Shared by the
+ * `unstable_cache` wrapper around the builder and the `revalidateTag` call in
+ * {@link revalidateCronograma}, so a single mutation invalidates both the ISR
+ * page and the cached builder output.
+ */
+function cronogramaTag(groupId: number, year: number, month: number) {
+  return `cronograma:${groupId}:${year}:${month}`;
+}
+
+/** Revalidate TTL, kept consistent with the SSR page (`revalidate = 300`). */
+const CRONOGRAMA_REVALIDATE_SECONDS = 300;
+
+/**
+ * Revalidate the public cronograma page for a schedule's month: both the ISR
+ * page and the cached builder output (via the shared tag).
  * Call after any mutation that changes the public view (commit, assignment
  * edit, date add/remove, note change, schedule delete).
  */
 export async function revalidateCronograma(groupId: number, month: number, year: number) {
+  // Next.js 16 requires a cache-life profile; "max" purges the tagged
+  // `unstable_cache` entry on demand (read-after-write on the next request).
+  revalidateTag(cronogramaTag(groupId, year, month), "max");
+
   const group = await db
     .select({ slug: groups.slug })
     .from(groups)
@@ -31,18 +49,23 @@ export async function revalidateCronograma(groupId: number, month: number, year:
 
 /**
  * Build the full public schedule response for a committed schedule.
- * Used by both the current-month and specific-month public APIs.
+ *
+ * Pure DB reads keyed by primitives (no request/cookies access), so it is safe
+ * to wrap in `unstable_cache` — see {@link buildPublicScheduleResponse}. The
+ * group's name and calendar-export flag are passed in by the caller (which
+ * already resolved the group), avoiding a redundant group lookup here.
  */
-export async function buildPublicScheduleResponse(schedule: {
+async function buildPublicScheduleResponseUncached(schedule: {
   id: number;
   month: number;
   year: number;
   groupId: number;
+  groupName: string;
+  calendarExportEnabled: boolean;
 }) {
-  const { id, month, year, groupId } = schedule;
+  const { id, month, year, groupId, groupName, calendarExportEnabled } = schedule;
 
   const [
-    group,
     entriesWithDate,
     allMembers,
     allRoles,
@@ -50,12 +73,6 @@ export async function buildPublicScheduleResponse(schedule: {
     prevSchedule,
     nextSchedule,
   ] = await Promise.all([
-    db
-      .select({ name: groups.name, calendarExportEnabled: groups.calendarExportEnabled })
-      .from(groups)
-      .where(eq(groups.id, groupId))
-      .then((rows) => rows[0]),
-
     db
       .select({
         id: scheduleDateAssignments.id,
@@ -182,8 +199,8 @@ export async function buildPublicScheduleResponse(schedule: {
     .map((sd) => ({ scheduleDateId: sd.id, date: sd.date, description: sd.note! }));
 
   return {
-    groupName: group?.name ?? undefined,
-    calendarExportEnabled: group?.calendarExportEnabled ?? false,
+    groupName: groupName ?? undefined,
+    calendarExportEnabled,
     month,
     year,
     entries: enrichedEntries,
@@ -206,4 +223,32 @@ export async function buildPublicScheduleResponse(schedule: {
     nextSchedule,
     holidayConflicts,
   };
+}
+
+/**
+ * Cached wrapper around {@link buildPublicScheduleResponseUncached}.
+ *
+ * Keyed by groupId + year + month + scheduleId and tagged with
+ * `cronograma:${groupId}:${year}:${month}` so {@link revalidateCronograma}
+ * invalidates it on commit/edit. TTL matches the SSR page (300s). This makes
+ * the dynamic JSON API path cheap instead of re-querying on every request.
+ */
+export async function buildPublicScheduleResponse(schedule: {
+  id: number;
+  month: number;
+  year: number;
+  groupId: number;
+  groupName: string;
+  calendarExportEnabled: boolean;
+}) {
+  const { id, month, year, groupId } = schedule;
+  const cached = unstable_cache(
+    () => buildPublicScheduleResponseUncached(schedule),
+    ["public-schedule", String(groupId), String(year), String(month), String(id)],
+    {
+      revalidate: CRONOGRAMA_REVALIDATE_SECONDS,
+      tags: [cronogramaTag(groupId, year, month)],
+    },
+  );
+  return cached();
 }

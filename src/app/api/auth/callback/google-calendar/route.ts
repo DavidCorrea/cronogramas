@@ -228,6 +228,8 @@ export async function GET(request: NextRequest) {
       month: schedule.month,
       year: schedule.year,
       groupId: group.id,
+      groupName: group.name,
+      calendarExportEnabled: group.calendarExportEnabled,
     });
 
     const groupName = data.groupName ?? "Cronograma";
