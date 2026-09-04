@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { holidays, members } from "@/db/schema";
-import { eq, or, inArray } from "drizzle-orm";
+import { and, eq, gte, isNotNull, inArray, lte, or } from "drizzle-orm";
 
 export interface HolidayConflict {
   date: string;
@@ -62,40 +62,44 @@ export function findHolidayConflicts(
 }
 
 /**
- * Find schedule entries where the assigned member is on holiday.
- * Checks both member-scoped holidays (by memberId) and
- * user-scoped holidays (by userId for linked members).
+ * Load the holidays that could conflict with a date range for a group.
+ *
+ * Scoped by joining back to the group's members (rather than by ids taken from
+ * a previous query) so this can run in parallel with the rest of a page's
+ * loading, and bounded by the range so it never scans a member's whole
+ * holiday history to check a single month.
  */
-export async function getHolidayConflicts(
-  entries: { date: string; memberId: number }[],
-  groupId: number
-): Promise<HolidayConflict[]> {
-  if (entries.length === 0) return [];
-
-  const memberIds = [...new Set(entries.map((e) => e.memberId))];
-
-  const groupMembers = await db
-    .select({ id: members.id, name: members.name, userId: members.userId })
+export async function loadConflictingHolidays(
+  groupId: number,
+  rangeStart: string,
+  rangeEnd: string,
+) {
+  const groupMemberIds = db
+    .select({ id: members.id })
     .from(members)
     .where(eq(members.groupId, groupId));
 
-  const linkedUserIds = groupMembers
-    .filter((m) => m.userId != null && memberIds.includes(m.id))
-    .map((m) => m.userId!);
+  const groupUserIds = db
+    .select({ userId: members.userId })
+    .from(members)
+    .where(and(eq(members.groupId, groupId), isNotNull(members.userId)));
 
-  const conditions = [];
-  if (memberIds.length > 0) {
-    conditions.push(inArray(holidays.memberId, memberIds));
-  }
-  if (linkedUserIds.length > 0) {
-    conditions.push(inArray(holidays.userId, linkedUserIds));
-  }
-  if (conditions.length === 0) return [];
-
-  const allHolidays = await db
-    .select()
+  return db
+    .select({
+      memberId: holidays.memberId,
+      userId: holidays.userId,
+      startDate: holidays.startDate,
+      endDate: holidays.endDate,
+    })
     .from(holidays)
-    .where(or(...conditions));
-
-  return findHolidayConflicts(entries, groupMembers, allHolidays);
+    .where(
+      and(
+        or(
+          inArray(holidays.memberId, groupMemberIds),
+          inArray(holidays.userId, groupUserIds),
+        ),
+        lte(holidays.startDate, rangeEnd),
+        gte(holidays.endDate, rangeStart),
+      ),
+    );
 }
