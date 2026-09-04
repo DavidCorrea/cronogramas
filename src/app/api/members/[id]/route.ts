@@ -128,16 +128,16 @@ export async function PUT(
       .where(eq(members.id, memberId));
   }
 
-  if (roleIds !== undefined) {
-    await db.delete(memberRoles)
-      .where(eq(memberRoles.memberId, memberId));
-    for (const roleId of roleIds) {
-      await db.insert(memberRoles)
-        .values({ memberId, roleId });
+  const replaceRoles = async () => {
+    if (roleIds === undefined) return;
+    await db.delete(memberRoles).where(eq(memberRoles.memberId, memberId));
+    if (roleIds.length > 0) {
+      await db.insert(memberRoles).values(roleIds.map((roleId) => ({ memberId, roleId })));
     }
-  }
+  };
 
-  if (availableDayIds !== undefined || availabilityBody !== undefined) {
+  const replaceAvailability = async () => {
+    if (availableDayIds === undefined && availabilityBody === undefined) return;
     await db.delete(memberAvailability)
       .where(eq(memberAvailability.memberId, memberId));
 
@@ -159,40 +159,44 @@ export async function PUT(
       }
     }
 
-    for (const row of toInsert) {
-      await db.insert(memberAvailability)
-        .values(row);
+    if (toInsert.length > 0) {
+      await db.insert(memberAvailability).values(toInsert);
     }
-  }
+  };
 
-  const updated = (await db
-    .select({
-      id: members.id,
-      name: members.name,
-      memberEmail: members.email,
-      userId: members.userId,
-      groupId: members.groupId,
-      userEmail: users.email,
-      userImage: users.image,
-      userName: users.name,
-    })
-    .from(members)
-    .leftJoin(users, eq(members.userId, users.id))
-    .where(eq(members.id, memberId)))[0];
+  // Roles and availability are independent of each other; within each, the
+  // delete has to land before the insert.
+  await Promise.all([replaceRoles(), replaceAvailability()]);
 
-  const updatedRoles = await db
-    .select()
-    .from(memberRoles)
-    .where(eq(memberRoles.memberId, memberId));
-
-  const updatedAvailability = await db
-    .select({
-      weekdayId: memberAvailability.weekdayId,
-      startTimeUtc: memberAvailability.startTimeUtc,
-      endTimeUtc: memberAvailability.endTimeUtc,
-    })
-    .from(memberAvailability)
-    .where(eq(memberAvailability.memberId, memberId));
+  const [updated, updatedRoles, updatedAvailability] = await Promise.all([
+    db
+      .select({
+        id: members.id,
+        name: members.name,
+        memberEmail: members.email,
+        userId: members.userId,
+        groupId: members.groupId,
+        userEmail: users.email,
+        userImage: users.image,
+        userName: users.name,
+      })
+      .from(members)
+      .leftJoin(users, eq(members.userId, users.id))
+      .where(eq(members.id, memberId))
+      .then((rows) => rows[0]),
+    db
+      .select()
+      .from(memberRoles)
+      .where(eq(memberRoles.memberId, memberId)),
+    db
+      .select({
+        weekdayId: memberAvailability.weekdayId,
+        startTimeUtc: memberAvailability.startTimeUtc,
+        endTimeUtc: memberAvailability.endTimeUtc,
+      })
+      .from(memberAvailability)
+      .where(eq(memberAvailability.memberId, memberId)),
+  ]);
 
   return NextResponse.json({
     id: updated?.id,

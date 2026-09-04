@@ -394,10 +394,11 @@ export async function rebuildSchedule(
     return NextResponse.json({ preview, removedCount });
   }
 
-  if (mode === "overwrite") {
-    for (const e of futureEntries) {
-      await db.delete(scheduleDateAssignments).where(eq(scheduleDateAssignments.id, e.id));
-    }
+  if (mode === "overwrite" && futureEntries.length > 0) {
+    // One delete for the whole set rather than a round trip per assignment.
+    await db.delete(scheduleDateAssignments).where(
+      inArray(scheduleDateAssignments.id, futureEntries.map((e) => e.id))
+    );
   }
 
   const sdIdByKey = new Map<string, number>();
