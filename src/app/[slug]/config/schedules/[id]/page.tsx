@@ -16,7 +16,7 @@ export default async function ScheduleDetailPage({
   const group = await getGroupForConfigLayout(slug);
   const [scheduleData, configContext] = await Promise.all([
     loadScheduleDetail(scheduleId),
-    loadConfigContextForGroup(group.id, { include: ["members", "days"], memberDetail: "full" }),
+    loadConfigContextForGroup(group, { include: ["members", "days"], memberDetail: "full" }),
   ]);
 
   if (!scheduleData || scheduleData.groupId !== group.id) {

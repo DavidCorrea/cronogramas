@@ -11,7 +11,7 @@ export default async function NewRolePage({
 }) {
   const { slug } = await params;
   const group = await getGroupForConfigLayout(slug);
-  const ctx = await loadConfigContextForGroup(group.id, {
+  const ctx = await loadConfigContextForGroup(group, {
     include: ["members", "roles", "exclusiveGroups"],
     memberDetail: "withRoles",
   });

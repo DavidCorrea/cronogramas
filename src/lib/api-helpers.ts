@@ -92,21 +92,26 @@ export async function requireAuth(): Promise<
  * Check if a user has admin access to a group (is owner or collaborator).
  */
 export async function hasGroupAccess(userId: string, groupId: number): Promise<boolean> {
-  const group = await db
-    .select({ id: groups.id })
-    .from(groups)
-    .where(and(eq(groups.id, groupId), eq(groups.ownerId, userId)))
-    .limit(1);
+  // Owner and collaborator checks in one round trip: this runs on every
+  // authenticated group page and API call, so a second query here is a
+  // latency tax on the whole app.
+  const row = (
+    await db
+      .select({ ownerId: groups.ownerId, collaboratorId: groupCollaborators.id })
+      .from(groups)
+      .leftJoin(
+        groupCollaborators,
+        and(
+          eq(groupCollaborators.groupId, groups.id),
+          eq(groupCollaborators.userId, userId),
+        ),
+      )
+      .where(eq(groups.id, groupId))
+      .limit(1)
+  )[0];
 
-  if (group.length > 0) return true;
-
-  const collab = await db
-    .select({ id: groupCollaborators.id })
-    .from(groupCollaborators)
-    .where(and(eq(groupCollaborators.groupId, groupId), eq(groupCollaborators.userId, userId)))
-    .limit(1);
-
-  return collab.length > 0;
+  if (!row) return false;
+  return row.ownerId === userId || row.collaboratorId != null;
 }
 
 /**
