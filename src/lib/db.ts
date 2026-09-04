@@ -13,8 +13,11 @@ const client =
   globalForDb.pgClient ??
   postgres(process.env.DATABASE_URL!, {
     // Bound the pool per instance so many concurrent serverless invocations
-    // don't exhaust the database's connection limit.
-    max: 5,
+    // don't exhaust the database's connection limit. Keep this at or above the
+    // widest parallel fan-out of a single page load (currently 8, in the public
+    // schedule builder), or the last queries of that batch queue behind a
+    // connection and the batch costs two round trips instead of one.
+    max: 10,
     // Drop idle connections quickly so short-lived instances release them.
     idle_timeout: 20,
     connect_timeout: 10,
