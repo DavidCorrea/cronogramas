@@ -57,6 +57,35 @@ export async function revalidateCronograma(
 }
 
 /**
+ * Revalidate every published month of a group.
+ *
+ * Config changes (deleting a role, deactivating an event, recalculating
+ * assignments) rewrite schedule rows across many months at once, so there is
+ * no single month to invalidate.
+ */
+export async function revalidateGroupCronogramas(groupId: number) {
+  const [group, publishedMonths] = await Promise.all([
+    db
+      .select({ slug: groups.slug })
+      .from(groups)
+      .where(eq(groups.id, groupId))
+      .then((rows) => rows[0]),
+    db
+      .select({ month: schedules.month, year: schedules.year })
+      .from(schedules)
+      .where(and(eq(schedules.groupId, groupId), eq(schedules.status, "committed"))),
+  ]);
+
+  for (const { month, year } of publishedMonths) {
+    revalidateTag(cronogramaTag(groupId, year, month), "max");
+    if (group) {
+      revalidatePath(`/${group.slug}/cronograma/${year}/${month}`);
+    }
+  }
+}
+
+
+/**
  * Build the full public schedule response for a committed schedule.
  *
  * Pure DB reads keyed by primitives (no request/cookies access), so it is safe

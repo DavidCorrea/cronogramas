@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { recurringEvents, scheduleDate } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireGroupAccess, apiError } from "@/lib/api-helpers";
+import { revalidateGroupCronogramas } from "@/lib/public-schedule";
 
 /**
  * DELETE: Remove a recurring event.
@@ -59,6 +60,10 @@ export async function DELETE(
         eq(recurringEvents.groupId, groupId)
       )
     );
+
+  if (removeScheduleDates) {
+    await revalidateGroupCronogramas(groupId);
+  }
 
   return NextResponse.json({ success: true });
 }

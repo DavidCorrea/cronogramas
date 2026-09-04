@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { dayIndex } from "@/lib/constants";
 import { requireGroupAccess, apiError, parseBody } from "@/lib/api-helpers";
 import { eventCreateSchema, eventUpdateSchema } from "@/lib/schemas/events";
+import { revalidateGroupCronogramas } from "@/lib/public-schedule";
 
 export async function GET(request: NextRequest) {
   const accessResult = await requireGroupAccess(request);
@@ -81,7 +82,8 @@ export async function PUT(request: NextRequest) {
   }
 
   // When deactivating, remove this event's dates from all schedules so they are "hidden"
-  if (updates.active === false) {
+  const removesScheduleDates = updates.active === false;
+  if (removesScheduleDates) {
     await db.delete(scheduleDate).where(eq(scheduleDate.recurringEventId, id));
   }
 
@@ -105,6 +107,10 @@ export async function PUT(request: NextRequest) {
     .from(recurringEvents)
     .innerJoin(weekdays, eq(recurringEvents.weekdayId, weekdays.id))
     .where(eq(recurringEvents.id, id)))[0];
+
+  if (removesScheduleDates) {
+    await revalidateGroupCronogramas(groupId);
+  }
 
   return NextResponse.json(updated);
 }

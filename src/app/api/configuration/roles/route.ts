@@ -4,6 +4,7 @@ import { roles, scheduleDateAssignments, eventRolePriorities } from "@/db/schema
 import { eq, max, sql } from "drizzle-orm";
 import { requireGroupAccess, apiError, parseBody } from "@/lib/api-helpers";
 import { roleCreateSchema, roleUpdateSchema, roleReorderSchema } from "@/lib/schemas/roles";
+import { revalidateGroupCronogramas } from "@/lib/public-schedule";
 
 export async function GET(request: NextRequest) {
   const accessResult = await requireGroupAccess(request);
@@ -150,6 +151,9 @@ export async function DELETE(request: NextRequest) {
 
   // Delete the role itself (member_roles cascade via schema)
   await db.delete(roles).where(eq(roles.id, roleId));
+
+  // Published schedules just lost this role's assignments.
+  await revalidateGroupCronogramas(groupId);
 
   return NextResponse.json({ success: true });
 }

@@ -6,6 +6,7 @@ import { requireGroupAccess, apiError } from "@/lib/api-helpers";
 import { loadScheduleConfig, getPreviousAssignments } from "@/lib/schedule-helpers";
 import { generateGroupSchedule, filterRebuildableDates } from "@/lib/schedule-model";
 import { logScheduleAction } from "@/lib/audit-log";
+import { revalidateGroupCronogramas } from "@/lib/public-schedule";
 
 /**
  * POST: Re-run the assignment algorithm for all schedules that have assignable
@@ -138,6 +139,9 @@ export async function POST(
       failedCount++;
     }
   }
+
+  // Assignments changed across every schedule this event touches.
+  await revalidateGroupCronogramas(groupId);
 
   if (failedCount > 0) {
     return apiError(

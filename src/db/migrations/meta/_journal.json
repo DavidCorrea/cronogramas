@@ -64,6 +64,13 @@
       "when": 1788531832881,
       "tag": "0008_index_range_and_ordered_lookups",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788534294380,
+      "tag": "0009_index_schedule_date_by_date",
+      "breakpoints": true
     }
   ]
 }

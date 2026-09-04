@@ -213,6 +213,10 @@ export const scheduleDate = pgTable("schedule_date", {
 }, (table) => [
   index("idx_schedule_date_schedule_id").on(table.scheduleId),
   index("idx_schedule_date_schedule_id_date").on(table.scheduleId, table.date),
+  // The dashboard, "mis asignaciones" and calendar export all filter by date
+  // across every schedule, so date needs an index of its own; the composite
+  // above only helps when a single schedule is named.
+  index("idx_schedule_date_date").on(table.date),
   index("idx_schedule_date_recurring_event_id").on(table.recurringEventId),
 ]);
 
