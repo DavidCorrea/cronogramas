@@ -22,11 +22,15 @@ interface GoToItem {
 
 export default function ConfigGoTo() {
   const { slug } = useGroup();
+  // The palette is mounted on every config page but most page loads never open
+  // it, so the catalog is only fetched once the user first opens it. It stays
+  // cached afterwards, so later opens are instant.
+  const [hasOpened, setHasOpened] = useState(false);
   const { members, roles, days, schedules } = useConfigContext(
     slug,
     ["members", "roles", "days", "schedules"],
     // Search only needs member names — skip the roles/availability queries.
-    { memberDetail: "basic" }
+    { memberDetail: "basic", enabled: hasOpened }
   );
   const router = useRouter();
   const tNav = useTranslations("configNav");
@@ -39,7 +43,10 @@ export default function ConfigGoTo() {
 
   useHotkeys("mod+k", () => {
     setOpen((prev) => {
-      if (!prev) setQuery("");
+      if (!prev) {
+        setQuery("");
+        setHasOpened(true);
+      }
       return !prev;
     });
   }, { enableOnFormTags: false, preventDefault: true });
@@ -95,7 +102,10 @@ export default function ConfigGoTo() {
       <button
         type="button"
         onClick={() => {
-          if (!open) setQuery("");
+          if (!open) {
+            setQuery("");
+            setHasOpened(true);
+          }
           setOpen(!open);
         }}
         className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"

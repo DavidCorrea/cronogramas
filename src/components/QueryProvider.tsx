@@ -10,6 +10,9 @@ export default function QueryProvider({ children }: { children: ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 60 * 1000,
+            // Pages get their data from the server on navigation, so
+            // re-fetching just because a tab regained focus is wasted work.
+            refetchOnWindowFocus: false,
           },
         },
       })
