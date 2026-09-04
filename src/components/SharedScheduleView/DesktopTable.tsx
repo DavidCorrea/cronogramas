@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   formatDateWeekdayDay,
@@ -46,6 +46,24 @@ function DesktopTableInner({
   const visibleRoles = filteredRoleId
     ? roleOrder.filter((r) => r.id === filteredRoleId)
     : roleOrder;
+
+  // Index the month's entries once by date and role. Scanning the full entry
+  // list inside every date row and again inside every role cell made rendering
+  // cost dates x roles x entries on each pass.
+  const entriesByDateAndRole = useMemo(() => {
+    const byDate = new Map<string, Map<number, ScheduleEntry[]>>();
+    for (const entry of entries) {
+      if (filteredRoleId && entry.roleId !== filteredRoleId) continue;
+      const byRole = byDate.get(entry.date) ?? new Map<number, ScheduleEntry[]>();
+      const list = byRole.get(entry.roleId) ?? [];
+      list.push(entry);
+      byRole.set(entry.roleId, list);
+      byDate.set(entry.date, byRole);
+    }
+    return byDate;
+  }, [entries, filteredRoleId]);
+
+  const NO_ENTRIES: ScheduleEntry[] = [];
 
   const COL_MIN_WIDTH = 130;
   const DATE_COL_WIDTH = 170;
@@ -138,11 +156,7 @@ function DesktopTableInner({
                     type: "assignable" as const,
                   };
                   const isForEveryone = forEveryoneSet.has(date);
-                  const entriesOnDate = entries.filter(
-                    (e) =>
-                      e.date === date &&
-                      (!filteredRoleId || e.roleId === filteredRoleId),
-                  );
+                  const entriesOnDate = entriesByDateAndRole.get(date);
                   const label = !isForEveryone
                     ? getDateDisplayLabel(sd)
                     : null;
@@ -172,14 +186,13 @@ function DesktopTableInner({
                         <p className="text-sm text-muted-foreground italic mt-1">
                           {getDateDisplayLabel(sd)}
                         </p>
-                      ) : entriesOnDate.length > 0 ? (
+                      ) : entriesOnDate && entriesOnDate.size > 0 ? (
                         <div className="mt-2 rounded-md border border-border/40 overflow-hidden">
                           <table className="w-full text-sm border-collapse">
                             <tbody>
                               {visibleRoles.map((role) => {
-                                const roleEntries = entriesOnDate.filter(
-                                  (e) => e.roleId === role.id,
-                                );
+                                const roleEntries =
+                                  entriesOnDate?.get(role.id) ?? NO_ENTRIES;
                                 if (roleEntries.length === 0) return null;
                                 return (
                                   <tr
@@ -254,11 +267,7 @@ function DesktopTableInner({
                         type: "assignable" as const,
                       };
                       const isForEveryone = forEveryoneSet.has(date);
-                      const entriesOnDate = entries.filter(
-                        (e) =>
-                          e.date === date &&
-                          (!filteredRoleId || e.roleId === filteredRoleId),
-                      );
+                      const entriesOnDate = entriesByDateAndRole.get(date);
                       return (
                         <tr
                           key={date}
@@ -302,9 +311,8 @@ function DesktopTableInner({
                             </td>
                           ) : (
                             visibleRoles.map((role) => {
-                              const roleEntries = entriesOnDate.filter(
-                                (e) => e.roleId === role.id,
-                              );
+                              const roleEntries =
+                                entriesOnDate?.get(role.id) ?? NO_ENTRIES;
                               return (
                                 <td
                                   key={role.id}

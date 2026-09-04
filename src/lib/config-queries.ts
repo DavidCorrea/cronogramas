@@ -6,6 +6,11 @@ import type { ConfigContextSlice, MemberDetail } from "@/lib/load-config-context
 export interface ConfigContextOptions {
   /** Member slice granularity. Defaults to the server default ("full"). */
   memberDetail?: MemberDetail;
+  /**
+   * Defer the request until the view actually needs the data. Defaults to true.
+   * Not part of the query key: enabling it later reuses whatever is cached.
+   */
+  enabled?: boolean;
 }
 
 /** Query key prefix for config context. Use with invalidateQueries to refetch all slices for a slug. */
@@ -106,7 +111,7 @@ export function useConfigContext(
   const query = useQuery({
     queryKey: configContextQueryKey(slug, include, options),
     queryFn: () => fetchConfigContext(slug, include, options),
-    enabled: Boolean(slug),
+    enabled: Boolean(slug) && (options?.enabled ?? true),
   });
 
   const data = query.data;

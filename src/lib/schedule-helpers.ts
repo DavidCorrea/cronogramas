@@ -36,30 +36,93 @@ export interface ScheduleConfig {
  * per-event role priorities. The caller passes this to generateGroupSchedule.
  */
 export async function loadScheduleConfig(groupId: number): Promise<ScheduleConfig> {
-  const allRecurringRows = await db
-    .select({
-      id: recurringEvents.id,
-      weekdayId: recurringEvents.weekdayId,
-      weekdayName: weekdays.name,
-      active: recurringEvents.active,
-      type: recurringEvents.type,
-      label: recurringEvents.label,
-      startTimeUtc: recurringEvents.startTimeUtc,
-      endTimeUtc: recurringEvents.endTimeUtc,
-      groupId: recurringEvents.groupId,
-    })
-    .from(recurringEvents)
-    .innerJoin(weekdays, eq(recurringEvents.weekdayId, weekdays.id))
-    .where(eq(recurringEvents.groupId, groupId));
+  // The events, roles and members of a group are independent of each other;
+  // everything below depends on one of them, so this is two rounds of queries
+  // rather than five in sequence.
+  const [allRecurringRows, allRoles, allMembers] = await Promise.all([
+    db
+      .select({
+        id: recurringEvents.id,
+        weekdayId: recurringEvents.weekdayId,
+        weekdayName: weekdays.name,
+        active: recurringEvents.active,
+        type: recurringEvents.type,
+        label: recurringEvents.label,
+        startTimeUtc: recurringEvents.startTimeUtc,
+        endTimeUtc: recurringEvents.endTimeUtc,
+        groupId: recurringEvents.groupId,
+      })
+      .from(recurringEvents)
+      .innerJoin(weekdays, eq(recurringEvents.weekdayId, weekdays.id))
+      .where(eq(recurringEvents.groupId, groupId)),
+    db.select().from(roles).where(eq(roles.groupId, groupId)),
+    db
+      .select({
+        id: members.id,
+        name: members.name,
+        userId: members.userId,
+        groupId: members.groupId,
+      })
+      .from(members)
+      .where(eq(members.groupId, groupId)),
+  ]);
 
   const activeRows = allRecurringRows.filter((d) => d.active && d.weekdayName);
   const assignableIds = activeRows
     .filter((d) => String(d.type).toLowerCase() !== "for_everyone")
     .map((d) => d.id);
 
-  const allPriorities = assignableIds.length > 0
-    ? await db.select().from(eventRolePriorities).where(inArray(eventRolePriorities.recurringEventId, assignableIds))
-    : [];
+  const roleDefinitions: RoleDefinition[] = filterSchedulableRoles(allRoles);
+
+  const linkedUserIds = allMembers
+    .filter((m) => m.userId != null)
+    .map((m) => m.userId!);
+  const memberIds = allMembers.map((m) => m.id);
+
+  const holidayConditions = [];
+  if (linkedUserIds.length > 0) {
+    holidayConditions.push(inArray(holidays.userId, linkedUserIds));
+  }
+  if (memberIds.length > 0) {
+    holidayConditions.push(inArray(holidays.memberId, memberIds));
+  }
+
+  type AvailabilityRow = {
+    memberId: number;
+    weekdayName: string | null;
+    startTimeUtc: string | null;
+    endTimeUtc: string | null;
+  };
+
+  // Second round: everything that needed ids from the first. Member roles and
+  // availability are fetched for the whole group at once rather than per
+  // member, which would be an N+1 during schedule generation.
+  const [allPriorities, allHolidays, allMemberRoles, allAvailability] = await Promise.all([
+    assignableIds.length > 0
+      ? db.select().from(eventRolePriorities).where(inArray(eventRolePriorities.recurringEventId, assignableIds))
+      : Promise.resolve([] as typeof eventRolePriorities.$inferSelect[]),
+    holidayConditions.length > 0
+      ? db.select().from(holidays).where(or(...holidayConditions))
+      : Promise.resolve([] as typeof holidays.$inferSelect[]),
+    memberIds.length > 0
+      ? db
+          .select({ memberId: memberRoles.memberId, roleId: memberRoles.roleId })
+          .from(memberRoles)
+          .where(inArray(memberRoles.memberId, memberIds))
+      : Promise.resolve([] as { memberId: number; roleId: number }[]),
+    memberIds.length > 0
+      ? db
+          .select({
+            memberId: memberAvailability.memberId,
+            weekdayName: weekdays.name,
+            startTimeUtc: memberAvailability.startTimeUtc,
+            endTimeUtc: memberAvailability.endTimeUtc,
+          })
+          .from(memberAvailability)
+          .innerJoin(weekdays, eq(memberAvailability.weekdayId, weekdays.id))
+          .where(inArray(memberAvailability.memberId, memberIds))
+      : Promise.resolve([] as AvailabilityRow[]),
+  ]);
 
   const prioritiesByEvent = new Map<number, Record<number, number>>();
   for (const p of allPriorities) {
@@ -82,66 +145,6 @@ export async function loadScheduleConfig(groupId: number): Promise<ScheduleConfi
   const activeDayNames = [
     ...new Set(recurringEventConfigs.map((e) => e.weekdayName)),
   ];
-
-  const allRoles = await db
-    .select()
-    .from(roles)
-    .where(eq(roles.groupId, groupId));
-  const roleDefinitions: RoleDefinition[] = filterSchedulableRoles(allRoles);
-
-  const allMembers = await db
-    .select({
-      id: members.id,
-      name: members.name,
-      userId: members.userId,
-      groupId: members.groupId,
-    })
-    .from(members)
-    .where(eq(members.groupId, groupId));
-
-  const linkedUserIds = allMembers
-    .filter((m) => m.userId != null)
-    .map((m) => m.userId!);
-  const memberIds = allMembers.map((m) => m.id);
-
-  const holidayConditions = [];
-  if (linkedUserIds.length > 0) {
-    holidayConditions.push(inArray(holidays.userId, linkedUserIds));
-  }
-  if (memberIds.length > 0) {
-    holidayConditions.push(inArray(holidays.memberId, memberIds));
-  }
-
-  const allHolidays = holidayConditions.length > 0
-    ? await db.select().from(holidays).where(or(...holidayConditions))
-    : [];
-
-  // Batch member roles and availability for all members instead of querying
-  // per member (avoids N+1 across the group during schedule generation).
-  type AvailabilityRow = {
-    memberId: number;
-    weekdayName: string | null;
-    startTimeUtc: string | null;
-    endTimeUtc: string | null;
-  };
-  const [allMemberRoles, allAvailability] = memberIds.length > 0
-    ? await Promise.all([
-        db
-          .select({ memberId: memberRoles.memberId, roleId: memberRoles.roleId })
-          .from(memberRoles)
-          .where(inArray(memberRoles.memberId, memberIds)),
-        db
-          .select({
-            memberId: memberAvailability.memberId,
-            weekdayName: weekdays.name,
-            startTimeUtc: memberAvailability.startTimeUtc,
-            endTimeUtc: memberAvailability.endTimeUtc,
-          })
-          .from(memberAvailability)
-          .innerJoin(weekdays, eq(memberAvailability.weekdayId, weekdays.id))
-          .where(inArray(memberAvailability.memberId, memberIds)),
-      ])
-    : [[] as { memberId: number; roleId: number }[], [] as AvailabilityRow[]];
 
   const roleIdsByMember = new Map<number, number[]>();
   for (const r of allMemberRoles) {

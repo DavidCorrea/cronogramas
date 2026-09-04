@@ -53,7 +53,9 @@ export const groupCollaborators = pgTable("group_collaborators", {
     .notNull()
     .references(() => groups.id, { onDelete: "cascade" }),
 }, (table) => [
-  index("idx_group_collaborators_group_id").on(table.groupId),
+  // A user is a collaborator on a group at most once. Also serves the
+  // (group_id, user_id) access check made on every authenticated group view.
+  uniqueIndex("group_collaborators_group_user_unique").on(table.groupId, table.userId),
   index("idx_group_collaborators_user_id").on(table.userId),
 ]);
 
@@ -161,8 +163,9 @@ export const holidays = pgTable("holidays", {
   endDate: text("end_date").notNull(),
   description: text("description"),
 }, (table) => [
-  index("idx_holidays_member_id").on(table.memberId),
-  index("idx_holidays_user_id").on(table.userId),
+  // Holiday lookups always bound by date range, so carry end_date in the index.
+  index("idx_holidays_member_id_end_date").on(table.memberId, table.endDate),
+  index("idx_holidays_user_id_end_date").on(table.userId, table.endDate),
 ]);
 
 export const schedules = pgTable("schedules", {
@@ -182,6 +185,15 @@ export const schedules = pgTable("schedules", {
   uniqueIndex("schedules_group_month_year_unique").on(table.groupId, table.month, table.year),
   index("idx_schedules_group_id").on(table.groupId),
   index("idx_schedules_group_id_status").on(table.groupId, table.status),
+  // Prev/next schedule lookups filter on (group_id, status) and take the
+  // nearest month by ORDER BY year, month LIMIT 1 — without year/month in the
+  // index Postgres sorts the group's whole schedule history to return one row.
+  index("idx_schedules_group_status_year_month").on(
+    table.groupId,
+    table.status,
+    table.year,
+    table.month,
+  ),
 ]);
 
 export const scheduleDate = pgTable("schedule_date", {
@@ -201,6 +213,10 @@ export const scheduleDate = pgTable("schedule_date", {
 }, (table) => [
   index("idx_schedule_date_schedule_id").on(table.scheduleId),
   index("idx_schedule_date_schedule_id_date").on(table.scheduleId, table.date),
+  // The dashboard, "mis asignaciones" and calendar export all filter by date
+  // across every schedule, so date needs an index of its own; the composite
+  // above only helps when a single schedule is named.
+  index("idx_schedule_date_date").on(table.date),
   index("idx_schedule_date_recurring_event_id").on(table.recurringEventId),
 ]);
 

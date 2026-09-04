@@ -29,6 +29,14 @@ jest.mock("@/lib/api-helpers", () => {
   };
 });
 
+// Cache revalidation needs a Next.js request context these unit tests do not
+// run in; the behaviour under test here is the database effect of each route.
+const mockRevalidateGroupCronogramas = jest.fn();
+jest.mock("@/lib/public-schedule", () => ({
+  revalidateGroupCronogramas: (...args: unknown[]) => mockRevalidateGroupCronogramas(...args),
+  revalidateCronograma: jest.fn(),
+}));
+
 const mockSelect = jest.fn();
 const mockFrom = jest.fn();
 const mockDelete = jest.fn();
@@ -264,6 +272,7 @@ describe("DELETE recurring event", () => {
     const res = await DELETE(req, { params: Promise.resolve({ id: "1" }) });
     expect(res.status).toBe(200);
     expect(mockDelete).toHaveBeenCalledTimes(1);
+    expect(mockRevalidateGroupCronogramas).not.toHaveBeenCalled();
   });
 
   it("deletes schedule dates then the event when removeScheduleDates is true", async () => {
@@ -282,6 +291,23 @@ describe("DELETE recurring event", () => {
     const res = await DELETE(req, { params: Promise.resolve({ id: "1" }) });
     expect(res.status).toBe(200);
     expect(mockDelete).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes the published schedule when it removes dates from it", async () => {
+    mockSelect.mockReturnValue({
+      from: jest.fn().mockReturnValue({
+        where: jest.fn().mockResolvedValue([{ id: 1, groupId: 1 }]),
+      }),
+    });
+    mockDelete.mockReturnValue({ where: jest.fn().mockResolvedValue(undefined) });
+    const { DELETE } = await import("@/app/api/configuration/days/[id]/route");
+    const req = new NextRequest("http://localhost/api/configuration/days/1?groupId=1", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ removeScheduleDates: true }),
+    });
+    await DELETE(req, { params: Promise.resolve({ id: "1" }) });
+    expect(mockRevalidateGroupCronogramas).toHaveBeenCalledWith(1);
   });
 });
 
@@ -320,6 +346,7 @@ describe("PUT recurring event (update day, deactivate)", () => {
     const res = await PUT(req);
     expect(res.status).toBe(200);
     expect(mockDelete).toHaveBeenCalled();
+    expect(mockRevalidateGroupCronogramas).toHaveBeenCalledWith(1);
   });
 
   it("returns 404 when the event does not belong to the group", async () => {

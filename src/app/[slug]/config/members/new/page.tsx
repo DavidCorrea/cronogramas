@@ -11,7 +11,7 @@ export default async function NewMemberPage({
 }) {
   const { slug } = await params;
   const group = await getGroupForConfigLayout(slug);
-  const ctx = await loadConfigContextForGroup(group.id, {
+  const ctx = await loadConfigContextForGroup(group, {
     include: ["roles"],
   });
   const t = await getTranslations("members");

@@ -111,15 +111,16 @@ export async function assignMember(ctx: ActionContext, body: ActionBody<"assign"
     return apiError("Fecha no encontrada en el cronograma", 404, "NOT_FOUND");
   }
 
-  const allRoles = await db
-    .select({ id: roles.id, dependsOnRoleId: roles.dependsOnRoleId })
-    .from(roles)
-    .where(eq(roles.groupId, ctx.schedule.groupId));
-
-  const existingAssignments = await db
-    .select({ roleId: scheduleDateAssignments.roleId, memberId: scheduleDateAssignments.memberId })
-    .from(scheduleDateAssignments)
-    .where(eq(scheduleDateAssignments.scheduleDateId, sd.id));
+  const [allRoles, existingAssignments] = await Promise.all([
+    db
+      .select({ id: roles.id, dependsOnRoleId: roles.dependsOnRoleId })
+      .from(roles)
+      .where(eq(roles.groupId, ctx.schedule.groupId)),
+    db
+      .select({ roleId: scheduleDateAssignments.roleId, memberId: scheduleDateAssignments.memberId })
+      .from(scheduleDateAssignments)
+      .where(eq(scheduleDateAssignments.scheduleDateId, sd.id)),
+  ]);
 
   const validation = validateDependentRoleAssignment({
     roleId: body.roleId,
@@ -150,19 +151,21 @@ export async function assignMember(ctx: ActionContext, body: ActionBody<"assign"
 }
 
 export async function unassignMember(ctx: ActionContext, body: ActionBody<"unassign">) {
-  const entry = (await db
-    .select()
-    .from(scheduleDateAssignments)
-    .where(eq(scheduleDateAssignments.id, body.entryId)))[0];
+  const [entry, allRoles] = await Promise.all([
+    db
+      .select()
+      .from(scheduleDateAssignments)
+      .where(eq(scheduleDateAssignments.id, body.entryId))
+      .then((rows) => rows[0]),
+    db
+      .select({ id: roles.id, dependsOnRoleId: roles.dependsOnRoleId })
+      .from(roles)
+      .where(eq(roles.groupId, ctx.schedule.groupId)),
+  ]);
 
   if (!entry) {
     return apiError("Entrada no encontrada", 404, "NOT_FOUND");
   }
-
-  const allRoles = await db
-    .select({ id: roles.id, dependsOnRoleId: roles.dependsOnRoleId })
-    .from(roles)
-    .where(eq(roles.groupId, ctx.schedule.groupId));
 
   if (!isDependentRole(entry.roleId, allRoles)) {
     return apiError("El rol de la entrada no es un rol dependiente", 400, "VALIDATION");
@@ -176,29 +179,34 @@ export async function unassignMember(ctx: ActionContext, body: ActionBody<"unass
 }
 
 export async function bulkUpdateAssignments(ctx: ActionContext, body: ActionBody<"bulk_update">) {
-  const allRoles = await db
-    .select()
-    .from(roles)
-    .where(eq(roles.groupId, ctx.schedule.groupId));
+  // Roles, the schedule's dates, its current entries and the group's members
+  // are all independent reads; the response needs the members either way.
+  const [allRoles, scheduleDatesForSchedule, oldEntriesWithDate, allMembers] =
+    await Promise.all([
+      db.select().from(roles).where(eq(roles.groupId, ctx.schedule.groupId)),
+      db
+        .select({ id: scheduleDate.id, date: scheduleDate.date })
+        .from(scheduleDate)
+        .where(eq(scheduleDate.scheduleId, ctx.scheduleId)),
+      db
+        .select({
+          id: scheduleDateAssignments.id,
+          scheduleDateId: scheduleDateAssignments.scheduleDateId,
+          date: scheduleDate.date,
+          roleId: scheduleDateAssignments.roleId,
+          memberId: scheduleDateAssignments.memberId,
+        })
+        .from(scheduleDateAssignments)
+        .innerJoin(scheduleDate, eq(scheduleDateAssignments.scheduleDateId, scheduleDate.id))
+        .where(eq(scheduleDate.scheduleId, ctx.scheduleId)),
+      db
+        .select({ id: members.id, name: members.name })
+        .from(members)
+        .where(eq(members.groupId, ctx.schedule.groupId)),
+    ]);
+
   const dependentRoleIdSet = getDependentRoleIds(allRoles);
-
-  const scheduleDatesForSchedule = await db
-    .select({ id: scheduleDate.id, date: scheduleDate.date })
-    .from(scheduleDate)
-    .where(eq(scheduleDate.scheduleId, ctx.scheduleId));
   const validSdIds = new Set(scheduleDatesForSchedule.map((sd) => sd.id));
-
-  const oldEntriesWithDate = await db
-    .select({
-      id: scheduleDateAssignments.id,
-      scheduleDateId: scheduleDateAssignments.scheduleDateId,
-      date: scheduleDate.date,
-      roleId: scheduleDateAssignments.roleId,
-      memberId: scheduleDateAssignments.memberId,
-    })
-    .from(scheduleDateAssignments)
-    .innerJoin(scheduleDate, eq(scheduleDateAssignments.scheduleDateId, scheduleDate.id))
-    .where(eq(scheduleDate.scheduleId, ctx.scheduleId));
 
   const regularEntries: Array<{ scheduleDateId: number; roleId: number; memberId: number | null }> = [];
   const dependentEntries: Array<{ scheduleDateId: number; roleId: number; memberId: number | null }> = [];
@@ -241,10 +249,6 @@ export async function bulkUpdateAssignments(ctx: ActionContext, body: ActionBody
     await db.insert(scheduleDateAssignments).values(toInsert);
   }
 
-  const allMembers = await db
-    .select({ id: members.id, name: members.name })
-    .from(members)
-    .where(eq(members.groupId, ctx.schedule.groupId));
   const memberMap = new Map(allMembers.map((m) => [m.id, m.name]));
   const roleMap = new Map(allRoles.map((r) => [r.id, r.name]));
 
@@ -308,41 +312,44 @@ export async function rebuildSchedule(
   const { mode } = body;
   const today = new Date().toISOString().split("T")[0];
 
-  const config = await loadScheduleConfig(ctx.schedule.groupId);
+  // A rebuild needs the group config, this schedule's dates and entries, and
+  // the group's assignment history. None depends on another, so they load
+  // together instead of four round trips deep.
+  const [config, assignableDatesRows, currentEntriesWithDate, previousAssignments] =
+    await Promise.all([
+      loadScheduleConfig(ctx.schedule.groupId),
+      db
+        .select({ date: scheduleDate.date, id: scheduleDate.id, recurringEventId: scheduleDate.recurringEventId })
+        .from(scheduleDate)
+        .where(
+          and(
+            eq(scheduleDate.scheduleId, ctx.scheduleId),
+            eq(scheduleDate.type, "assignable")
+          )
+        ),
+      db
+        .select({
+          id: scheduleDateAssignments.id,
+          scheduleDateId: scheduleDateAssignments.scheduleDateId,
+          date: scheduleDate.date,
+          roleId: scheduleDateAssignments.roleId,
+          memberId: scheduleDateAssignments.memberId,
+        })
+        .from(scheduleDateAssignments)
+        .innerJoin(scheduleDate, eq(scheduleDateAssignments.scheduleDateId, scheduleDate.id))
+        .where(eq(scheduleDate.scheduleId, ctx.scheduleId)),
+      getPreviousAssignments(ctx.schedule.groupId),
+    ]);
 
-  const assignableDatesRows = await db
-    .select({ date: scheduleDate.date, id: scheduleDate.id, recurringEventId: scheduleDate.recurringEventId })
-    .from(scheduleDate)
-    .where(
-      and(
-        eq(scheduleDate.scheduleId, ctx.scheduleId),
-        eq(scheduleDate.type, "assignable")
-      )
-    );
   const allRegularDates = [...new Set(assignableDatesRows.map((r) => r.date))].sort();
-
   const futureDates = filterRebuildableDates(allRegularDates, today);
 
   if (futureDates.length === 0) {
     return apiError("No hay fechas futuras para reconstruir", 400, "VALIDATION");
   }
 
-  const currentEntriesWithDate = await db
-    .select({
-      id: scheduleDateAssignments.id,
-      scheduleDateId: scheduleDateAssignments.scheduleDateId,
-      date: scheduleDate.date,
-      roleId: scheduleDateAssignments.roleId,
-      memberId: scheduleDateAssignments.memberId,
-    })
-    .from(scheduleDateAssignments)
-    .innerJoin(scheduleDate, eq(scheduleDateAssignments.scheduleDateId, scheduleDate.id))
-    .where(eq(scheduleDate.scheduleId, ctx.scheduleId));
-
   const pastEntries = currentEntriesWithDate.filter((e) => e.date < today);
   const futureEntries = currentEntriesWithDate.filter((e) => e.date >= today);
-
-  const previousAssignments = await getPreviousAssignments(ctx.schedule.groupId);
   const allPrevious = [
     ...previousAssignments,
     ...pastEntries.map((e) => ({ date: e.date, roleId: e.roleId, memberId: e.memberId })),
@@ -394,10 +401,11 @@ export async function rebuildSchedule(
     return NextResponse.json({ preview, removedCount });
   }
 
-  if (mode === "overwrite") {
-    for (const e of futureEntries) {
-      await db.delete(scheduleDateAssignments).where(eq(scheduleDateAssignments.id, e.id));
-    }
+  if (mode === "overwrite" && futureEntries.length > 0) {
+    // One delete for the whole set rather than a round trip per assignment.
+    await db.delete(scheduleDateAssignments).where(
+      inArray(scheduleDateAssignments.id, futureEntries.map((e) => e.id))
+    );
   }
 
   const sdIdByKey = new Map<string, number>();

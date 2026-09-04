@@ -13,7 +13,7 @@ export default async function HolidaysPage({
 
   const [holidays, configContext] = await Promise.all([
     loadGroupHolidays(group.id),
-    loadConfigContextForGroup(group.id, { include: ["members"], memberDetail: "basic" }),
+    loadConfigContextForGroup(group, { include: ["members"], memberDetail: "basic" }),
   ]);
 
   const members = (configContext?.members ?? []).map((m) => ({

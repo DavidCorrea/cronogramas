@@ -11,7 +11,7 @@ import {
   exclusiveGroups,
   schedules,
 } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { dayIndex } from "@/lib/constants";
 
 export const CONFIG_CONTEXT_SLICES = [
@@ -68,12 +68,19 @@ export interface LoadConfigContextOptions {
   memberDetail?: MemberDetail;
 }
 
+/** A group id to look up, or an already-resolved group to use as-is. */
+export type GroupRef = number | { id: number; name: string; slug: string };
+
 /**
  * Load config context for a group. When include is set, only those slices are loaded (view-scoped).
  * Does not perform auth; caller must ensure access.
+ *
+ * Pass an already-resolved group rather than an id where you have one: looking
+ * it up here would gate every slice query behind a round trip the caller has
+ * already paid for.
  */
 export async function loadConfigContextForGroup(
-  groupId: number,
+  groupRef: GroupRef,
   options?: LoadConfigContextOptions
 ): Promise<ConfigContextPayload | null> {
   const includeSet =
@@ -82,15 +89,19 @@ export async function loadConfigContextForGroup(
       : null;
   const memberDetail = options?.memberDetail ?? "full";
 
-  const group = (
-    await db
-      .select({ id: groups.id, name: groups.name, slug: groups.slug })
-      .from(groups)
-      .where(eq(groups.id, groupId))
-  )[0];
+  const group =
+    typeof groupRef === "number"
+      ? (
+          await db
+            .select({ id: groups.id, name: groups.name, slug: groups.slug })
+            .from(groups)
+            .where(eq(groups.id, groupRef))
+        )[0]
+      : groupRef;
 
   if (!group) return null;
 
+  const groupId = group.id;
   const loadAll = !includeSet;
 
   const [allMembers, allRoles, allDaysRows, allExclusiveGroups, allSchedules] =
@@ -155,37 +166,36 @@ export async function loadConfigContextForGroup(
 }
 
 async function loadMembers(groupId: number, detail: MemberDetail = "full") {
-  const rows = await db
-    .select({
-      id: members.id,
-      name: members.name,
-      memberEmail: members.email,
-      userId: members.userId,
-      groupId: members.groupId,
-      userEmail: users.email,
-      userImage: users.image,
-      userName: users.name,
-    })
-    .from(members)
-    .leftJoin(users, eq(members.userId, users.id))
-    .where(eq(members.groupId, groupId))
-    .orderBy(members.name);
-
-  if (rows.length === 0) return [];
-
-  const memberIds = rows.map((r) => r.id);
-
   // Only query the relations the requested detail level needs. `basic` skips
   // both; `withRoles` adds member_roles; `full` adds availability too.
   const wantRoles = detail !== "basic";
   const wantAvailability = detail === "full";
 
-  const [memberRolesList, availabilityRows] = await Promise.all([
+  // The relations are scoped by joining back to the group rather than by the
+  // member ids from the first query, so all three run in a single round trip
+  // instead of waiting on each other.
+  const [rows, memberRolesList, availabilityRows] = await Promise.all([
+    db
+      .select({
+        id: members.id,
+        name: members.name,
+        memberEmail: members.email,
+        userId: members.userId,
+        groupId: members.groupId,
+        userEmail: users.email,
+        userImage: users.image,
+        userName: users.name,
+      })
+      .from(members)
+      .leftJoin(users, eq(members.userId, users.id))
+      .where(eq(members.groupId, groupId))
+      .orderBy(members.name),
     wantRoles
       ? db
           .select({ memberId: memberRoles.memberId, roleId: memberRoles.roleId })
           .from(memberRoles)
-          .where(inArray(memberRoles.memberId, memberIds))
+          .innerJoin(members, eq(memberRoles.memberId, members.id))
+          .where(eq(members.groupId, groupId))
       : Promise.resolve([]),
     wantAvailability
       ? db
@@ -196,9 +206,12 @@ async function loadMembers(groupId: number, detail: MemberDetail = "full") {
             endTimeUtc: memberAvailability.endTimeUtc,
           })
           .from(memberAvailability)
-          .where(inArray(memberAvailability.memberId, memberIds))
+          .innerJoin(members, eq(memberAvailability.memberId, members.id))
+          .where(eq(members.groupId, groupId))
       : Promise.resolve([]),
   ]);
+
+  if (rows.length === 0) return [];
 
   const rolesByMemberId = new Map<number, { roleId: number }[]>();
   for (const r of memberRolesList) {

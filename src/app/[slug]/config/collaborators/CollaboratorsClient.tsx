@@ -206,7 +206,7 @@ export default function CollaboratorsClient({
                   <div className="flex items-center gap-3 min-w-0">
                     {collab.userImage && (
                       // eslint-disable-next-line @next/next/no-img-element -- small avatar from OAuth URL
-                      <img src={collab.userImage} alt="" className="h-7 w-7 rounded-full shrink-0" />
+                      <img src={collab.userImage} alt="" loading="lazy" decoding="async" width={28} height={28} className="h-7 w-7 rounded-full shrink-0" />
                     )}
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{collab.userName ?? t("noName")}</p>

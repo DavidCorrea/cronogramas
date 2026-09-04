@@ -9,9 +9,9 @@ import {
   groups,
   recurringEvents,
 } from "@/db/schema";
-import { eq, and, or, lt, gt, lte, gte, asc, desc, inArray } from "drizzle-orm";
-import { holidays } from "@/db/schema";
-import { findHolidayConflicts } from "./holiday-conflicts";
+import { eq, and, or, lt, gt, asc, desc } from "drizzle-orm";
+import { findHolidayConflicts, loadConflictingHolidays } from "./holiday-conflicts";
+import { monthRange } from "./month-range";
 
 /**
  * Cache tag for a group's public schedule of a given month/year. Shared by the
@@ -32,20 +32,58 @@ const CRONOGRAMA_REVALIDATE_SECONDS = 300;
  * Call after any mutation that changes the public view (commit, assignment
  * edit, date add/remove, note change, schedule delete).
  */
-export async function revalidateCronograma(groupId: number, month: number, year: number) {
+export async function revalidateCronograma(
+  groupId: number,
+  month: number,
+  year: number,
+  /** Pass when the caller already knows it, to skip the slug lookup. */
+  slug?: string,
+) {
   // Next.js 16 requires a cache-life profile; "max" purges the tagged
   // `unstable_cache` entry on demand (read-after-write on the next request).
   revalidateTag(cronogramaTag(groupId, year, month), "max");
 
-  const group = await db
-    .select({ slug: groups.slug })
-    .from(groups)
-    .where(eq(groups.id, groupId))
-    .then((rows) => rows[0]);
-  if (group) {
-    revalidatePath(`/${group.slug}/cronograma/${year}/${month}`);
+  const resolvedSlug =
+    slug ??
+    (await db
+      .select({ slug: groups.slug })
+      .from(groups)
+      .where(eq(groups.id, groupId))
+      .then((rows) => rows[0]?.slug));
+
+  if (resolvedSlug) {
+    revalidatePath(`/${resolvedSlug}/cronograma/${year}/${month}`);
   }
 }
+
+/**
+ * Revalidate every published month of a group.
+ *
+ * Config changes (deleting a role, deactivating an event, recalculating
+ * assignments) rewrite schedule rows across many months at once, so there is
+ * no single month to invalidate.
+ */
+export async function revalidateGroupCronogramas(groupId: number) {
+  const [group, publishedMonths] = await Promise.all([
+    db
+      .select({ slug: groups.slug })
+      .from(groups)
+      .where(eq(groups.id, groupId))
+      .then((rows) => rows[0]),
+    db
+      .select({ month: schedules.month, year: schedules.year })
+      .from(schedules)
+      .where(and(eq(schedules.groupId, groupId), eq(schedules.status, "committed"))),
+  ]);
+
+  for (const { month, year } of publishedMonths) {
+    revalidateTag(cronogramaTag(groupId, year, month), "max");
+    if (group) {
+      revalidatePath(`/${group.slug}/cronograma/${year}/${month}`);
+    }
+  }
+}
+
 
 /**
  * Build the full public schedule response for a committed schedule.
@@ -64,6 +102,7 @@ async function buildPublicScheduleResponseUncached(schedule: {
   calendarExportEnabled: boolean;
 }) {
   const { id, month, year, groupId, groupName, calendarExportEnabled } = schedule;
+  const { start: monthStart, end: monthEnd } = monthRange(year, month);
 
   const [
     entriesWithDate,
@@ -72,6 +111,7 @@ async function buildPublicScheduleResponseUncached(schedule: {
     scheduleDatesResult,
     prevSchedule,
     nextSchedule,
+    conflictingHolidays,
   ] = await Promise.all([
     db
       .select({
@@ -155,50 +195,14 @@ async function buildPublicScheduleResponseUncached(schedule: {
       .orderBy(asc(schedules.year), asc(schedules.month))
       .limit(1)
       .then((rows) => rows[0] ?? null),
+
+    loadConflictingHolidays(groupId, monthStart, monthEnd),
   ]);
-
-  // Round 2: holidays (depends on entries + members from round 1)
-  const memberIds = [...new Set(entriesWithDate.map((e) => e.memberId))];
-  const linkedUserIds = allMembers
-    .filter((m) => m.userId != null && memberIds.includes(m.id))
-    .map((m) => m.userId!);
-
-  const holidayConditions = [];
-  if (memberIds.length > 0) {
-    holidayConditions.push(inArray(holidays.memberId, memberIds));
-  }
-  if (linkedUserIds.length > 0) {
-    holidayConditions.push(inArray(holidays.userId, linkedUserIds));
-  }
-
-  // Only holidays overlapping this month can conflict — bound the scan by the
-  // month range instead of pulling every holiday for these members/users.
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const monthStart = `${year}-${pad(month)}-01`;
-  const monthEnd = `${year}-${pad(month)}-${pad(new Date(Date.UTC(year, month, 0)).getUTCDate())}`;
-
-  const allHolidays = holidayConditions.length > 0
-    ? await db
-        .select({
-          memberId: holidays.memberId,
-          userId: holidays.userId,
-          startDate: holidays.startDate,
-          endDate: holidays.endDate,
-        })
-        .from(holidays)
-        .where(
-          and(
-            or(...holidayConditions),
-            lte(holidays.startDate, monthEnd),
-            gte(holidays.endDate, monthStart),
-          ),
-        )
-    : [];
 
   const holidayConflicts = findHolidayConflicts(
     entriesWithDate.map((e) => ({ date: e.date, memberId: e.memberId })),
     allMembers.map((m) => ({ id: m.id, name: m.name, userId: m.userId })),
-    allHolidays,
+    conflictingHolidays,
   );
 
   // Pure computation

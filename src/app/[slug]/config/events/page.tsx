@@ -12,7 +12,7 @@ export default async function EventsPage({
 }) {
   const { slug } = await params;
   const group = await getGroupForConfigLayout(slug);
-  const ctx = await loadConfigContextForGroup(group.id, { include: ["days"] });
+  const ctx = await loadConfigContextForGroup(group, { include: ["days"] });
   const days = ctx?.days ?? [];
   const t = await getTranslations("events");
 

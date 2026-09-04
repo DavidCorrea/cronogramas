@@ -188,6 +188,10 @@ export default function AdminPageClient({
                       <img
                         src={user.image}
                         alt=""
+                        loading="lazy"
+                        decoding="async"
+                        width={36}
+                        height={36}
                         className="h-9 w-9 rounded-full shrink-0"
                       />
                     )}

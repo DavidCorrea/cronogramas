@@ -1,8 +1,7 @@
 import { cache } from "react";
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { resolveGroupBySlug } from "@/lib/group";
-import { hasGroupAccess } from "@/lib/api-helpers";
+import { resolveGroupWithAccess } from "@/lib/group";
 
 /**
  * Resolve group by slug and verify the current user has config access (owner or collaborator).
@@ -21,15 +20,10 @@ export const getGroupForConfigLayout = cache(async function getGroupForConfigLay
     redirect("/login");
   }
 
-  const group = await resolveGroupBySlug(slug);
-  if (!group) {
+  const resolved = await resolveGroupWithAccess(slug, session.user.id);
+  if (!resolved || !resolved.hasAccess) {
     notFound();
   }
 
-  const access = await hasGroupAccess(session.user.id, group.id);
-  if (!access) {
-    notFound();
-  }
-
-  return { id: group.id, name: group.name, slug: group.slug };
+  return resolved.group;
 });

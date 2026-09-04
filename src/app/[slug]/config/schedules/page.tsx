@@ -9,7 +9,7 @@ export default async function SchedulesPage({
 }) {
   const { slug } = await params;
   const group = await getGroupForConfigLayout(slug);
-  const configContext = await loadConfigContextForGroup(group.id, {
+  const configContext = await loadConfigContextForGroup(group, {
     include: ["schedules", "roles"],
   });
 

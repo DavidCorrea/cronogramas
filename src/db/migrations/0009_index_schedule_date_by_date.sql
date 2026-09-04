@@ -1,0 +1,1 @@
+CREATE INDEX "idx_schedule_date_date" ON "schedule_date" USING btree ("date");

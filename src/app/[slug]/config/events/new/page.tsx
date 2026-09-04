@@ -17,7 +17,7 @@ export default async function NewEventPage({
   const { slug } = await params;
   const group = await getGroupForConfigLayout(slug);
   const t = await getTranslations("events");
-  const ctx = await loadConfigContextForGroup(group.id, { include: ["roles"] });
+  const ctx = await loadConfigContextForGroup(group, { include: ["roles"] });
   const roles = (ctx?.roles ?? []) as Array<{
     id: number;
     name: string;

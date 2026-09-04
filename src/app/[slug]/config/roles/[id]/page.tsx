@@ -15,7 +15,7 @@ export default async function EditRolePage({
   if (Number.isNaN(roleId)) notFound();
 
   const group = await getGroupForConfigLayout(slug);
-  const ctx = await loadConfigContextForGroup(group.id, {
+  const ctx = await loadConfigContextForGroup(group, {
     include: ["roles", "exclusiveGroups", "members"],
     memberDetail: "withRoles",
   });

@@ -44,42 +44,55 @@ function parseLocalDate(dateStr: string): Date {
 }
 
 /**
+ * Intl formatters are expensive to construct and these run once per row of the
+ * schedule views, so each distinct set of options is built once and reused.
+ */
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function dateFormatter(options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = JSON.stringify(options);
+  let formatter = formatterCache.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("es-ES", options);
+    formatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
+/**
  * Format a date string (YYYY-MM-DD) in the user's timezone.
  * Uses browser locale and timezone so dates and times show in user time.
  */
 export function formatDateLong(dateStr: string): string {
-  const date = parseLocalDate(dateStr);
-  return date.toLocaleDateString("es-ES", {
+  return dateFormatter({
     weekday: "long",
     month: "long",
     day: "numeric",
-  });
+  }).format(parseLocalDate(dateStr));
 }
 
 export function formatDateShort(dateStr: string): string {
-  const date = parseLocalDate(dateStr);
-  return date.toLocaleDateString("es-ES", {
+  return dateFormatter({
     weekday: "short",
     month: "short",
     day: "numeric",
-  });
+  }).format(parseLocalDate(dateStr));
 }
 
 /** Format date as "Domingo, 1" (weekday long + day of month) in user timezone. */
 export function formatDateWeekdayDay(dateStr: string): string {
   const date = parseLocalDate(dateStr);
-  const weekday = date.toLocaleDateString("es-ES", { weekday: "long" });
+  const weekday = dateFormatter({ weekday: "long" }).format(date);
   const dayNum = date.getDate();
   return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${dayNum}`;
 }
 
 /** Format "d mes" (e.g. "3 mar") in user timezone. */
 export function formatDayMonth(dateStr: string): string {
-  const date = parseLocalDate(dateStr);
-  return date.toLocaleDateString("es-ES", {
+  return dateFormatter({
     day: "numeric",
     month: "short",
-  });
+  }).format(parseLocalDate(dateStr));
 }
 
 /** Format date range "d mes – d mes" in user timezone. */
@@ -89,12 +102,11 @@ export function formatDateRange(startDateStr: string, endDateStr: string): strin
 
 /** Format single date as "d mes year" in user timezone (e.g. "15 mar 2025"). */
 export function formatDateWithYear(dateStr: string): string {
-  const date = parseLocalDate(dateStr);
-  return date.toLocaleDateString("es-ES", {
+  return dateFormatter({
     day: "numeric",
     month: "short",
     year: "numeric",
-  });
+  }).format(parseLocalDate(dateStr));
 }
 
 /** Format date range "d mes year — d mes year" in user timezone. */
@@ -106,8 +118,7 @@ export function formatDateRangeWithYear(startDateStr: string, endDateStr: string
 
 /** Get Spanish weekday name (e.g. "lunes") for a YYYY-MM-DD date in user timezone. */
 export function getWeekdayName(dateStr: string): string {
-  const date = parseLocalDate(dateStr);
-  return date.toLocaleDateString("es-ES", { weekday: "long" });
+  return dateFormatter({ weekday: "long" }).format(parseLocalDate(dateStr));
 }
 
 /** Get Spanish weekday name capitalized (e.g. "Lunes") for a YYYY-MM-DD date in user timezone. */
@@ -118,13 +129,12 @@ export function getDayOfWeek(dateStr: string): string {
 
 /** Format ISO datetime string in user's timezone (date + time). */
 export function formatDateTime(isoStr: string): string {
-  const date = new Date(isoStr);
-  return date.toLocaleString("es-ES", {
+  return dateFormatter({
     weekday: "short",
     day: "numeric",
     month: "short",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  });
+  }).format(new Date(isoStr));
 }

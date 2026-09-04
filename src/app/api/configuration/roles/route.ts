@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { roles, scheduleDateAssignments, eventRolePriorities } from "@/db/schema";
-import { eq, max } from "drizzle-orm";
+import { eq, max, sql } from "drizzle-orm";
 import { requireGroupAccess, apiError, parseBody } from "@/lib/api-helpers";
 import { roleCreateSchema, roleUpdateSchema, roleReorderSchema } from "@/lib/schemas/roles";
+import { revalidateGroupCronogramas } from "@/lib/public-schedule";
 
 export async function GET(request: NextRequest) {
   const accessResult = await requireGroupAccess(request);
@@ -97,10 +98,18 @@ export async function PATCH(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const { order } = parsed.data;
 
-  for (const item of order) {
-    await db.update(roles)
-      .set({ displayOrder: item.displayOrder })
-      .where(eq(roles.id, item.id));
+  // One statement for the whole reorder rather than an UPDATE per role. The
+  // group filter keeps the write inside the group the caller was authorized for.
+  if (order.length > 0) {
+    const values = sql.join(
+      order.map((item) => sql`(${item.id}::int, ${item.displayOrder}::int)`),
+      sql`, `
+    );
+    await db.execute(sql`
+      UPDATE ${roles} SET display_order = v.display_order
+      FROM (VALUES ${values}) AS v(id, display_order)
+      WHERE ${roles.id} = v.id AND ${roles.groupId} = ${groupId}
+    `);
   }
 
   const allRoles = await db
@@ -142,6 +151,9 @@ export async function DELETE(request: NextRequest) {
 
   // Delete the role itself (member_roles cascade via schema)
   await db.delete(roles).where(eq(roles.id, roleId));
+
+  // Published schedules just lost this role's assignments.
+  await revalidateGroupCronogramas(groupId);
 
   return NextResponse.json({ success: true });
 }

@@ -134,11 +134,6 @@ export async function POST(request: NextRequest) {
     .values({ name, email: memberEmail || null, userId: userId || null, groupId })
     .returning())[0];
 
-  for (const roleId of roleIds) {
-    await db.insert(memberRoles)
-      .values({ memberId: member.id, roleId });
-  }
-
   const availabilityList = availability && availability.length > 0
     ? availability
     : (availableDayIds ?? []).map((weekdayId) => ({
@@ -147,18 +142,27 @@ export async function POST(request: NextRequest) {
         endTimeUtc: "23:59",
       }));
 
-  for (const a of availabilityList) {
+  const availabilityRows = availabilityList.flatMap((a) => {
     const weekdayId = a.weekdayId != null ? Number(a.weekdayId) : NaN;
-    if (!Number.isInteger(weekdayId) || weekdayId < 1) continue;
+    if (!Number.isInteger(weekdayId) || weekdayId < 1) return [];
     const start = typeof a.startTimeUtc === "string" && /^\d{1,2}:\d{2}$/.test(a.startTimeUtc.trim())
       ? a.startTimeUtc.trim()
       : "00:00";
     const end = typeof a.endTimeUtc === "string" && /^\d{1,2}:\d{2}$/.test(a.endTimeUtc.trim())
       ? a.endTimeUtc.trim()
       : "23:59";
-    await db.insert(memberAvailability)
-      .values({ memberId: member.id, weekdayId, startTimeUtc: start, endTimeUtc: end });
-  }
+    return [{ memberId: member.id, weekdayId, startTimeUtc: start, endTimeUtc: end }];
+  });
+
+  // One insert per table rather than one per row.
+  await Promise.all([
+    roleIds.length > 0
+      ? db.insert(memberRoles).values(roleIds.map((roleId) => ({ memberId: member.id, roleId })))
+      : Promise.resolve(),
+    availabilityRows.length > 0
+      ? db.insert(memberAvailability).values(availabilityRows)
+      : Promise.resolve(),
+  ]);
 
   return NextResponse.json(
     {

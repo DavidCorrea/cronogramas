@@ -69,49 +69,44 @@ export async function POST(request: NextRequest) {
     .values({ name, slug, ownerId: userId })
     .returning())[0];
 
-  if (Array.isArray(days) && days.length > 0) {
-    const weekdayRows = await db.select().from(weekdays).orderBy(weekdays.displayOrder);
-    const nameToId = new Map(weekdayRows.map((w) => [w.name, w.id]));
-    for (const d of days) {
-      const weekdayId = typeof d.weekdayId === "number" ? d.weekdayId : (d.dayOfWeek ? nameToId.get(d.dayOfWeek) : undefined);
-      if (weekdayId != null) {
-        await db.insert(recurringEvents).values({
-          weekdayId,
-          active: d.active ?? true,
-          type: d.type ?? "assignable",
-          label: (d.label && String(d.label).trim()) ? String(d.label).trim() : "Evento",
-          startTimeUtc: "00:00",
-          endTimeUtc: "23:59",
-          groupId: group.id,
-        });
-      }
-    }
-  }
+  const weekdayRows =
+    Array.isArray(days) && days.length > 0
+      ? await db.select().from(weekdays).orderBy(weekdays.displayOrder)
+      : [];
+  const nameToId = new Map(weekdayRows.map((w) => [w.name, w.id]));
 
-  if (Array.isArray(rolesList) && rolesList.length > 0) {
-    for (let i = 0; i < rolesList.length; i++) {
-      const r = rolesList[i];
-      if (r.name && typeof r.name === "string" && r.name.trim()) {
-        await db.insert(roles).values({
-          name: r.name.trim(),
-          requiredCount: 1,
-          displayOrder: i,
-          groupId: group.id,
-        });
-      }
-    }
-  }
+  const eventRows = (Array.isArray(days) ? days : []).flatMap((d) => {
+    const weekdayId =
+      typeof d.weekdayId === "number" ? d.weekdayId : d.dayOfWeek ? nameToId.get(d.dayOfWeek) : undefined;
+    if (weekdayId == null) return [];
+    return [{
+      weekdayId,
+      active: d.active ?? true,
+      type: d.type ?? "assignable",
+      label: d.label && String(d.label).trim() ? String(d.label).trim() : "Evento",
+      startTimeUtc: "00:00",
+      endTimeUtc: "23:59",
+      groupId: group.id,
+    }];
+  });
 
-  if (Array.isArray(collaboratorUserIds) && collaboratorUserIds.length > 0) {
-    for (const uid of collaboratorUserIds) {
-      if (uid !== userId) {
-        await db.insert(groupCollaborators).values({
-          userId: uid,
-          groupId: group.id,
-        });
-      }
-    }
-  }
+  const roleRows = (Array.isArray(rolesList) ? rolesList : []).flatMap((r, i) =>
+    r.name && typeof r.name === "string" && r.name.trim()
+      ? [{ name: r.name.trim(), requiredCount: 1, displayOrder: i, groupId: group.id }]
+      : []
+  );
+
+  const collaboratorRows = (Array.isArray(collaboratorUserIds) ? collaboratorUserIds : [])
+    .filter((uid) => uid !== userId)
+    .map((uid) => ({ userId: uid, groupId: group.id }));
+
+  // A new group's events, roles and collaborators are independent of each
+  // other, so this is three inserts rather than one per row.
+  await Promise.all([
+    eventRows.length > 0 ? db.insert(recurringEvents).values(eventRows) : Promise.resolve(),
+    roleRows.length > 0 ? db.insert(roles).values(roleRows) : Promise.resolve(),
+    collaboratorRows.length > 0 ? db.insert(groupCollaborators).values(collaboratorRows) : Promise.resolve(),
+  ]);
 
   return NextResponse.json(group, { status: 201 });
 }

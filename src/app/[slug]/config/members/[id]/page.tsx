@@ -19,7 +19,7 @@ export default async function EditMemberPage({
 
   const [member, ctx] = await Promise.all([
     loadMemberById(memberId),
-    loadConfigContextForGroup(group.id, { include: ["roles"] }),
+    loadConfigContextForGroup(group, { include: ["roles"] }),
   ]);
 
   if (!member || member.groupId !== group.id) notFound();

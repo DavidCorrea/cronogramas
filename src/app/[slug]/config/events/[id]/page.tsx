@@ -23,7 +23,7 @@ export default async function EditEventPage({
 
   const [event, ctx, priorities] = await Promise.all([
     loadRecurringEventById(eventId),
-    loadConfigContextForGroup(group.id, { include: ["roles"] }),
+    loadConfigContextForGroup(group, { include: ["roles"] }),
     loadEventPriorities(group.id, eventId),
   ]);
 

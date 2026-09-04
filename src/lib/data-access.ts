@@ -17,25 +17,25 @@ import {
   scheduleAuditLog,
 } from "@/db/schema";
 import { eq, and, inArray, isNotNull, gte, asc, desc, lt, gt, or, count } from "drizzle-orm";
-import { getHolidayConflicts } from "@/lib/holiday-conflicts";
+import { findHolidayConflicts, loadConflictingHolidays } from "@/lib/holiday-conflicts";
+import { monthRange } from "@/lib/month-range";
 
 // ── User-scoped ──
 
 export async function loadUserGroups(userId: string) {
-  const ownedGroups = await db
-    .select({ id: groups.id })
-    .from(groups)
-    .where(eq(groups.ownerId, userId));
-
-  const collabGroups = await db
-    .select({ groupId: groupCollaborators.groupId })
-    .from(groupCollaborators)
-    .where(eq(groupCollaborators.userId, userId));
-
-  const memberGroups = await db
-    .select({ groupId: members.groupId })
-    .from(members)
-    .where(eq(members.userId, userId));
+  // The three membership lookups are independent; this is the dashboard's
+  // critical path, so they run together.
+  const [ownedGroups, collabGroups, memberGroups] = await Promise.all([
+    db.select({ id: groups.id }).from(groups).where(eq(groups.ownerId, userId)),
+    db
+      .select({ groupId: groupCollaborators.groupId })
+      .from(groupCollaborators)
+      .where(eq(groupCollaborators.userId, userId)),
+    db
+      .select({ groupId: members.groupId })
+      .from(members)
+      .where(eq(members.userId, userId)),
+  ]);
 
   const groupIds = [
     ...new Set([
@@ -99,19 +99,20 @@ export async function loadMemberById(memberId: number) {
 
   if (!member) return null;
 
-  const memberRolesList = await db
-    .select({ roleId: memberRoles.roleId })
-    .from(memberRoles)
-    .where(eq(memberRoles.memberId, memberId));
-
-  const availability = await db
-    .select({
-      weekdayId: memberAvailability.weekdayId,
-      startTimeUtc: memberAvailability.startTimeUtc,
-      endTimeUtc: memberAvailability.endTimeUtc,
-    })
-    .from(memberAvailability)
-    .where(eq(memberAvailability.memberId, memberId));
+  const [memberRolesList, availability] = await Promise.all([
+    db
+      .select({ roleId: memberRoles.roleId })
+      .from(memberRoles)
+      .where(eq(memberRoles.memberId, memberId)),
+    db
+      .select({
+        weekdayId: memberAvailability.weekdayId,
+        startTimeUtc: memberAvailability.startTimeUtc,
+        endTimeUtc: memberAvailability.endTimeUtc,
+      })
+      .from(memberAvailability)
+      .where(eq(memberAvailability.memberId, memberId)),
+  ]);
 
   return {
     id: member.id,
@@ -137,24 +138,50 @@ export async function loadMemberById(memberId: number) {
 export async function loadGroupHolidays(groupId: number) {
   const today = new Date().toISOString().split("T")[0];
 
-  const groupMembers = await db
-    .select({ id: members.id, name: members.name, userId: members.userId })
+  const groupMemberIds = db
+    .select({ id: members.id })
     .from(members)
     .where(eq(members.groupId, groupId));
 
-  const memberIds = groupMembers.map((m) => m.id);
-  if (memberIds.length === 0) return [];
+  const groupUserIds = db
+    .select({ userId: members.userId })
+    .from(members)
+    .where(and(eq(members.groupId, groupId), isNotNull(members.userId)));
 
-  const memberHolidays = await db
-    .select()
-    .from(holidays)
-    .where(
-      and(
-        inArray(holidays.memberId, memberIds),
-        isNotNull(holidays.memberId),
-        gte(holidays.endDate, today),
+  // The holiday queries are scoped by subquery rather than by ids from the
+  // members query, so all three run in a single round trip.
+  const [groupMembers, memberHolidays, userHolidays] = await Promise.all([
+    db
+      .select({ id: members.id, name: members.name, userId: members.userId })
+      .from(members)
+      .where(eq(members.groupId, groupId)),
+    db
+      .select()
+      .from(holidays)
+      .where(
+        and(
+          inArray(holidays.memberId, groupMemberIds),
+          isNotNull(holidays.memberId),
+          gte(holidays.endDate, today),
+        ),
       ),
-    );
+    db
+      .select()
+      .from(holidays)
+      .where(
+        and(
+          inArray(holidays.userId, groupUserIds),
+          isNotNull(holidays.userId),
+          gte(holidays.endDate, today),
+        ),
+      ),
+  ]);
+
+  if (groupMembers.length === 0) return [];
+
+  const linkedMembers = groupMembers.filter((m) => m.userId != null);
+  const memberNameById = new Map(groupMembers.map((m) => [m.id, m.name]));
+  const memberNameByUserId = new Map(linkedMembers.map((m) => [m.userId!, m.name]));
 
   const result: Array<{
     id: number;
@@ -172,36 +199,21 @@ export async function loadGroupHolidays(groupId: number) {
     startDate: h.startDate,
     endDate: h.endDate,
     description: h.description,
-    memberName: groupMembers.find((m) => m.id === h.memberId)?.name ?? "Desconocido",
+    memberName: memberNameById.get(h.memberId!) ?? "Desconocido",
     source: "member" as const,
   }));
 
-  const linkedMembers = groupMembers.filter((m) => m.userId != null);
-  if (linkedMembers.length > 0) {
-    const linkedUserIds = linkedMembers.map((m) => m.userId!);
-    const userHolidays = await db
-      .select()
-      .from(holidays)
-      .where(
-        and(
-          inArray(holidays.userId, linkedUserIds),
-          isNotNull(holidays.userId),
-          gte(holidays.endDate, today),
-        ),
-      );
-    for (const h of userHolidays) {
-      const member = linkedMembers.find((m) => m.userId === h.userId);
-      result.push({
-        id: h.id,
-        memberId: null,
-        userId: h.userId,
-        startDate: h.startDate,
-        endDate: h.endDate,
-        description: h.description,
-        memberName: member?.name ?? "Desconocido",
-        source: "user" as const,
-      });
-    }
+  for (const h of userHolidays) {
+    result.push({
+      id: h.id,
+      memberId: null,
+      userId: h.userId,
+      startDate: h.startDate,
+      endDate: h.endDate,
+      description: h.description,
+      memberName: memberNameByUserId.get(h.userId!) ?? "Desconocido",
+      source: "user" as const,
+    });
   }
 
   result.sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -209,33 +221,28 @@ export async function loadGroupHolidays(groupId: number) {
 }
 
 export async function loadGroupCollaborators(groupId: number) {
-  const collabs = await db
-    .select({
-      id: groupCollaborators.id,
-      userId: groupCollaborators.userId,
-      userName: users.name,
-      userEmail: users.email,
-      userImage: users.image,
-    })
-    .from(groupCollaborators)
-    .innerJoin(users, eq(groupCollaborators.userId, users.id))
-    .where(eq(groupCollaborators.groupId, groupId));
-
-  const group = (
-    await db
-      .select({ ownerId: groups.ownerId })
+  // The owner comes back via a join rather than a group lookup followed by a
+  // user lookup, so both halves of this view load in one round trip.
+  const [collabs, owner] = await Promise.all([
+    db
+      .select({
+        id: groupCollaborators.id,
+        userId: groupCollaborators.userId,
+        userName: users.name,
+        userEmail: users.email,
+        userImage: users.image,
+      })
+      .from(groupCollaborators)
+      .innerJoin(users, eq(groupCollaborators.userId, users.id))
+      .where(eq(groupCollaborators.groupId, groupId)),
+    db
+      .select({ id: users.id, name: users.name, email: users.email, image: users.image })
       .from(groups)
+      .innerJoin(users, eq(groups.ownerId, users.id))
       .where(eq(groups.id, groupId))
-  )[0];
-
-  const owner = group
-    ? (
-        await db
-          .select({ id: users.id, name: users.name, email: users.email, image: users.image })
-          .from(users)
-          .where(eq(users.id, group.ownerId))
-      )[0]
-    : null;
+      .limit(1)
+      .then((rows) => rows[0] ?? null),
+  ]);
 
   return { owner: owner ?? null, collaborators: collabs };
 }
@@ -292,31 +299,31 @@ export async function loadEventPriorities(groupId: number, recurringEventId?: nu
     );
 
   const assignableDays = allRecurring.filter((d) => d.type === "assignable");
-
-  const allRoles = await db.select().from(roles).where(eq(roles.groupId, groupId));
-
   const assignableIds = new Set(assignableDays.map((d) => d.id));
-  const roleIds = new Set(allRoles.map((r) => r.id));
-
-  // Scope priorities to this group's assignable events (and roles) instead of
-  // scanning the whole event_role_priorities table and filtering in memory.
+  // Scope priorities to this group's assignable events instead of scanning the
+  // whole event_role_priorities table and filtering in memory. The roles query
+  // is independent of the events, so both run together.
   const recurringEventIds = [...assignableIds];
-  const allPriorities = recurringEventIds.length > 0
-    ? await db
-        .select()
-        .from(eventRolePriorities)
-        .where(inArray(eventRolePriorities.recurringEventId, recurringEventIds))
-    : [];
+  const [allRoles, allPriorities] = await Promise.all([
+    db.select().from(roles).where(eq(roles.groupId, groupId)),
+    recurringEventIds.length > 0
+      ? db
+          .select()
+          .from(eventRolePriorities)
+          .where(inArray(eventRolePriorities.recurringEventId, recurringEventIds))
+      : Promise.resolve([]),
+  ]);
 
-  const filtered = allPriorities.filter(
-    (p) => assignableIds.has(p.recurringEventId) && roleIds.has(p.roleId),
-  );
+  const dayOfWeekByEventId = new Map(assignableDays.map((d) => [d.id, d.dayOfWeek]));
+  const roleNameById = new Map(allRoles.map((r) => [r.id, r.name]));
 
-  return filtered.map((p) => ({
-    ...p,
-    dayOfWeek: assignableDays.find((d) => d.id === p.recurringEventId)?.dayOfWeek ?? "Unknown",
-    roleName: allRoles.find((r) => r.id === p.roleId)?.name ?? "Unknown",
-  }));
+  return allPriorities
+    .filter((p) => roleNameById.has(p.roleId))
+    .map((p) => ({
+      ...p,
+      dayOfWeek: dayOfWeekByEventId.get(p.recurringEventId) ?? "Unknown",
+      roleName: roleNameById.get(p.roleId) ?? "Unknown",
+    }));
 }
 
 // ── Schedule detail ──
@@ -328,10 +335,28 @@ export async function loadScheduleDetail(scheduleId: number) {
   if (!schedule) return null;
 
   const { month, year, groupId } = schedule;
+  const { start: monthStart, end: monthEnd } = monthRange(year, month);
 
-  const [allMembers, allRoles, entriesWithDate, scheduleDatesRows] = await Promise.all([
+  // One round trip for everything the page needs: nothing here depends on
+  // another query's result, so none of it should be sequenced.
+  const [
+    allMembers,
+    allRoles,
+    entriesWithDate,
+    scheduleDatesRows,
+    prevSchedule,
+    nextSchedule,
+    conflictingHolidays,
+    auditLogRows,
+  ] = await Promise.all([
     db
-      .select({ id: members.id, name: members.name, groupId: members.groupId })
+      .select({
+        id: members.id,
+        name: members.name,
+        groupId: members.groupId,
+        // userId is needed to match user-scoped holidays to this group's members.
+        userId: members.userId,
+      })
       .from(members)
       .where(eq(members.groupId, groupId)),
     db.select().from(roles).where(eq(roles.groupId, groupId)),
@@ -362,19 +387,7 @@ export async function loadScheduleDetail(scheduleId: number) {
       .leftJoin(recurringEvents, eq(scheduleDate.recurringEventId, recurringEvents.id))
       .where(eq(scheduleDate.scheduleId, scheduleId))
       .orderBy(asc(scheduleDate.date), asc(scheduleDate.startTimeUtc)),
-  ]);
 
-  const enrichedEntries = entriesWithDate.map((entry) => ({
-    id: entry.id,
-    scheduleDateId: entry.scheduleDateId,
-    date: entry.date,
-    roleId: entry.roleId,
-    memberId: entry.memberId,
-    memberName: allMembers.find((m) => m.id === entry.memberId)?.name ?? "Desconocido",
-    roleName: allRoles.find((r) => r.id === entry.roleId)?.name ?? "Desconocido",
-  }));
-
-  const [prevSchedule, nextSchedule, holidayConflicts, auditLogRows] = await Promise.all([
     db
       .select({ id: schedules.id })
       .from(schedules)
@@ -399,10 +412,7 @@ export async function loadScheduleDetail(scheduleId: number) {
       .orderBy(asc(schedules.year), asc(schedules.month))
       .limit(1)
       .then((rows) => rows[0] ?? null),
-    getHolidayConflicts(
-      enrichedEntries.map((e) => ({ date: e.date, memberId: e.memberId })),
-      groupId,
-    ),
+    loadConflictingHolidays(groupId, monthStart, monthEnd),
     db
       .select({
         id: scheduleAuditLog.id,
@@ -417,6 +427,32 @@ export async function loadScheduleDetail(scheduleId: number) {
       .orderBy(desc(scheduleAuditLog.createdAt)),
   ]);
 
+  const memberNameById = new Map(allMembers.map((m) => [m.id, m.name]));
+  const roleNameById = new Map(allRoles.map((r) => [r.id, r.name]));
+
+  const enrichedEntries = entriesWithDate.map((entry) => ({
+    id: entry.id,
+    scheduleDateId: entry.scheduleDateId,
+    date: entry.date,
+    roleId: entry.roleId,
+    memberId: entry.memberId,
+    memberName: memberNameById.get(entry.memberId) ?? "Desconocido",
+    roleName: roleNameById.get(entry.roleId) ?? "Desconocido",
+  }));
+
+  const entriesByScheduleDateId = new Map<number, typeof enrichedEntries>();
+  for (const entry of enrichedEntries) {
+    const list = entriesByScheduleDateId.get(entry.scheduleDateId) ?? [];
+    list.push(entry);
+    entriesByScheduleDateId.set(entry.scheduleDateId, list);
+  }
+
+  const holidayConflicts = findHolidayConflicts(
+    enrichedEntries.map((e) => ({ date: e.date, memberId: e.memberId })),
+    allMembers.map((m) => ({ id: m.id, name: m.name, userId: m.userId })),
+    conflictingHolidays,
+  );
+
   return {
     ...schedule,
     scheduleDates: scheduleDatesRows.map((sd) => ({
@@ -429,7 +465,7 @@ export async function loadScheduleDetail(scheduleId: number) {
       endTimeUtc: sd.endTimeUtc ?? "23:59",
       recurringEventId: sd.recurringEventId ?? null,
       recurringEventLabel: sd.recurringEventLabel ?? null,
-      entries: enrichedEntries.filter((e) => e.scheduleDateId === sd.id),
+      entries: entriesByScheduleDateId.get(sd.id) ?? [],
     })),
     entries: enrichedEntries,
     roles: allRoles,
