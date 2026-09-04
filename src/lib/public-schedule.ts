@@ -32,18 +32,27 @@ const CRONOGRAMA_REVALIDATE_SECONDS = 300;
  * Call after any mutation that changes the public view (commit, assignment
  * edit, date add/remove, note change, schedule delete).
  */
-export async function revalidateCronograma(groupId: number, month: number, year: number) {
+export async function revalidateCronograma(
+  groupId: number,
+  month: number,
+  year: number,
+  /** Pass when the caller already knows it, to skip the slug lookup. */
+  slug?: string,
+) {
   // Next.js 16 requires a cache-life profile; "max" purges the tagged
   // `unstable_cache` entry on demand (read-after-write on the next request).
   revalidateTag(cronogramaTag(groupId, year, month), "max");
 
-  const group = await db
-    .select({ slug: groups.slug })
-    .from(groups)
-    .where(eq(groups.id, groupId))
-    .then((rows) => rows[0]);
-  if (group) {
-    revalidatePath(`/${group.slug}/cronograma/${year}/${month}`);
+  const resolvedSlug =
+    slug ??
+    (await db
+      .select({ slug: groups.slug })
+      .from(groups)
+      .where(eq(groups.id, groupId))
+      .then((rows) => rows[0]?.slug));
+
+  if (resolvedSlug) {
+    revalidatePath(`/${resolvedSlug}/cronograma/${year}/${month}`);
   }
 }
 

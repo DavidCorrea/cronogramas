@@ -4,6 +4,7 @@ import {
   schedules,
   scheduleDateAssignments,
   scheduleDate,
+  groups,
 } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getScheduleDates } from "@/lib/dates";
@@ -43,13 +44,24 @@ export async function POST(request: NextRequest) {
   if (parsed.error) return parsed.error;
   const { months } = parsed.data;
 
-  const config = await loadScheduleConfig(groupId);
+  // Independent of each other, and the slug is resolved once here rather than
+  // per month inside the loop below.
+  const [config, initialAssignments, group] = await Promise.all([
+    loadScheduleConfig(groupId),
+    getPreviousAssignments(groupId),
+    db
+      .select({ slug: groups.slug })
+      .from(groups)
+      .where(eq(groups.id, groupId))
+      .then((rows) => rows[0]),
+  ]);
 
   if (config.activeDayNames.length === 0) {
     return apiError("No hay eventos recurrentes activos", 400, "VALIDATION");
   }
 
-  let previousAssignments = await getPreviousAssignments(groupId);
+  const groupSlug = group?.slug;
+  let previousAssignments = initialAssignments;
 
   const createdSchedules = [];
 
@@ -126,7 +138,7 @@ export async function POST(request: NextRequest) {
       unfilledSlots: result.unfilledSlots,
     });
 
-    await revalidateCronograma(groupId, month, year);
+    await revalidateCronograma(groupId, month, year, groupSlug);
   }
 
   return NextResponse.json(createdSchedules, { status: 201 });
