@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { getRawArray } from "@/lib/intl-utils";
@@ -31,7 +32,7 @@ export interface MonthHeaderProps {
   calendarResult: string | null;
 }
 
-export function MonthHeader({
+function MonthHeaderInner({
   schedule,
   basePath,
   t,
@@ -305,3 +306,10 @@ export function MonthHeader({
     </header>
   );
 }
+
+/**
+ * The header's props are all stable across renders, so memoizing it keeps the
+ * filter bar out of the re-renders driven by the clock tick and by collapsing
+ * weeks in the list below.
+ */
+export const MonthHeader = memo(MonthHeaderInner);

@@ -204,11 +204,19 @@ export default function ScheduleDetailClient({
       (sd) => String(sd.type).toLowerCase() !== "for_everyone"
     );
 
+    // Index the entries once per date and role rather than scanning and
+    // sorting the whole entry list for every slot on the page.
+    const entriesBySlot = new Map<string, typeof schedule.entries>();
+    for (const entry of [...schedule.entries].sort((a, b) => a.id - b.id)) {
+      const key = `${entry.scheduleDateId}-${entry.roleId}`;
+      const list = entriesBySlot.get(key) ?? [];
+      list.push(entry);
+      entriesBySlot.set(key, list);
+    }
+
     for (const sd of assignableSds) {
       for (const role of roleOrder) {
-        const roleEntries = schedule.entries
-          .filter((e) => e.scheduleDateId === sd.id && e.roleId === role.id)
-          .sort((a, b) => a.id - b.id);
+        const roleEntries = entriesBySlot.get(`${sd.id}-${role.id}`) ?? [];
         const slotCount = Math.max(role.requiredCount, roleEntries.length);
         for (let i = 0; i < slotCount; i++) {
           const key = slotKey(sd.id, role.id, i);

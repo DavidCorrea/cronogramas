@@ -59,6 +59,10 @@ export default async function MembersPage({
                   <img
                     src={member.image}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
+                    width={40}
+                    height={40}
                     className="h-10 w-10 rounded-full shrink-0"
                   />
                 ) : (

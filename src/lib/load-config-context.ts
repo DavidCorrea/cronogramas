@@ -11,7 +11,7 @@ import {
   exclusiveGroups,
   schedules,
 } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { dayIndex } from "@/lib/constants";
 
 export const CONFIG_CONTEXT_SLICES = [
