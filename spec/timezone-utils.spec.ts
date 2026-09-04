@@ -130,3 +130,23 @@ describe("formatDateTime", () => {
     expect(result).toMatch(/2026/);
   });
 });
+
+describe("formatter reuse", () => {
+  it("keeps each format independent when several are interleaved", () => {
+    const weekdayDay = formatDateWeekdayDay("2026-09-01");
+    const dayMonth = formatDayMonth("2026-09-01");
+    const withYear = formatDateWithYear("2026-09-01");
+    const long = formatDateLong("2026-09-01");
+    const short = formatDateShort("2026-09-01");
+
+    formatDayMonth("2024-01-15");
+    formatDateWithYear("2027-12-31");
+    formatDateLong("2025-06-20");
+
+    expect(formatDateWeekdayDay("2026-09-01")).toBe(weekdayDay);
+    expect(formatDayMonth("2026-09-01")).toBe(dayMonth);
+    expect(formatDateWithYear("2026-09-01")).toBe(withYear);
+    expect(formatDateLong("2026-09-01")).toBe(long);
+    expect(formatDateShort("2026-09-01")).toBe(short);
+  });
+});
