@@ -19,6 +19,7 @@ import { WeekSection } from "./WeekSection";
 import { getDateDisplayTimeRange } from "./helpers";
 import { DesktopTable } from "./DesktopTable";
 import { useScheduleData } from "./useScheduleData";
+import { useIsDesktop } from "@/lib/use-is-desktop";
 
 const CalendarGrid = dynamic(
   () => import("./CalendarGrid").then((m) => ({ default: m.CalendarGrid })),
@@ -75,6 +76,13 @@ export default function SharedScheduleView({
   slug?: string;
 }) {
   const t = useTranslations("cronograma");
+  // Both layouts render until the breakpoint is known (the CSS classes below
+  // hide the wrong one, so the first paint is correct at any width). After
+  // that only the visible one is mounted: keeping both alive meant every
+  // filter change re-rendered a whole month of rows nobody could see.
+  const isDesktop = useIsDesktop();
+  const renderMobileList = isDesktop !== true;
+  const renderDesktopTable = isDesktop !== false;
   const searchParams = useSearchParams();
   const calendarResult = searchParams.get("calendar");
   const [, startTransition] = useTransition();
@@ -195,7 +203,8 @@ export default function SharedScheduleView({
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+    // Re-attaches when crossing the breakpoint remounts the table.
+  }, [renderDesktopTable]);
   const toggleWeek = useCallback((weekNumber: number) => {
     setCollapsedWeeks((prev) => {
       const next = new Set(prev);
@@ -234,11 +243,16 @@ export default function SharedScheduleView({
     useScheduleDateRows,
   ]);
 
-  const weekDateRangeLabel = (weekNumber: number) =>
-    formatDateRange(
-      getWeekDateRange(schedule.year, schedule.month, weekNumber).start,
-      getWeekDateRange(schedule.year, schedule.month, weekNumber).end
-    );
+  // Stable across renders so DesktopTable's memo actually holds: a new
+  // function here re-rendered the whole table on every filter change. It also
+  // computed the same week range twice per call.
+  const weekDateRangeLabel = useCallback(
+    (weekNumber: number) => {
+      const { start, end } = getWeekDateRange(schedule.year, schedule.month, weekNumber);
+      return formatDateRange(start, end);
+    },
+    [schedule.year, schedule.month],
+  );
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -278,97 +292,47 @@ export default function SharedScheduleView({
           />
         )}
 
-        <div
-          className={`lg:hidden space-y-8 ${viewMode !== "list" ? "hidden" : ""}`}
-        >
-          {useScheduleDateRows
-            ? displayScheduleDatesByWeek.map(({ weekNumber, scheduleDates }) => (
-                <WeekSection
-                  key={weekNumber}
-                  weekNumber={weekNumber}
-                  titlePrefix={t("week")}
-                  dateRangeLabel={weekDateRangeLabel(weekNumber)}
-                  isCollapsed={collapsedWeeks.has(weekNumber)}
-                  onToggle={() => toggleWeek(weekNumber)}
-                >
-                  <div className="divide-y divide-border">
-                    {scheduleDates.map((sd) => {
-                      const isForEveryone = sd.type === "for_everyone";
-                      const entriesOnSd = getEntriesForScheduleDate(sd);
-                      const depRoleDate =
-                        filteredMemberId &&
-                        entriesOnSd.some((e) => dependentRoleIdSet.has(e.roleId));
-                      const relevantRoleDate =
-                        filteredMemberId &&
-                        entriesOnSd.some((e) => data.relevantRoleIdSet.has(e.roleId));
-                      const highlighted = depRoleDate || relevantRoleDate;
-                      return (
-                        <div key={sd.id ?? sd.date}>
-                          {isForEveryone ? (
-                            <button
-                              type="button"
-                              className={`w-full text-left px-4 py-3.5 text-sm ${isPast(sd.date) ? "opacity-50" : ""}`}
-                              onClick={() => setSelectedDateForModal(sd.date)}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium">
-                                  {formatDateWeekdayDay(sd.date)}
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-muted-foreground italic shrink-0">
-                                    {getDateDisplayLabel(sd)}
-                                  </span>
-                                  <span
-                                    className="text-xs text-muted-foreground shrink-0"
-                                    aria-hidden
-                                  >
-                                    ▸
-                                  </span>
-                                </div>
-                              </div>
-                              {getDateDisplayTimeRange(sd) && (
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {getDateDisplayTimeRange(sd)}
-                                </p>
-                              )}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className={`w-full text-left transition-all ${isPast(sd.date) ? "opacity-50" : ""} ${highlighted ? "bg-muted/30" : ""}`}
-                              onClick={() => setSelectedDateForModal(sd.date)}
-                            >
-                              <div className="px-4 py-3.5 text-sm">
+        {renderMobileList && (
+          <div
+            className={`lg:hidden space-y-8 ${viewMode !== "list" ? "hidden" : ""}`}
+          >
+            {useScheduleDateRows
+              ? displayScheduleDatesByWeek.map(({ weekNumber, scheduleDates }) => (
+                  <WeekSection
+                    key={weekNumber}
+                    weekNumber={weekNumber}
+                    titlePrefix={t("week")}
+                    dateRangeLabel={weekDateRangeLabel(weekNumber)}
+                    isCollapsed={collapsedWeeks.has(weekNumber)}
+                    onToggle={() => toggleWeek(weekNumber)}
+                  >
+                    <div className="divide-y divide-border">
+                      {scheduleDates.map((sd) => {
+                        const isForEveryone = sd.type === "for_everyone";
+                        const entriesOnSd = getEntriesForScheduleDate(sd);
+                        const depRoleDate =
+                          filteredMemberId &&
+                          entriesOnSd.some((e) => dependentRoleIdSet.has(e.roleId));
+                        const relevantRoleDate =
+                          filteredMemberId &&
+                          entriesOnSd.some((e) => data.relevantRoleIdSet.has(e.roleId));
+                        const highlighted = depRoleDate || relevantRoleDate;
+                        return (
+                          <div key={sd.id ?? sd.date}>
+                            {isForEveryone ? (
+                              <button
+                                type="button"
+                                className={`w-full text-left px-4 py-3.5 text-sm ${isPast(sd.date) ? "opacity-50" : ""}`}
+                                onClick={() => setSelectedDateForModal(sd.date)}
+                              >
                                 <div className="flex items-center justify-between">
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="font-medium">
-                                      {formatDateWeekdayDay(sd.date)}
-                                    </span>
-                                    {getDateDisplayLabel(sd) && (
-                                      <>
-                                        <span className="text-xs text-muted-foreground italic">
-                                          {getDateDisplayLabel(sd)}
-                                        </span>
-                                        {getDateDisplayTimeRange(sd) && (
-                                          <span className="text-xs text-muted-foreground">
-                                            {getDateDisplayTimeRange(sd)}
-                                          </span>
-                                        )}
-                                      </>
-                                    )}
-                                  </div>
+                                  <span className="font-medium">
+                                    {formatDateWeekdayDay(sd.date)}
+                                  </span>
                                   <div className="flex items-center gap-2">
-                                    {depRoleDate && filteredMemberId && (
-                                      <span className="text-xs font-medium">
-                                        ★{" "}
-                                        {entriesOnSd
-                                          .filter((e) =>
-                                            dependentRoleIdSet.has(e.roleId)
-                                          )
-                                          .map((e) => e.roleName)
-                                          .join(", ")}
-                                      </span>
-                                    )}
+                                    <span className="text-xs text-muted-foreground italic shrink-0">
+                                      {getDateDisplayLabel(sd)}
+                                    </span>
                                     <span
                                       className="text-xs text-muted-foreground shrink-0"
                                       aria-hidden
@@ -377,100 +341,103 @@ export default function SharedScheduleView({
                                     </span>
                                   </div>
                                 </div>
-                              </div>
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </WeekSection>
-              ))
-            : displayDatesByWeek.map(({ weekNumber, dates }) => (
-                <WeekSection
-                  key={weekNumber}
-                  weekNumber={weekNumber}
-                  titlePrefix={t("week")}
-                  dateRangeLabel={weekDateRangeLabel(weekNumber)}
-                  isCollapsed={collapsedWeeks.has(weekNumber)}
-                  onToggle={() => toggleWeek(weekNumber)}
-                >
-                  <div className="divide-y divide-border">
-                    {dates.map((date) => {
-                      const sd =
-                        scheduleDateByDateMap.get(date) ?? {
-                          date,
-                          type: "assignable" as const,
-                        };
-                      const isForEveryone = forEveryoneSet.has(date);
-                      const depRoleDate = hasDependentRoleOnDate(date);
-                      const relevantRoleDate = hasRelevantRoleOnDate(date);
-                      const highlighted =
-                        filteredMemberId && (depRoleDate || relevantRoleDate);
-                      return (
-                        <div key={date}>
-                          {isForEveryone ? (
-                            <button
-                              type="button"
-                              className={`w-full text-left px-4 py-3.5 text-sm ${isPast(date) ? "opacity-50" : ""}`}
-                              onClick={() => setSelectedDateForModal(date)}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-medium">
-                                  {formatDateWeekdayDay(date)}
-                                </span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-muted-foreground italic shrink-0">
-                                    {getDateDisplayLabel(sd)}
-                                  </span>
-                                  <span
-                                    className="text-xs text-muted-foreground shrink-0"
-                                    aria-hidden
-                                  >
-                                    ▸
-                                  </span>
-                                </div>
-                              </div>
-                              {getDateDisplayTimeRange(sd) && (
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {getDateDisplayTimeRange(sd)}
-                                </p>
-                              )}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className={`w-full text-left transition-all ${isPast(date) ? "opacity-50" : ""} ${highlighted ? "bg-muted/30" : ""}`}
-                              onClick={() => setSelectedDateForModal(date)}
-                            >
-                              <div className="px-4 py-3.5 text-sm">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="font-medium">
-                                      {formatDateWeekdayDay(date)}
-                                    </span>
-                                    {getDateDisplayLabel(sd) && (
-                                      <>
-                                        <span className="text-xs text-muted-foreground italic">
-                                          {getDateDisplayLabel(sd)}
-                                        </span>
-                                        {getDateDisplayTimeRange(sd) && (
-                                          <span className="text-xs text-muted-foreground">
-                                            {getDateDisplayTimeRange(sd)}
-                                          </span>
-                                        )}
-                                      </>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {depRoleDate && filteredMemberId && (
-                                      <span className="text-xs font-medium">
-                                        ★{" "}
-                                        {getDependentRoleNamesOnDate(date).join(
-                                          ", "
-                                        )}
+                                {getDateDisplayTimeRange(sd) && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {getDateDisplayTimeRange(sd)}
+                                  </p>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className={`w-full text-left transition-all ${isPast(sd.date) ? "opacity-50" : ""} ${highlighted ? "bg-muted/30" : ""}`}
+                                onClick={() => setSelectedDateForModal(sd.date)}
+                              >
+                                <div className="px-4 py-3.5 text-sm">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="font-medium">
+                                        {formatDateWeekdayDay(sd.date)}
                                       </span>
-                                    )}
+                                      {getDateDisplayLabel(sd) && (
+                                        <>
+                                          <span className="text-xs text-muted-foreground italic">
+                                            {getDateDisplayLabel(sd)}
+                                          </span>
+                                          {getDateDisplayTimeRange(sd) && (
+                                            <span className="text-xs text-muted-foreground">
+                                              {getDateDisplayTimeRange(sd)}
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {depRoleDate && filteredMemberId && (
+                                        <span className="text-xs font-medium">
+                                          ★{" "}
+                                          {entriesOnSd
+                                            .filter((e) =>
+                                              dependentRoleIdSet.has(e.roleId)
+                                            )
+                                            .map((e) => e.roleName)
+                                            .join(", ")}
+                                        </span>
+                                      )}
+                                      <span
+                                        className="text-xs text-muted-foreground shrink-0"
+                                        aria-hidden
+                                      >
+                                        ▸
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </WeekSection>
+                ))
+              : displayDatesByWeek.map(({ weekNumber, dates }) => (
+                  <WeekSection
+                    key={weekNumber}
+                    weekNumber={weekNumber}
+                    titlePrefix={t("week")}
+                    dateRangeLabel={weekDateRangeLabel(weekNumber)}
+                    isCollapsed={collapsedWeeks.has(weekNumber)}
+                    onToggle={() => toggleWeek(weekNumber)}
+                  >
+                    <div className="divide-y divide-border">
+                      {dates.map((date) => {
+                        const sd =
+                          scheduleDateByDateMap.get(date) ?? {
+                            date,
+                            type: "assignable" as const,
+                          };
+                        const isForEveryone = forEveryoneSet.has(date);
+                        const depRoleDate = hasDependentRoleOnDate(date);
+                        const relevantRoleDate = hasRelevantRoleOnDate(date);
+                        const highlighted =
+                          filteredMemberId && (depRoleDate || relevantRoleDate);
+                        return (
+                          <div key={date}>
+                            {isForEveryone ? (
+                              <button
+                                type="button"
+                                className={`w-full text-left px-4 py-3.5 text-sm ${isPast(date) ? "opacity-50" : ""}`}
+                                onClick={() => setSelectedDateForModal(date)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium">
+                                    {formatDateWeekdayDay(date)}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground italic shrink-0">
+                                      {getDateDisplayLabel(sd)}
+                                    </span>
                                     <span
                                       className="text-xs text-muted-foreground shrink-0"
                                       aria-hidden
@@ -479,16 +446,65 @@ export default function SharedScheduleView({
                                     </span>
                                   </div>
                                 </div>
-                              </div>
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </WeekSection>
-              ))}
-        </div>
+                                {getDateDisplayTimeRange(sd) && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {getDateDisplayTimeRange(sd)}
+                                  </p>
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className={`w-full text-left transition-all ${isPast(date) ? "opacity-50" : ""} ${highlighted ? "bg-muted/30" : ""}`}
+                                onClick={() => setSelectedDateForModal(date)}
+                              >
+                                <div className="px-4 py-3.5 text-sm">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="font-medium">
+                                        {formatDateWeekdayDay(date)}
+                                      </span>
+                                      {getDateDisplayLabel(sd) && (
+                                        <>
+                                          <span className="text-xs text-muted-foreground italic">
+                                            {getDateDisplayLabel(sd)}
+                                          </span>
+                                          {getDateDisplayTimeRange(sd) && (
+                                            <span className="text-xs text-muted-foreground">
+                                              {getDateDisplayTimeRange(sd)}
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {depRoleDate && filteredMemberId && (
+                                        <span className="text-xs font-medium">
+                                          ★{" "}
+                                          {getDependentRoleNamesOnDate(date).join(
+                                            ", "
+                                          )}
+                                        </span>
+                                      )}
+                                      <span
+                                        className="text-xs text-muted-foreground shrink-0"
+                                        aria-hidden
+                                      >
+                                        ▸
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </WeekSection>
+                ))}
+          </div>
+        )}
 
         {viewMode === "calendar" && (
           <CalendarGrid
@@ -507,28 +523,30 @@ export default function SharedScheduleView({
           />
         )}
 
-        <div
-          ref={desktopTableRef}
-          className={`hidden lg:block space-y-8 ${viewMode !== "list" ? "!hidden" : ""}`}
-        >
-          <DesktopTable
-            datesByWeek={filteredMemberId ? displayDatesByWeek : tableDatesByWeek}
-            roleOrder={roleOrder}
-            filteredRoleId={filteredRoleId}
-            filteredMemberId={filteredMemberId}
-            entries={schedule.entries}
-            scheduleDateByDateMap={scheduleDateByDateMap}
-            forEveryoneSet={forEveryoneSet}
-            collapsedWeeks={collapsedWeeks}
-            toggleWeek={toggleWeek}
-            weekDateRangeLabel={weekDateRangeLabel}
-            desktopContainerWidth={desktopContainerWidth}
-            getDateDisplayLabel={getDateDisplayLabel}
-            hasConflict={hasConflict}
-            isPast={isPast}
-            t={t}
-          />
-        </div>
+        {renderDesktopTable && (
+          <div
+            ref={desktopTableRef}
+            className={`hidden lg:block space-y-8 ${viewMode !== "list" ? "!hidden" : ""}`}
+          >
+            <DesktopTable
+              datesByWeek={filteredMemberId ? displayDatesByWeek : tableDatesByWeek}
+              roleOrder={roleOrder}
+              filteredRoleId={filteredRoleId}
+              filteredMemberId={filteredMemberId}
+              entries={schedule.entries}
+              scheduleDateByDateMap={scheduleDateByDateMap}
+              forEveryoneSet={forEveryoneSet}
+              collapsedWeeks={collapsedWeeks}
+              toggleWeek={toggleWeek}
+              weekDateRangeLabel={weekDateRangeLabel}
+              desktopContainerWidth={desktopContainerWidth}
+              getDateDisplayLabel={getDateDisplayLabel}
+              hasConflict={hasConflict}
+              isPast={isPast}
+              t={t}
+            />
+          </div>
+        )}
 
         {displayDates.length === 0 && !upcomingDate && (
           <div className="text-center py-12">
@@ -543,19 +561,21 @@ export default function SharedScheduleView({
         )}
       </main>
 
-      <DateDetailModal
-        open={!!selectedDateForModal}
-        onOpenChange={(open) => !open && setSelectedDateForModal(null)}
-        selectedDate={selectedDateForModal}
-        schedule={schedule}
-        roleOrder={roleOrder}
-        scheduleDateByDateMap={scheduleDateByDateMap}
-        getDateDisplayLabel={getDateDisplayLabel}
-        getDateDisplayTimeRange={getDateDisplayTimeRange}
-        hasConflict={hasConflict}
-        filteredMemberId={filteredMemberId}
-        t={t}
-      />
+      {selectedDateForModal && (
+        <DateDetailModal
+          open
+          onOpenChange={(open) => !open && setSelectedDateForModal(null)}
+          selectedDate={selectedDateForModal}
+          schedule={schedule}
+          roleOrder={roleOrder}
+          scheduleDateByDateMap={scheduleDateByDateMap}
+          getDateDisplayLabel={getDateDisplayLabel}
+          getDateDisplayTimeRange={getDateDisplayTimeRange}
+          hasConflict={hasConflict}
+          filteredMemberId={filteredMemberId}
+          t={t}
+        />
+      )}
     </div>
   );
 }
