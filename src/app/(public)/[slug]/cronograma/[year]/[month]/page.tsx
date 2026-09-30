@@ -11,6 +11,16 @@ import CronogramaLoadingSkeleton from "./loading";
 
 export const revalidate = 300;
 
+// Without generateStaticParams, Next.js renders this dynamic route on every
+// request and ignores `revalidate`. Returning [] prerenders nothing at build
+// but enables ISR: each schedule is rendered on first visit, then served from
+// the CDN and refreshed in the background (or on demand via revalidateCronograma).
+// Anything in this route's layouts that reads cookies or headers (e.g. auth())
+// makes it fail at runtime with DYNAMIC_SERVER_USAGE.
+export function generateStaticParams() {
+  return [];
+}
+
 export default async function SharedSchedulePage({
   params,
 }: {

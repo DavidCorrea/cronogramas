@@ -27,19 +27,6 @@ and `recurring_events`. Fine at the current size (50 users, 35 groups) and the
 page is admin-only, but nothing bounds them as the data grows — they need
 pagination before that matters.
 
-### `revalidate` on the public schedule page has no effect
-
-`src/app/(public)/[slug]/cronograma/[year]/[month]/page.tsx` sets `revalidate = 300`,
-but the route renders dynamically (confirmed as `ƒ` in the build output)
-because the root layout reads request headers via next-intl. The page shell is
-therefore re-rendered per request; what actually provides the caching is the
-`unstable_cache` wrapper in `src/lib/public-schedule.ts`.
-
-This is not a correctness problem, but the `revalidate` export reads as if the
-page were ISR when it is not. Making it genuinely static would mean moving the
-locale provider out of the root layout so the public route does not depend on
-request headers.
-
 ### Two effects derive state from props on the schedules page
 
 `SchedulesPageClient` (`src/app/(app)/[slug]/config/schedules/`) seeds `orderedRoles`
