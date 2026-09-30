@@ -7,6 +7,7 @@ import { getRawArray } from "@/lib/intl-utils";
 import { MONTH_NAMES } from "./types";
 import type { SharedScheduleData } from "./types";
 import { TogglePill } from "@/components/TogglePill";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export interface MonthHeaderProps {
   schedule: Pick<
@@ -227,6 +228,8 @@ function MonthHeaderInner({
                 {t("calendar")}
               </button>
             </div>
+            {/* The public cronograma has no app nav, so its theme toggle lives here. */}
+            <ThemeToggle />
           </div>
         </div>
 

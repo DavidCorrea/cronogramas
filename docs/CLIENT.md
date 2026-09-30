@@ -82,6 +82,7 @@ The app uses **Next.js App Router**, is **mobile-first**, and all user-facing co
 | Component | Path | Purpose |
 |-----------|------|---------|
 | SharedScheduleView | `src/components/SharedScheduleView.tsx` | Renders the public cronograma: month grid, entries, notes, navigation; used by both cronograma pages. |
+| ThemeToggle | `src/components/ThemeToggle.tsx` | Light/dark pill backed by `src/lib/theme.ts`; used by AppNavBar and the cronograma's MonthHeader (which has no app nav). |
 | AvailabilityWeekGrid | `src/components/AvailabilityWeekGrid.tsx` | Week grid to set member availability (blocks per day); used in member new/edit. |
 | EventForm | `src/app/(app)/[slug]/config/events/EventForm.tsx` | Form for create/edit event: day, type, label, times, priorities; integrates unsaved-config. |
 | OptionToggleGroup | `src/components/OptionToggleGroup.tsx` | Reusable bordered toggle group for multi-select (e.g. active days, roles, available days). |
