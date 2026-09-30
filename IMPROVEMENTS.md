@@ -29,7 +29,7 @@ pagination before that matters.
 
 ### `revalidate` on the public schedule page has no effect
 
-`src/app/[slug]/cronograma/[year]/[month]/page.tsx` sets `revalidate = 300`,
+`src/app/(public)/[slug]/cronograma/[year]/[month]/page.tsx` sets `revalidate = 300`,
 but the route renders dynamically (confirmed as `ƒ` in the build output)
 because the root layout reads request headers via next-intl. The page shell is
 therefore re-rendered per request; what actually provides the caching is the
@@ -42,7 +42,7 @@ request headers.
 
 ### Two effects derive state from props on the schedules page
 
-`SchedulesPageClient` (`src/app/[slug]/config/schedules/`) seeds `orderedRoles`
+`SchedulesPageClient` (`src/app/(app)/[slug]/config/schedules/`) seeds `orderedRoles`
 and `selectedMonths` in `useEffect`, which costs a guaranteed second render on
 mount. They were left as they are because the effects also re-sync when the
 roles change and feed the unsaved-reorder tracking, so converting them to

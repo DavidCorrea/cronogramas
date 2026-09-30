@@ -14,7 +14,7 @@ description: Use when adding or changing keyboard shortcuts, global shortcuts (?
 ## How we use it
 
 - **Package**: `react-hotkeys-hook` ^5.2.4. No HotkeysProvider; hooks register globally by default.
-- **KeyboardShortcuts** (`src/components/KeyboardShortcuts.tsx`): Rendered in root layout (`src/app/layout.tsx`). Registers:
+- **KeyboardShortcuts** (`src/components/KeyboardShortcuts.tsx`): Rendered in the app layout (`src/app/(app)/layout.tsx`), so not on the public cronograma. Registers:
   - `shift+/` → open help overlay (?). Options: `enableOnFormTags: false`.
   - `escape` → close help and clear g-sequence. Options: `enableOnFormTags: true` so Escape works in the overlay.
   - `g` → set pending-g state and start 1200ms timeout to clear it. Options: `enableOnFormTags: false`, `keydown: true`.

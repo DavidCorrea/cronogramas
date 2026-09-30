@@ -64,7 +64,7 @@ function MonthHeaderInner({
   ].filter(Boolean).length;
 
   return (
-    <header className="border-b border-border sticky top-14 z-10 bg-background">
+    <header className="border-b border-border sticky top-0 z-10 bg-background">
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {schedule.prevSchedule ? (

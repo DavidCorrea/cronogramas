@@ -4,12 +4,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
-import { auth } from "@/lib/auth";
 import esMessages from "../../messages/es.json";
-import SessionProvider from "@/components/SessionProvider";
 import QueryProvider from "@/components/QueryProvider";
-import AppNavBar from "@/components/AppNavBar";
-import KeyboardShortcuts from "@/components/KeyboardShortcuts";
 import { WebVitals } from "@/components/WebVitals";
 import "./globals.css";
 
@@ -50,10 +46,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [messages, session] = await Promise.all([
-    getMessages().then((m) => m ?? esMessages),
-    auth(),
-  ]);
+  // No session here: this layout also wraps the public cronograma, which must
+  // not read cookies so it can be cached. The session lives in (app)/layout.tsx.
+  const messages = (await getMessages()) ?? esMessages;
   return (
     <html lang="es" suppressHydrationWarning>
       <body
@@ -65,14 +60,10 @@ export default async function RootLayout({
         />
         <NextIntlClientProvider messages={messages}>
           <QueryProvider>
-            <SessionProvider session={session}>
-              <AppNavBar />
-              <KeyboardShortcuts />
-              {children}
-              <Analytics />
-              <SpeedInsights />
-              <WebVitals />
-            </SessionProvider>
+            {children}
+            <Analytics />
+            <SpeedInsights />
+            <WebVitals />
           </QueryProvider>
         </NextIntlClientProvider>
       </body>

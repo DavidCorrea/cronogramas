@@ -22,7 +22,7 @@ export default function CronogramaLoading({
   return (
     <div className="min-h-screen bg-background text-foreground">
       {hasHeader ? (
-        <header className="border-b border-border sticky top-14 z-10 bg-background">
+        <header className="border-b border-border sticky top-0 z-10 bg-background">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground/40 cursor-default">

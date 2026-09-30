@@ -26,6 +26,11 @@ A map of how the codebase is organized.
 
 ## Pages (`src/app/`)
 
+Pages are split into two route groups (folder names in parentheses don't appear in URLs):
+
+- **`(app)/`** — everything signed-in users navigate. Its `layout.tsx` reads the session and renders the global nav and keyboard shortcuts.
+- **`(public)/`** — the guest-facing cronograma. It has no session or app nav, so it can be served from the CDN cache. The root `layout.tsx` wraps both groups, so it must never read the session or cookies.
+
 | Route | Purpose |
 |-------|---------|
 | `/` | Dashboard — cross-group assignments and conflicts |

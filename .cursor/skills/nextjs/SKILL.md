@@ -56,10 +56,11 @@ Render providers as deep in the tree as their consumers need — don't wrap the 
 
 ### How this project does it
 
-- **Root layout** (`src/app/layout.tsx`): Server Component. Wraps children with `NextIntlClientProvider`, `QueryProvider`, `SessionProvider`, `AppNavBar`, `KeyboardShortcuts`.
-- **Config layout** (`src/app/[slug]/config/layout.tsx`): Server Component. Resolves group on the server via `getGroupForConfigLayout(slug)`, passes `initialGroup` to `ConfigLayoutClient` (Client Component shell with `GroupProvider`, `UnsavedConfigProvider`, sub-nav).
+- **Root layout** (`src/app/layout.tsx`): Server Component. Wraps children with `NextIntlClientProvider` and `QueryProvider`. Never reads the session or cookies — it also wraps the public cronograma.
+- **App layout** (`src/app/(app)/layout.tsx`): Server Component. Reads the session with `auth()` and renders `SessionProvider`, `AppNavBar`, `KeyboardShortcuts`. Every signed-in route lives under the `(app)` route group; the public cronograma lives under `(public)`.
+- **Config layout** (`src/app/(app)/[slug]/config/layout.tsx`): Server Component. Resolves group on the server via `getGroupForConfigLayout(slug)`, passes `initialGroup` to `ConfigLayoutClient` (Client Component shell with `GroupProvider`, `UnsavedConfigProvider`, sub-nav).
 - **Most page.tsx files**: Client Components (use state, effects, TanStack Query).
-- **Cronograma redirect page** (`src/app/[slug]/cronograma/page.tsx`): Server Component — just redirects to current month.
+- **Cronograma redirect page** (`src/app/(public)/[slug]/cronograma/page.tsx`): Server Component — just redirects to current month.
 
 ---
 
@@ -133,7 +134,8 @@ src/app/
 
 ### How this project does it
 
-- **Root layout**: Providers (session, query, intl), global nav, keyboard shortcuts, theme script. No data fetching beyond session.
+- **Root layout**: Providers (query, intl), theme script. No data fetching and no session.
+- **App layout** (`(app)/layout.tsx`): Session, global nav, keyboard shortcuts.
 - **Config layout**: Resolves group by slug on the server, passes `initialGroup` to client shell. Config pages then use `useConfigContext(slug, include)` to fetch their own data.
 
 ---

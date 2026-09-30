@@ -16,7 +16,7 @@ description: Use when working on auth, session, login, Auth.js v5, or @auth/driz
 - **Exports**: `handlers`, `auth`, `signIn`, `signOut` (used by API route and server/client callers).
 - **API route**: `src/app/api/auth/[...nextauth]/route.ts` re-exports `GET`/`POST` from `handlers`.
 - **Server session**: We use `auth()` from `@/lib/auth` (Auth.js v5 API), not `getServerSession`. Used in `src/lib/api-helpers.ts` (`requireAuth`, `requireGroupAccess`, `requireAdmin`) and `src/lib/config-server.ts` (`getGroupForConfigLayout`).
-- **Client**: Root layout wraps app in `SessionProvider` (`src/components/SessionProvider.tsx`). Components use `useSession`, `signIn`, `signOut` from `next-auth/react` (e.g. `AppNavBar`, `login/page.tsx`).
+- **Client**: The app layout (`src/app/(app)/layout.tsx`, not the root layout — the public cronograma must stay session-free) wraps signed-in routes in `SessionProvider` (`src/components/SessionProvider.tsx`). Components use `useSession`, `signIn`, `signOut` from `next-auth/react` (e.g. `AppNavBar`, `login/page.tsx`).
 - **Middleware**: `src/middleware.ts` allows public paths (auth API, login, admin, cronograma); for other routes it checks for cookie `authjs.session-token` or `__Secure-authjs.session-token` and returns 401 for API or redirects to `/login` for pages.
 
 ## How it should be used (best practices)

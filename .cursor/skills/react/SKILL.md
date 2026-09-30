@@ -155,7 +155,7 @@ function MemberList({ members }: { members: Member[] }) {
 
 - **Colocation first.** Keep related code (component, types, hook, utils) close to where it's consumed.
 - **Same-file subcomponents are fine** when a helper component is tightly coupled to its parent, used only there, and small. Extract to a separate file when it's reused elsewhere, is independently testable, or the file grows large.
-- **Shared components** live in `src/components/`. Feature-specific components live near their feature (e.g., inside `src/app/[slug]/config/`).
+- **Shared components** live in `src/components/`. Feature-specific components live near their feature (e.g., inside `src/app/(app)/[slug]/config/`).
 - For complex shared components, a folder with an `index.ts` re-export is fine (e.g., `src/components/SharedScheduleView/`).
 
 ---

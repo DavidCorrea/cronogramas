@@ -28,12 +28,12 @@ Shared classes on every dialog:
 
 - **ConfirmDialog** (`src/components/ConfirmDialog.tsx`): Controlled via `open` + `onOpenChange`. Props: `title`, `message`, `onConfirm`, optional `confirmLabel`/`cancelLabel`, `destructive` (default true), `loading`. Header shows title + message + ✕. Footer has cancel (`Dialog.Close asChild`) + confirm button.
 - **DangerZone** (`src/components/DangerZone.tsx`): Presentational wrapper for the "Zona de peligro" section. No Dialog; it only groups the delete action visually and semantically. Pair with ConfirmDialog.
-- **DateFormModal** (`src/app/[slug]/config/schedules/[id]/DateFormModal.tsx`): Form dialog for adding/editing schedule dates. Three-section layout with form fields in body.
-- **RebuildModal** (`src/app/[slug]/config/schedules/[id]/RebuildModal.tsx`): Controlled via `open` prop. Mode selection → preview → apply. Three-section layout with scrollable body.
+- **DateFormModal** (`src/app/(app)/[slug]/config/schedules/[id]/DateFormModal.tsx`): Form dialog for adding/editing schedule dates. Three-section layout with form fields in body.
+- **RebuildModal** (`src/app/(app)/[slug]/config/schedules/[id]/RebuildModal.tsx`): Controlled via `open` prop. Mode selection → preview → apply. Three-section layout with scrollable body.
 - **DateDetailModal** (`src/components/SharedScheduleView/DateDetailModal.tsx`): Informational read-only dialog. Header with date, body with roles/members table.
 - **KeyboardShortcuts** (`src/components/KeyboardShortcuts.tsx`): Internal state (`showHelp`). Header + shortcuts list in body.
-- **DashboardClient calendar detail** (`src/app/DashboardClient.tsx`): Inline Radix Dialog. Shows assignments and conflicts for a selected calendar date.
-- **EventForm dialogs** (`src/app/[slug]/config/events/EventForm.tsx`): Two inline dialogs — (1) delete with multi-option actions, (2) recalc confirmation. Both use the three-section layout.
+- **DashboardClient calendar detail** (`src/app/(app)/DashboardClient.tsx`): Inline Radix Dialog. Shows assignments and conflicts for a selected calendar date.
+- **EventForm dialogs** (`src/app/(app)/[slug]/config/events/EventForm.tsx`): Two inline dialogs — (1) delete with multi-option actions, (2) recalc confirmation. Both use the three-section layout.
 
 ## How it should be used (Radix best practices)
 
