@@ -46,9 +46,12 @@ export function DateFormModal(props: DateFormModalProps) {
   } = props;
 
   const title = mode === "add" ? t("addDateTitle") : t("editDateTitle");
+  // The edit modal stays mounted while closed with no date picked, and
+  // Intl.DateTimeFormat throws on the invalid date an empty string parses to.
+  const dateBeingEdited = mode === "edit" ? date || props.originalDate : "";
   const description = mode === "add"
     ? t("addDateDescription")
-    : formatDateWeekdayDay(date || props.originalDate);
+    : dateBeingEdited && formatDateWeekdayDay(dateBeingEdited);
   const saveLabel = mode === "add"
     ? tCommon("add")
     : saving ? t("saving") : t("save");
